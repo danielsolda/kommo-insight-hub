@@ -42,6 +42,16 @@ interface GeneralStats {
   callsChange: string;
 }
 
+interface SalesRankingData {
+  userId: number;
+  userName: string;
+  totalSales: number;
+  salesQuantity: number;
+  monthlyAverage: number;
+  currentMonthSales: number;
+  currentMonthQuantity: number;
+}
+
 export const useKommoApi = () => {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [pipelineStats, setPipelineStats] = useState<PipelineStats[]>([]);
@@ -51,12 +61,15 @@ export const useKommoApi = () => {
   const [generalStats, setGeneralStats] = useState<GeneralStats | null>(null);
   const [allLeads, setAllLeads] = useState<any[]>([]);
   const [salesData, setSalesData] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [salesRanking, setSalesRanking] = useState<SalesRankingData[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchPipelines();
     fetchGeneralStats();
     fetchAllLeads();
+    fetchUsers();
   }, []);
 
   useEffect(() => {
@@ -64,6 +77,12 @@ export const useKommoApi = () => {
       fetchPipelineStats(selectedPipeline);
     }
   }, [selectedPipeline]);
+
+  useEffect(() => {
+    if (users.length > 0 && allLeads.length > 0) {
+      calculateSalesRanking();
+    }
+  }, [users, allLeads, selectedPipeline]);
 
   const fetchPipelines = async () => {
     setLoading(true);
@@ -252,7 +271,9 @@ export const useKommoApi = () => {
           value: lead.price || 0,
           lastContact: lead.updated_at ? new Date(lead.updated_at * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           priority: lead.price > 30000 ? 'high' : lead.price > 15000 ? 'medium' : 'low',
-          source: 'Kommo CRM'
+          source: 'Kommo CRM',
+          responsible_user_id: lead.responsible_user_id,
+          pipeline_id: lead.pipeline_id
         })),
         ...unsortedLeads.map((lead: any) => ({
           id: `unsorted-${lead.uid}`,
@@ -264,7 +285,9 @@ export const useKommoApi = () => {
           value: lead._embedded?.leads?.[0]?.price || 0,
           lastContact: lead.created_at ? new Date(lead.created_at * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           priority: 'medium',
-          source: lead.metadata?.source_name || 'Kommo CRM'
+          source: lead.metadata?.source_name || 'Kommo CRM',
+          responsible_user_id: lead._embedded?.leads?.[0]?.responsible_user_id || null,
+          pipeline_id: lead.pipeline_id || null
         }))
       ];
 
@@ -297,11 +320,74 @@ export const useKommoApi = () => {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
+      const authService = new KommoAuthService(kommoConfig);
+      const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
+
+      const response = await apiService.getUsers();
+      const users = response._embedded?.users || [];
+      setUsers(users);
+    } catch (err: any) {
+      console.error('Error fetching users:', err);
+    }
+  };
+
+  const calculateSalesRanking = () => {
+    if (!users.length || !allLeads.length) return;
+    
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    const ranking = users.map(user => {
+      // Filter leads for this user, optionally by selected pipeline
+      const userLeads = allLeads.filter(lead => {
+        const isUserLead = lead.responsible_user_id === user.id || 
+                          (typeof lead.id === 'string' && lead.id.includes('unsorted'));
+        
+        if (selectedPipeline) {
+          return isUserLead && lead.pipeline_id === selectedPipeline;
+        }
+        return isUserLead;
+      });
+      
+      const totalSales = userLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+      const salesQuantity = userLeads.length;
+      
+      // Calculate current month sales
+      const currentMonthLeads = userLeads.filter(lead => {
+        const leadDate = new Date(lead.lastContact);
+        return leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
+      });
+      
+      const currentMonthSales = currentMonthLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+      const currentMonthQuantity = currentMonthLeads.length;
+      
+      // Calculate monthly average (assuming 12 months of data)
+      const monthlyAverage = totalSales / 12;
+      
+      return {
+        userId: user.id,
+        userName: user.name || 'Usuário sem nome',
+        totalSales,
+        salesQuantity,
+        monthlyAverage,
+        currentMonthSales,
+        currentMonthQuantity
+      };
+    }).filter(user => user.salesQuantity > 0) // Only show users with sales
+      .sort((a, b) => b.totalSales - a.totalSales); // Sort by total sales descending
+    
+    setSalesRanking(ranking);
+  };
+
   const refreshData = async () => {
     await Promise.all([
       fetchPipelines(),
       fetchGeneralStats(),
-      fetchAllLeads()
+      fetchAllLeads(),
+      fetchUsers()
     ]);
     if (selectedPipeline) {
       await fetchPipelineStats(selectedPipeline);
@@ -319,5 +405,7 @@ export const useKommoApi = () => {
     generalStats,
     allLeads,
     salesData,
+    users,
+    salesRanking,
   };
 };

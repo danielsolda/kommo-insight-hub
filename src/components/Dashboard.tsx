@@ -8,6 +8,7 @@ import { MetricsCards } from "@/components/MetricsCards";
 import { PipelineChart } from "@/components/PipelineChart";
 import { LeadsTable } from "@/components/LeadsTable";
 import { SalesChart } from "@/components/SalesChart";
+import { SalesRanking } from "@/components/SalesRanking";
 import { useToast } from "@/hooks/use-toast";
 import { useKommoApi } from "@/hooks/useKommoApi";
 
@@ -113,6 +114,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
               <PipelineChart pipelineStats={kommoApi.pipelineStats} loading={kommoApi.loading} />
               <SalesChart salesData={kommoApi.salesData} loading={kommoApi.loading} />
             </div>
+            <SalesRanking salesRanking={kommoApi.salesRanking} loading={kommoApi.loading} />
           </TabsContent>
 
           <TabsContent value="pipelines" className="space-y-6">
