@@ -135,16 +135,24 @@ export const useKommoApi = () => {
       const authService = new KommoAuthService(kommoConfig);
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
 
-      // Fetch both sorted and unsorted leads for this pipeline
+      console.log(`🔍 Buscando todos os leads da pipeline ${pipelineId}...`);
+
+      // Fetch both sorted and unsorted leads for this pipeline with pagination
       const [leadsResponse, unsortedResponse] = await Promise.all([
-        apiService.getLeads({
+        apiService.getAllLeads({
           filter: { pipeline_id: pipelineId },
-          limit: 250
-        }).catch(() => ({ _embedded: { leads: [] } })),
-        apiService.getUnsortedLeads({
+          onProgress: (count, page) => console.log(`📊 Pipeline ${pipelineId} - Leads: ${count} (página ${page})`)
+        }).catch((err) => {
+          console.error('Erro ao buscar leads da pipeline:', err);
+          return { _embedded: { leads: [] } };
+        }),
+        apiService.getAllUnsortedLeads({
           filter: { pipeline_id: pipelineId },
-          limit: 250
-        }).catch(() => ({ _embedded: { unsorted: [] } }))
+          onProgress: (count, page) => console.log(`📊 Pipeline ${pipelineId} - Não organizados: ${count} (página ${page})`)
+        }).catch((err) => {
+          console.error('Erro ao buscar leads não organizados:', err);
+          return { _embedded: { unsorted: [] } };
+        })
       ]);
 
       const leads = leadsResponse._embedded?.leads || [];
@@ -210,9 +218,16 @@ export const useKommoApi = () => {
       const authService = new KommoAuthService(kommoConfig);
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
 
-      // Fetch all leads to calculate general stats
+      console.log('📊 Buscando estatísticas gerais com todos os leads...');
+
+      // Fetch all leads to calculate general stats with pagination
       const [leadsResponse, pipelinesResponse] = await Promise.all([
-        apiService.getLeads({ limit: 250 }).catch(() => ({ _embedded: { leads: [] } })),
+        apiService.getAllLeads({
+          onProgress: (count, page) => console.log(`📊 Estatísticas - Leads: ${count} (página ${page})`)
+        }).catch((err) => {
+          console.error('Erro ao buscar leads para estatísticas:', err);
+          return { _embedded: { leads: [] } };
+        }),
         apiService.getPipelines().catch(() => ({ _embedded: { pipelines: [] } }))
       ]);
 
@@ -252,9 +267,22 @@ export const useKommoApi = () => {
       const authService = new KommoAuthService(kommoConfig);
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
 
+      console.log('📋 Buscando todos os leads com paginação completa...');
+
       const [leadsResponse, unsortedResponse] = await Promise.all([
-        apiService.getLeads({ limit: 250, with: ['contacts'] }).catch(() => ({ _embedded: { leads: [] } })),
-        apiService.getUnsortedLeads({ limit: 250 }).catch(() => ({ _embedded: { unsorted: [] } }))
+        apiService.getAllLeads({ 
+          with: ['contacts'],
+          onProgress: (count, page) => console.log(`📋 Todos os leads: ${count} (página ${page})`)
+        }).catch((err) => {
+          console.error('Erro ao buscar todos os leads:', err);
+          return { _embedded: { leads: [] } };
+        }),
+        apiService.getAllUnsortedLeads({
+          onProgress: (count, page) => console.log(`📋 Não organizados: ${count} (página ${page})`)
+        }).catch((err) => {
+          console.error('Erro ao buscar leads não organizados:', err);
+          return { _embedded: { unsorted: [] } };
+        })
       ]);
 
       const sortedLeads = leadsResponse._embedded?.leads || [];

@@ -135,6 +135,58 @@ export class KommoApiService {
     return this.makeRequest(`/leads${query ? `?${query}` : ''}`);
   }
 
+  // Obter todos os leads com paginação automática
+  async getAllLeads(params: {
+    filter?: any;
+    with?: string[];
+    onProgress?: (loadedCount: number, currentPage: number) => void;
+  } = {}): Promise<{ _embedded: { leads: Lead[] } }> {
+    const allLeads: Lead[] = [];
+    let currentPage = 1;
+    let hasMore = true;
+    const limit = 250; // Máximo por página
+
+    console.log('🔄 Iniciando busca paginada de leads...');
+
+    while (hasMore) {
+      try {
+        const response = await this.getLeads({
+          ...params,
+          limit,
+          page: currentPage
+        });
+
+        const pageLeads = response._embedded?.leads || [];
+        allLeads.push(...pageLeads);
+
+        console.log(`📄 Página ${currentPage}: ${pageLeads.length} leads carregados`);
+
+        // Callback de progresso
+        if (params.onProgress) {
+          params.onProgress(allLeads.length, currentPage);
+        }
+
+        // Verificar se há mais páginas
+        hasMore = pageLeads.length === limit;
+        currentPage++;
+
+        // Segurança: evitar loops infinitos
+        if (currentPage > 100) {
+          console.warn('⚠️ Limite de páginas atingido (100)');
+          break;
+        }
+      } catch (error) {
+        console.error(`❌ Erro na página ${currentPage}:`, error);
+        // Continuar mesmo se uma página falhar
+        hasMore = false;
+      }
+    }
+
+    console.log(`✅ Busca concluída: ${allLeads.length} leads carregados em ${currentPage - 1} páginas`);
+
+    return { _embedded: { leads: allLeads } };
+  }
+
   // Obter lead específico
   async getLead(id: number, withContacts: boolean = true): Promise<{ _embedded: { leads: Lead[] } }> {
     const with_param = withContacts ? '?with=contacts' : '';
@@ -186,6 +238,53 @@ export class KommoApiService {
 
     const query = queryParams.toString();
     return this.makeRequest(`/leads/unsorted${query ? `?${query}` : ''}`);
+  }
+
+  // Obter todos os leads não organizados com paginação automática
+  async getAllUnsortedLeads(params: {
+    filter?: any;
+    onProgress?: (loadedCount: number, currentPage: number) => void;
+  } = {}): Promise<{ _embedded: { unsorted: any[] } }> {
+    const allUnsorted: any[] = [];
+    let currentPage = 1;
+    let hasMore = true;
+    const limit = 250;
+
+    console.log('🔄 Iniciando busca paginada de leads não organizados...');
+
+    while (hasMore) {
+      try {
+        const response = await this.getUnsortedLeads({
+          ...params,
+          limit,
+          page: currentPage
+        });
+
+        const pageUnsorted = response._embedded?.unsorted || [];
+        allUnsorted.push(...pageUnsorted);
+
+        console.log(`📄 Página ${currentPage}: ${pageUnsorted.length} leads não organizados carregados`);
+
+        if (params.onProgress) {
+          params.onProgress(allUnsorted.length, currentPage);
+        }
+
+        hasMore = pageUnsorted.length === limit;
+        currentPage++;
+
+        if (currentPage > 100) {
+          console.warn('⚠️ Limite de páginas atingido (100)');
+          break;
+        }
+      } catch (error) {
+        console.error(`❌ Erro na página ${currentPage}:`, error);
+        hasMore = false;
+      }
+    }
+
+    console.log(`✅ Busca de não organizados concluída: ${allUnsorted.length} leads em ${currentPage - 1} páginas`);
+
+    return { _embedded: { unsorted: allUnsorted } };
   }
 
   // Obter estatísticas básicas
