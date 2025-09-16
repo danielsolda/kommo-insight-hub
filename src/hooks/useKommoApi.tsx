@@ -69,6 +69,7 @@ export const useKommoApi = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [salesRanking, setSalesRanking] = useState<SalesRankingData[]>([]);
   const [rankingPipelineFilter, setRankingPipelineFilter] = useState<number | null>(null);
+  const [customFields, setCustomFields] = useState<any[]>([]);
   const [rankingDateRange, setRankingDateRangeState] = useState<DateRange>(() => {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -82,6 +83,7 @@ export const useKommoApi = () => {
     fetchGeneralStats();
     fetchAllLeads();
     fetchUsers();
+    fetchCustomFields();
   }, []);
 
   useEffect(() => {
@@ -460,6 +462,23 @@ export const useKommoApi = () => {
     }
   };
 
+  const fetchCustomFields = async () => {
+    try {
+      console.log('🔄 Buscando campos personalizados...');
+      const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
+      const authService = new KommoAuthService(kommoConfig);
+      const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
+
+      const response = await apiService.getCustomFields();
+      const fields = response._embedded?.custom_fields || [];
+      console.log(`✅ ${fields.length} campos personalizados carregados`);
+      setCustomFields(fields);
+    } catch (err: any) {
+      console.error('❌ Erro ao buscar campos personalizados:', err);
+      setCustomFields([]);
+    }
+  };
+
   // Helper function to identify "Closed Won" status IDs from all pipelines
   const getClosedWonStatusIds = () => {
     const closedWonStatusIds = new Set<number>();
@@ -681,7 +700,8 @@ export const useKommoApi = () => {
       fetchPipelines(),
       fetchGeneralStats(),
       fetchAllLeads(),
-      fetchUsers()
+      fetchUsers(),
+      fetchCustomFields()
     ]);
     if (selectedPipeline) {
       await fetchPipelineStats(selectedPipeline);
@@ -705,5 +725,6 @@ export const useKommoApi = () => {
     setRankingDateRange,
     rankingDateRange,
     calculateSalesRanking,
+    customFields,
   };
 };

@@ -113,6 +113,11 @@ export class KommoApiService {
     return this.makeRequest('/leads/pipelines');
   }
 
+  // Obter campos personalizados
+  async getCustomFields(): Promise<{ _embedded: { custom_fields: any[] } }> {
+    return this.makeRequest('/leads/custom_fields');
+  }
+
   // Obter leads
   async getLeads(params: {
     limit?: number;
