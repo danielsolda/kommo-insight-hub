@@ -9,6 +9,7 @@ export interface Lead {
   responsible_user_id: number;
   created_at: number;
   updated_at: number;
+  closed_at?: number;
   price: number;
   contacts?: Contact[];
   custom_fields_values?: CustomField[];

@@ -299,6 +299,7 @@ export const useKommoApi = () => {
           stage: pipelines.find(p => p.id === lead.pipeline_id)?.statuses?.find(s => s.id === lead.status_id)?.name || 'Estágio não definido',
           value: lead.price || 0,
           lastContact: lead.updated_at ? new Date(lead.updated_at * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          closed_at: lead.closed_at,
           priority: lead.price > 30000 ? 'high' : lead.price > 15000 ? 'medium' : 'low',
           source: 'Kommo CRM',
           responsible_user_id: lead.responsible_user_id,
@@ -421,7 +422,9 @@ export const useKommoApi = () => {
     
     console.log(`\n📅 Current Month: ${currentMonth}, Year: ${currentYear}`);
     
-    const ranking = users.map(user => {
+    const ranking = users
+      .filter(user => user.rights?.is_active !== false) // Only include active users
+      .map(user => {
       console.log(`\n👤 Processing user: ${user.name} (ID: ${user.id})`);
       
       // Filter leads for this user, optionally by ranking pipeline filter
@@ -452,12 +455,22 @@ export const useKommoApi = () => {
       
       console.log(`  💰 Total Sales: R$ ${totalSales.toLocaleString()}`);
       
-      // Calculate current month sales (only closed won)
+      // Calculate current month sales (only closed won leads with closed_at)
       const currentMonthClosedWonLeads = closedWonLeads.filter(lead => {
-        const leadDate = new Date(lead.lastContact);
-        const isCurrentMonth = leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
+        if (!lead.closed_at) {
+          // Fallback to lastContact if closed_at is not available
+          const leadDate = new Date(lead.lastContact);
+          const isCurrentMonth = leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
+          if (isCurrentMonth) {
+            console.log(`    📅 Current month sale (using lastContact): ${lead.name} - R$ ${lead.value}`);
+          }
+          return isCurrentMonth;
+        }
+        
+        const closedDate = new Date(lead.closed_at * 1000);
+        const isCurrentMonth = closedDate.getMonth() === currentMonth && closedDate.getFullYear() === currentYear;
         if (isCurrentMonth) {
-          console.log(`    📅 Current month sale: ${lead.name} - R$ ${lead.value}`);
+          console.log(`    📅 Current month sale (using closed_at): ${lead.name} - R$ ${lead.value}`);
         }
         return isCurrentMonth;
       });
