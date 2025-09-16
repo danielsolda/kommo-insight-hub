@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Loader2, Target } from "lucide-react";
+import { useState } from "react";
 
 interface PipelineStats {
   pipelineId: number;
@@ -20,6 +21,8 @@ interface PipelineChartProps {
 }
 
 export const PipelineChart = ({ pipelineStats, loading = false }: PipelineChartProps) => {
+  const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
+
   if (loading) {
     return (
       <Card className="bg-gradient-card border-border/50 shadow-card">
@@ -79,9 +82,9 @@ export const PipelineChart = ({ pipelineStats, loading = false }: PipelineChartP
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid lg:grid-cols-2 gap-6">
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+        <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex-1 min-h-[300px]">
+            <ResponsiveContainer width="100%" height={300}>
               <BarChart data={pipelineData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
@@ -120,33 +123,50 @@ export const PipelineChart = ({ pipelineStats, loading = false }: PipelineChartP
             </ResponsiveContainer>
           </div>
 
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  innerRadius={40}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--popover))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                    color: "hsl(var(--popover-foreground))"
-                  }}
-                  formatter={(value) => [`${value} leads`, 'Quantidade']}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="flex-1 min-h-[300px] flex items-center justify-center">
+            <div className="w-full h-[300px] relative overflow-visible">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={hoveredSegment !== null ? 85 : 80}
+                    innerRadius={40}
+                    paddingAngle={2}
+                    dataKey="value"
+                    onMouseEnter={(_, index) => setHoveredSegment(index)}
+                    onMouseLeave={() => setHoveredSegment(null)}
+                    style={{
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease-in-out',
+                      transformOrigin: 'center',
+                    }}
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.color}
+                        style={{
+                          filter: hoveredSegment === index ? 'brightness(1.1) drop-shadow(0 4px 8px rgba(0,0,0,0.2))' : 'none',
+                          transition: 'all 0.3s ease-in-out',
+                        }}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--popover))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      color: "hsl(var(--popover-foreground))",
+                      boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+                    }}
+                    formatter={(value) => [`${value} leads`, 'Quantidade']}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
