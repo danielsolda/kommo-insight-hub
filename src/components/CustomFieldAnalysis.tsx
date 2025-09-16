@@ -43,15 +43,28 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
     filteredLeads.forEach(lead => {
       // Get custom field value
       const customFieldValue = lead.custom_fields_values?.find((cfv: any) => 
-        cfv.field_id === field.id
+        Number(cfv.field_id) === Number(field.id)
       );
       
       let fieldValue = "Não preenchido";
       if (customFieldValue && customFieldValue.values && customFieldValue.values.length > 0) {
-        if (field.type === 'multiselect') {
-          fieldValue = customFieldValue.values.map((v: any) => v.value || v).join(', ');
+        if (field.type === 'multiselect' || field.type === 'select') {
+          fieldValue = customFieldValue.values.map((v: any) => {
+            // If it has a direct value, use it
+            if (v.value) return v.value;
+            
+            // If it has enum_id, map it to the label
+            if (v.enum_id && field.enums) {
+              const enumItem = field.enums.find((e: any) => Number(e.id) === Number(v.enum_id));
+              return enumItem?.value || `enum:${v.enum_id}`;
+            }
+            
+            // Fallback to whatever value exists
+            return v || "Não preenchido";
+          }).join(', ');
         } else {
-          fieldValue = customFieldValue.values[0]?.value || customFieldValue.values[0] || "Não preenchido";
+          const value = customFieldValue.values[0];
+          fieldValue = value?.value || value || "Não preenchido";
         }
       }
 

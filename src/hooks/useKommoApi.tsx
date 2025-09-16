@@ -393,6 +393,8 @@ export const useKommoApi = () => {
           responsible_user_id: lead.responsible_user_id,
           pipeline_id: lead.pipeline_id,
           status_id: lead.status_id,
+          custom_fields_values: lead.custom_fields_values,
+          status_name: pipelines.find(p => p.id === lead.pipeline_id)?.statuses?.find(s => s.id === lead.status_id)?.name || 'Status desconhecido',
         })),
         ...unsortedLeads.map((lead: any) => ({
           id: `unsorted-${lead.uid}`,
@@ -406,7 +408,9 @@ export const useKommoApi = () => {
           priority: 'medium',
           source: lead.metadata?.source_name || 'Kommo CRM',
           responsible_user_id: lead._embedded?.leads?.[0]?.responsible_user_id || null,
-          pipeline_id: lead.pipeline_id || null
+          pipeline_id: lead.pipeline_id || null,
+          custom_fields_values: lead._embedded?.leads?.[0]?.custom_fields_values || [],
+          status_name: 'Etapa de entrada',
         }))
       ];
 
