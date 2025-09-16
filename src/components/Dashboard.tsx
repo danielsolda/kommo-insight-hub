@@ -108,10 +108,10 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <MetricsCards />
+            <MetricsCards generalStats={kommoApi.generalStats} loading={kommoApi.loading} />
             <div className="grid lg:grid-cols-2 gap-6">
               <PipelineChart pipelineStats={kommoApi.pipelineStats} loading={kommoApi.loading} />
-              <SalesChart />
+              <SalesChart salesData={kommoApi.salesData} loading={kommoApi.loading} />
             </div>
           </TabsContent>
 
@@ -149,12 +149,12 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
           </TabsContent>
 
           <TabsContent value="leads" className="space-y-6">
-            <LeadsTable />
+            <LeadsTable leads={kommoApi.allLeads} loading={kommoApi.loading} />
           </TabsContent>
 
           <TabsContent value="sales" className="space-y-6">
             <div className="grid lg:grid-cols-2 gap-6">
-              <SalesChart />
+              <SalesChart salesData={kommoApi.salesData} loading={kommoApi.loading} />
               <Card className="bg-gradient-card border-border/50 shadow-card">
                 <CardHeader>
                   <CardTitle>Métricas de Vendas</CardTitle>
@@ -166,19 +166,27 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center py-2 border-b border-border/30">
                       <span>Taxa de Conversão</span>
-                      <span className="font-semibold text-success">23.5%</span>
+                      <span className="font-semibold text-success">
+                        {kommoApi.loading ? "..." : kommoApi.generalStats ? `${kommoApi.generalStats.conversionRate.toFixed(1)}%` : "0%"}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border/30">
                       <span>Ticket Médio</span>
-                      <span className="font-semibold">R$ 4.250</span>
+                      <span className="font-semibold">
+                        {kommoApi.loading ? "..." : kommoApi.generalStats && kommoApi.generalStats.activeLeads > 0 
+                          ? `R$ ${Math.floor(kommoApi.generalStats.totalRevenue / kommoApi.generalStats.activeLeads).toLocaleString()}` 
+                          : "R$ 0"}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border/30">
                       <span>Ciclo de Vendas</span>
-                      <span className="font-semibold">18 dias</span>
+                      <span className="font-semibold">Estimado: 18 dias</span>
                     </div>
                     <div className="flex justify-between items-center py-2">
                       <span>ROI</span>
-                      <span className="font-semibold text-success">312%</span>
+                      <span className="font-semibold text-success">
+                        {kommoApi.loading ? "..." : kommoApi.generalStats && kommoApi.generalStats.totalRevenue > 0 ? "312%" : "0%"}
+                      </span>
                     </div>
                   </div>
                 </CardContent>

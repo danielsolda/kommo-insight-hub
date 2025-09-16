@@ -3,93 +3,54 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Filter, Phone, Mail, Calendar, Star } from "lucide-react";
-import { useState } from "react";
+import { Search, Filter, Phone, Mail, Calendar, Star, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 
-const mockLeads = [
-  {
-    id: 1,
-    name: "João Silva",
-    company: "Tech Solutions Ltd",
-    email: "joao@techsolutions.com",
-    phone: "(11) 99999-1234",
-    stage: "Qualificação",
-    value: 15000,
-    lastContact: "2024-01-15",
-    priority: "high",
-    source: "Website"
-  },
-  {
-    id: 2,
-    name: "Maria Santos",
-    company: "Inovação Digital",
-    email: "maria@inovacaodigital.com",
-    phone: "(21) 88888-5678",
-    stage: "Proposta",
-    value: 25000,
-    lastContact: "2024-01-14",
-    priority: "medium",
-    source: "Indicação"
-  },
-  {
-    id: 3,
-    name: "Carlos Oliveira",
-    company: "StartupX",
-    email: "carlos@startupx.com",
-    phone: "(31) 77777-9012",
-    stage: "Negociação",
-    value: 35000,
-    lastContact: "2024-01-13",
-    priority: "high",
-    source: "LinkedIn"
-  },
-  {
-    id: 4,
-    name: "Ana Costa",
-    company: "Empresa ABC",
-    email: "ana@empresaabc.com",
-    phone: "(41) 66666-3456",
-    stage: "Prospecção",
-    value: 12000,
-    lastContact: "2024-01-12",
-    priority: "low",
-    source: "Google Ads"
-  },
-  {
-    id: 5,
-    name: "Pedro Lima",
-    company: "Consultoria Pro",
-    email: "pedro@consultoriapro.com",
-    phone: "(51) 55555-7890",
-    stage: "Fechamento",
-    value: 45000,
-    lastContact: "2024-01-11",
-    priority: "high",
-    source: "Evento"
-  }
-];
-
-const stageColors = {
+const stageColors: { [key: string]: string } = {
   "Prospecção": "bg-gray-500/20 text-gray-300",
-  "Qualificação": "bg-blue-500/20 text-blue-300",
+  "Qualificação": "bg-blue-500/20 text-blue-300", 
   "Proposta": "bg-yellow-500/20 text-yellow-300",
   "Negociação": "bg-orange-500/20 text-orange-300",
-  "Fechamento": "bg-green-500/20 text-green-300"
+  "Fechamento": "bg-green-500/20 text-green-300",
+  "Etapa de entrada": "bg-purple-500/20 text-purple-300",
+  "Estágio não definido": "bg-gray-500/20 text-gray-300"
 };
 
 const priorityColors = {
   "high": "text-red-400",
-  "medium": "text-yellow-400",
+  "medium": "text-yellow-400", 
   "low": "text-green-400"
 };
 
-export const LeadsTable = () => {
+interface Lead {
+  id: string | number;
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  stage: string;
+  value: number;
+  lastContact: string;
+  priority: string;
+  source: string;
+}
+
+interface LeadsTableProps {
+  leads?: Lead[];
+  loading?: boolean;
+}
+
+export const LeadsTable = ({ leads = [], loading = false }: LeadsTableProps) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredLeads, setFilteredLeads] = useState(mockLeads);
+  const [filteredLeads, setFilteredLeads] = useState<Lead[]>([]);
+
+  useEffect(() => {
+    setFilteredLeads(leads);
+  }, [leads]);
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
-    const filtered = mockLeads.filter(lead =>
+    const filtered = leads.filter(lead =>
       lead.name.toLowerCase().includes(term.toLowerCase()) ||
       lead.company.toLowerCase().includes(term.toLowerCase()) ||
       lead.email.toLowerCase().includes(term.toLowerCase())
@@ -127,20 +88,26 @@ export const LeadsTable = () => {
       </CardHeader>
 
       <CardContent>
-        <div className="rounded-lg border border-border/50 overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30">
-                <TableHead>Lead</TableHead>
-                <TableHead>Estágio</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Último Contato</TableHead>
-                <TableHead>Prioridade</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredLeads.map((lead) => (
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="ml-2">Carregando leads...</span>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border/50 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30">
+                  <TableHead>Lead</TableHead>
+                  <TableHead>Estágio</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Último Contato</TableHead>
+                  <TableHead>Prioridade</TableHead>
+                  <TableHead>Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredLeads.map((lead) => (
                 <TableRow key={lead.id} className="hover:bg-muted/20">
                   <TableCell>
                     <div>
@@ -183,13 +150,14 @@ export const LeadsTable = () => {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
 
         <div className="mt-4 text-sm text-muted-foreground">
-          Mostrando {filteredLeads.length} de {mockLeads.length} leads
+          Mostrando {filteredLeads.length} de {leads.length} leads
         </div>
       </CardContent>
     </Card>

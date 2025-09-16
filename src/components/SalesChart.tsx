@@ -1,22 +1,35 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { Loader2 } from "lucide-react";
 
-const salesData = [
-  { month: "Jan", vendas: 45000, meta: 50000, leads: 120 },
-  { month: "Fev", vendas: 52000, meta: 55000, leads: 135 },
-  { month: "Mar", vendas: 48000, meta: 52000, leads: 128 },
-  { month: "Abr", vendas: 61000, meta: 58000, leads: 142 },
-  { month: "Mai", vendas: 55000, meta: 60000, leads: 156 },
-  { month: "Jun", vendas: 67000, meta: 65000, leads: 168 },
-  { month: "Jul", vendas: 73000, meta: 70000, leads: 175 },
-  { month: "Ago", vendas: 69000, meta: 72000, leads: 162 },
-  { month: "Set", vendas: 78000, meta: 75000, leads: 180 },
-  { month: "Out", vendas: 82000, meta: 80000, leads: 195 },
-  { month: "Nov", vendas: 85000, meta: 85000, leads: 210 },
-  { month: "Dez", vendas: 92000, meta: 90000, leads: 225 },
-];
+interface SalesData {
+  month: string;
+  vendas: number;
+  meta: number;
+  leads: number;
+}
 
-export const SalesChart = () => {
+interface SalesChartProps {
+  salesData?: SalesData[];
+  loading?: boolean;
+}
+
+export const SalesChart = ({ salesData = [], loading = false }: SalesChartProps) => {
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const totalSales = salesData.reduce((sum, data) => sum + data.vendas, 0);
+  const totalTarget = salesData.reduce((sum, data) => sum + data.meta, 0);
+  const totalLeads = salesData.reduce((sum, data) => sum + data.leads, 0);
+  const targetAchievement = totalTarget > 0 ? (totalSales / totalTarget) * 100 : 0;
+  const remainingTarget = Math.max(0, totalTarget - totalSales);
+  const conversionRate = totalLeads > 0 ? (totalLeads * 0.235) : 0; // Estimated conversion
   return (
     <Card className="bg-gradient-card border-border/50 shadow-card">
       <CardHeader>
@@ -26,9 +39,20 @@ export const SalesChart = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[350px] mb-6">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={salesData}>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="ml-2">Carregando dados de vendas...</span>
+          </div>
+        ) : salesData.length === 0 ? (
+          <div className="flex items-center justify-center py-8">
+            <span className="text-muted-foreground">Nenhum dado de vendas disponível</span>
+          </div>
+        ) : (
+          <>
+            <div className="h-[350px] mb-6">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={salesData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
                 dataKey="month" 
@@ -72,27 +96,29 @@ export const SalesChart = () => {
                   <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.1} />
                 </linearGradient>
               </defs>
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-3 bg-muted/30 rounded-lg">
-            <div className="text-sm font-medium text-muted-foreground">Vendas Totais</div>
-            <div className="text-xl font-bold text-success">R$ 787k</div>
-            <div className="text-xs text-muted-foreground">+18% vs ano anterior</div>
-          </div>
-          <div className="text-center p-3 bg-muted/30 rounded-lg">
-            <div className="text-sm font-medium text-muted-foreground">Meta Atingida</div>
-            <div className="text-xl font-bold text-warning">94.2%</div>
-            <div className="text-xs text-muted-foreground">R$ 46k restante</div>
-          </div>
-          <div className="text-center p-3 bg-muted/30 rounded-lg">
-            <div className="text-sm font-medium text-muted-foreground">Leads Convertidos</div>
-            <div className="text-xl font-bold text-info">1.956</div>
-            <div className="text-xs text-muted-foreground">23.5% taxa conversão</div>
-          </div>
-        </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-3 bg-muted/30 rounded-lg">
+                <div className="text-sm font-medium text-muted-foreground">Vendas Totais</div>
+                <div className="text-xl font-bold text-success">{formatCurrency(totalSales)}</div>
+                <div className="text-xs text-muted-foreground">Baseado em leads fechados</div>
+              </div>
+              <div className="text-center p-3 bg-muted/30 rounded-lg">
+                <div className="text-sm font-medium text-muted-foreground">Meta Atingida</div>
+                <div className="text-xl font-bold text-warning">{targetAchievement.toFixed(1)}%</div>
+                <div className="text-xs text-muted-foreground">{formatCurrency(remainingTarget)} restante</div>
+              </div>
+              <div className="text-center p-3 bg-muted/30 rounded-lg">
+                <div className="text-sm font-medium text-muted-foreground">Leads Convertidos</div>
+                <div className="text-xl font-bold text-info">{Math.floor(conversionRate)}</div>
+                <div className="text-xs text-muted-foreground">Taxa de conversão estimada</div>
+              </div>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

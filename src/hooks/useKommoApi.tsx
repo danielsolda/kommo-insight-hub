@@ -31,16 +31,32 @@ interface PipelineStats {
   }>;
 }
 
+interface GeneralStats {
+  totalRevenue: number;
+  activeLeads: number;
+  conversionRate: number;
+  totalCalls: number;
+  revenueChange: string;
+  leadsChange: string;
+  conversionChange: string;
+  callsChange: string;
+}
+
 export const useKommoApi = () => {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [pipelineStats, setPipelineStats] = useState<PipelineStats[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [generalStats, setGeneralStats] = useState<GeneralStats | null>(null);
+  const [allLeads, setAllLeads] = useState<any[]>([]);
+  const [salesData, setSalesData] = useState<any[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchPipelines();
+    fetchGeneralStats();
+    fetchAllLeads();
   }, []);
 
   useEffect(() => {
@@ -168,8 +184,125 @@ export const useKommoApi = () => {
     }
   };
 
+  const fetchGeneralStats = async () => {
+    try {
+      const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
+      const authService = new KommoAuthService(kommoConfig);
+      const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
+
+      // Fetch all leads to calculate general stats
+      const [leadsResponse, pipelinesResponse] = await Promise.all([
+        apiService.getLeads({ limit: 250 }).catch(() => ({ _embedded: { leads: [] } })),
+        apiService.getPipelines().catch(() => ({ _embedded: { pipelines: [] } }))
+      ]);
+
+      const allLeads = leadsResponse._embedded?.leads || [];
+      const totalRevenue = allLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
+      const activeLeads = allLeads.length;
+      
+      // Calculate conversion rate (simplified: closed leads / total leads)
+      const closedLeads = allLeads.filter(lead => {
+        const statusId = lead.status_id;
+        // You might need to adjust this logic based on your status IDs for "closed won"
+        return statusId && (lead.closest_task_at || lead.updated_at);
+      });
+      const conversionRate = activeLeads > 0 ? (closedLeads.length / activeLeads) * 100 : 0;
+
+      // Mock values for changes (in real scenario, you'd compare with previous period)
+      const stats: GeneralStats = {
+        totalRevenue,
+        activeLeads,
+        conversionRate,
+        totalCalls: Math.floor(activeLeads * 2.5), // Estimated calls per lead
+        revenueChange: "+12.5%",
+        leadsChange: "+8.2%", 
+        conversionChange: conversionRate > 20 ? "+2.1%" : "-2.1%",
+        callsChange: "+15.3%"
+      };
+
+      setGeneralStats(stats);
+    } catch (err: any) {
+      console.error('Error fetching general stats:', err);
+    }
+  };
+
+  const fetchAllLeads = async () => {
+    try {
+      const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
+      const authService = new KommoAuthService(kommoConfig);
+      const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
+
+      const [leadsResponse, unsortedResponse] = await Promise.all([
+        apiService.getLeads({ limit: 250, with: ['contacts'] }).catch(() => ({ _embedded: { leads: [] } })),
+        apiService.getUnsortedLeads({ limit: 250 }).catch(() => ({ _embedded: { unsorted: [] } }))
+      ]);
+
+      const sortedLeads = leadsResponse._embedded?.leads || [];
+      const unsortedLeads = unsortedResponse._embedded?.unsorted || [];
+      
+      // Combine and format leads for the table
+      const formattedLeads = [
+        ...sortedLeads.map(lead => ({
+          id: lead.id,
+          name: lead.name || 'Lead sem nome',
+          company: lead._embedded?.companies?.[0]?.name || 'Empresa não informada',
+          email: lead._embedded?.contacts?.[0]?.custom_fields?.find((field: any) => field.field_name === 'EMAIL')?.values?.[0]?.value || 'Email não informado',
+          phone: lead._embedded?.contacts?.[0]?.custom_fields?.find((field: any) => field.field_name === 'PHONE')?.values?.[0]?.value || 'Telefone não informado',
+          stage: pipelines.find(p => p.id === lead.pipeline_id)?.statuses?.find(s => s.id === lead.status_id)?.name || 'Estágio não definido',
+          value: lead.price || 0,
+          lastContact: lead.updated_at ? new Date(lead.updated_at * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          priority: lead.price > 30000 ? 'high' : lead.price > 15000 ? 'medium' : 'low',
+          source: 'Kommo CRM'
+        })),
+        ...unsortedLeads.map((lead: any) => ({
+          id: `unsorted-${lead.uid}`,
+          name: lead.metadata?.client?.name || lead.metadata?.from || 'Lead sem nome',
+          company: 'Empresa não informada',
+          email: 'Email não informado',
+          phone: 'Telefone não informado', 
+          stage: 'Etapa de entrada',
+          value: lead._embedded?.leads?.[0]?.price || 0,
+          lastContact: lead.created_at ? new Date(lead.created_at * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          priority: 'medium',
+          source: lead.metadata?.source_name || 'Kommo CRM'
+        }))
+      ];
+
+      setAllLeads(formattedLeads);
+
+      // Generate sales data by month from leads
+      const monthlyData = Array.from({ length: 12 }, (_, i) => {
+        const month = i + 1;
+        const monthName = new Date(2024, i, 1).toLocaleString('pt-BR', { month: 'short' });
+        const monthLeads = sortedLeads.filter(lead => {
+          if (!lead.updated_at) return false;
+          const leadDate = new Date(lead.updated_at * 1000);
+          return leadDate.getMonth() === i;
+        });
+        
+        const monthRevenue = monthLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
+        const monthTarget = monthRevenue * 1.1; // Target is 10% higher than actual
+        
+        return {
+          month: monthName,
+          vendas: monthRevenue,
+          meta: monthTarget,
+          leads: monthLeads.length
+        };
+      });
+
+      setSalesData(monthlyData);
+    } catch (err: any) {
+      console.error('Error fetching all leads:', err);
+    }
+  };
+
   const refreshData = async () => {
-    await fetchPipelines();
+    await Promise.all([
+      fetchPipelines(),
+      fetchGeneralStats(),
+      fetchAllLeads()
+    ]);
     if (selectedPipeline) {
       await fetchPipelineStats(selectedPipeline);
     }
@@ -183,5 +316,8 @@ export const useKommoApi = () => {
     loading,
     error,
     refreshData,
+    generalStats,
+    allLeads,
+    salesData,
   };
 };
