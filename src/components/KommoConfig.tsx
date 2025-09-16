@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Settings, Key, Link as LinkIcon, Shield, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { KommoAuthService } from "@/services/kommoAuth";
+import { getRedirectUri, getEnvironmentInfo, isGitHubPages } from "@/utils/environment";
 
 interface KommoConfigProps {
   onSave: (config: any) => void;
@@ -64,8 +65,8 @@ export const KommoConfig = ({ onSave }: KommoConfigProps) => {
   };
 
   const generateRedirectUri = () => {
-    const baseUri = window.location.origin;
-    setConfig({ ...config, redirectUri: `${baseUri}/oauth/callback` });
+    const redirectUri = getRedirectUri();
+    setConfig({ ...config, redirectUri });
   };
 
   return (
@@ -187,6 +188,18 @@ export const KommoConfig = ({ onSave }: KommoConfigProps) => {
             <li>Copie o Integration ID e Secret Key gerados</li>
             <li>Configure o Redirect URI em sua integração</li>
           </ol>
+          
+          {isGitHubPages() && (
+            <div className="mt-4 p-3 bg-info/10 border border-info/20 rounded-lg">
+              <h5 className="font-medium text-info mb-2">🚀 GitHub Pages Detectado</h5>
+              <p className="text-sm text-muted-foreground">
+                Detectamos que você está usando GitHub Pages. Use este Redirect URI em sua integração Kommo:
+              </p>
+              <code className="block mt-2 p-2 bg-muted text-xs rounded border font-mono">
+                {getRedirectUri()}
+              </code>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
