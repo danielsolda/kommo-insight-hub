@@ -47,7 +47,8 @@ export class KommoAuthService {
         client_id: this.config.integrationId,
         client_secret: this.config.secretKey,
         redirect_uri: this.config.redirectUri,
-        grant_type: 'authorization_code'
+        grant_type: 'authorization_code',
+        account_url: this.config.accountUrl
       })
     });
 
@@ -81,7 +82,8 @@ export class KommoAuthService {
         client_id: this.config.integrationId,
         client_secret: this.config.secretKey,
         refresh_token: refreshToken,
-        grant_type: 'refresh_token'
+        grant_type: 'refresh_token',
+        account_url: this.config.accountUrl
       })
     });
 

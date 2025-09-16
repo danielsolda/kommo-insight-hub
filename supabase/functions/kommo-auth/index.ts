@@ -14,6 +14,7 @@ interface TokenRequest {
   redirect_uri?: string;
   refresh_token?: string;
   grant_type: string;
+  account_url?: string;
 }
 
 serve(async (req) => {
@@ -39,30 +40,70 @@ serve(async (req) => {
     }
 
     const tokenRequest: TokenRequest = await req.json();
-    console.log('Kommo OAuth Request:', { action: tokenRequest.action, grant_type: tokenRequest.grant_type });
-
-    // Preparar dados para requisição à API da Kommo
-    let requestBody: any = {
-      client_id: tokenRequest.client_id,
-      client_secret: tokenRequest.client_secret,
+    console.log('Kommo OAuth Request:', { 
+      action: tokenRequest.action, 
       grant_type: tokenRequest.grant_type,
-    };
+      has_account_url: !!tokenRequest.account_url 
+    });
 
-    if (tokenRequest.action === 'exchange_code') {
-      requestBody.code = tokenRequest.code;
-      requestBody.redirect_uri = tokenRequest.redirect_uri;
-    } else if (tokenRequest.action === 'refresh_token') {
-      requestBody.refresh_token = tokenRequest.refresh_token;
+    // Validar se há account_url para requisições
+    if (!tokenRequest.account_url) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'account_url is required',
+          details: 'Please provide the Kommo account URL' 
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
+    // Extrair subdomínio da URL da conta
+    let accountSubdomain = '';
+    try {
+      const accountUrl = new URL(tokenRequest.account_url);
+      accountSubdomain = accountUrl.hostname.split('.')[0];
+    } catch (error) {
+      console.error('Invalid account URL:', tokenRequest.account_url);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid account URL format',
+          details: 'Please check your Kommo account URL' 
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Preparar dados para requisição à API da Kommo como URL encoded
+    const formData = new URLSearchParams();
+    formData.append('client_id', tokenRequest.client_id);
+    formData.append('client_secret', tokenRequest.client_secret);
+    formData.append('grant_type', tokenRequest.grant_type);
+
+    if (tokenRequest.action === 'exchange_code') {
+      formData.append('code', tokenRequest.code || '');
+      formData.append('redirect_uri', tokenRequest.redirect_uri || '');
+    } else if (tokenRequest.action === 'refresh_token') {
+      formData.append('refresh_token', tokenRequest.refresh_token || '');
+    }
+
+    // Construir URL do endpoint específico da conta
+    const kommoApiUrl = `https://${accountSubdomain}.kommo.com/oauth2/access_token`;
+    console.log('Using Kommo API URL:', kommoApiUrl);
+
     // Fazer requisição para a API OAuth da Kommo
-    const kommoResponse = await fetch('https://www.kommo.com/oauth2/access_token', {
+    const kommoResponse = await fetch(kommoApiUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         'User-Agent': 'KommoInsightHub/1.0'
       },
-      body: JSON.stringify(requestBody)
+      body: formData.toString()
     });
 
     console.log('Kommo Response Status:', kommoResponse.status);
