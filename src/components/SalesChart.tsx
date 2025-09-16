@@ -114,7 +114,7 @@ export const SalesChart = ({ salesData = [], loading = false }: SalesChartProps)
               <div className="text-center p-3 bg-muted/30 rounded-lg">
                 <div className="text-sm font-medium text-muted-foreground">Leads Convertidos</div>
                 <div className="text-xl font-bold text-info">{Math.floor(conversionRate)}</div>
-                <div className="text-xs text-muted-foreground">Taxa de conversão estimada</div>
+                <div className="text-xs text-muted-foreground">Taxa de fechamento estimada</div>
               </div>
             </div>
           </>

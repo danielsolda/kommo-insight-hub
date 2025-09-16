@@ -11,6 +11,7 @@ import { SalesChart } from "@/components/SalesChart";
 import { SalesRanking } from "@/components/SalesRanking";
 import { useToast } from "@/hooks/use-toast";
 import { useKommoApi } from "@/hooks/useKommoApi";
+import { APP_VERSION } from "@/version";
 
 interface DashboardProps {
   config: any;
@@ -56,9 +57,9 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold">Kommo Insight Hub</h1>
-                <p className="text-sm text-muted-foreground">
-                  Última atualização: {lastUpdate.toLocaleTimeString('pt-BR')}
-                </p>
+                 <p className="text-sm text-muted-foreground">
+                   Última atualização: {lastUpdate.toLocaleTimeString('pt-BR')} • {APP_VERSION.split('T')[0].replace('build: ', 'v')}
+                 </p>
               </div>
             </div>
 
@@ -174,7 +175,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center py-2 border-b border-border/30">
-                      <span>Taxa de Conversão</span>
+                      <span>Taxa de Fechamento</span>
                       <span className="font-semibold text-success">
                         {kommoApi.loading ? "..." : kommoApi.generalStats ? `${kommoApi.generalStats.conversionRate.toFixed(1)}%` : "0%"}
                       </span>
