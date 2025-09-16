@@ -443,7 +443,7 @@ export const useKommoApi = () => {
       const authService = new KommoAuthService(kommoConfig);
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
 
-      const response = await apiService.getUsers();
+      const response = await apiService.getAllUsers();
       const users = response._embedded?.users || [];
       setUsers(users);
     } catch (err: any) {

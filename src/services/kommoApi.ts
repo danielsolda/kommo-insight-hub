@@ -222,8 +222,47 @@ export class KommoApiService {
   }
 
   // Obter usuários
-  async getUsers(): Promise<{ _embedded: { users: any[] } }> {
-    return this.makeRequest('/users');
+  async getUsers(params: { limit?: number; page?: number } = {}): Promise<{ _embedded: { users: any[] }, _page?: any }> {
+    const queryParams = new URLSearchParams();
+    if (params.limit) queryParams.set('limit', params.limit.toString());
+    if (params.page) queryParams.set('page', params.page.toString());
+    const query = queryParams.toString();
+    return this.makeRequest(`/users${query ? `?${query}` : ''}`);
+  }
+
+  // Obter todos os usuários com paginação automática
+  async getAllUsers(): Promise<{ _embedded: { users: any[] } }> {
+    const allUsers: any[] = [];
+    let currentPage = 1;
+    let hasMore = true;
+    const limit = 250;
+
+    console.log('🔄 Iniciando busca paginada de usuários...');
+
+    while (hasMore) {
+      try {
+        const response = await this.getUsers({ limit, page: currentPage });
+        const pageUsers = response._embedded?.users || [];
+        allUsers.push(...pageUsers);
+
+        console.log(`📄 Página ${currentPage}: ${pageUsers.length} usuários carregados`);
+
+        hasMore = pageUsers.length === limit;
+        currentPage++;
+
+        if (currentPage > 50) {
+          console.warn('⚠️ Limite de páginas atingido (50) na listagem de usuários');
+          break;
+        }
+      } catch (error) {
+        console.error(`❌ Erro na página ${currentPage} ao buscar usuários:`, error);
+        hasMore = false;
+      }
+    }
+
+    console.log(`✅ Busca de usuários concluída: ${allUsers.length} usuários carregados em ${currentPage - 1} páginas`);
+
+    return { _embedded: { users: allUsers } };
   }
 
   // Obter leads não organizados (etapa de entrada)
