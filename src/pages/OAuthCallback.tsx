@@ -19,6 +19,7 @@ const OAuthCallback = () => {
         const code = searchParams.get('code');
         const error = searchParams.get('error');
         const state = searchParams.get('state');
+        const referer = searchParams.get('referer'); // Ex: "danielsolda.kommo.com"
 
         if (error) {
           throw new Error(`Autorização negada: ${error}`);
@@ -34,7 +35,20 @@ const OAuthCallback = () => {
           throw new Error('Configuração da Kommo não encontrada');
         }
 
-        const config = JSON.parse(savedConfig);
+        let config = JSON.parse(savedConfig);
+
+        // Se temos o referer da Kommo, atualizar/definir a account URL
+        if (referer) {
+          const normalizedAccountUrl = referer.startsWith('http') 
+            ? referer 
+            : `https://${referer}`;
+          
+          config.accountUrl = normalizedAccountUrl;
+          localStorage.setItem('kommoConfig', JSON.stringify(config));
+          
+          console.log('Updated account URL from referer:', normalizedAccountUrl);
+        }
+
         const authService = new KommoAuthService(config);
 
         setMessage('Trocando código por tokens...');
@@ -61,11 +75,23 @@ const OAuthCallback = () => {
       } catch (error) {
         console.error('OAuth Callback Error:', error);
         setStatus('error');
-        setMessage(error instanceof Error ? error.message : 'Erro desconhecido');
+        
+        // Melhorar mensagem de erro baseado no tipo
+        let errorMessage = 'Erro desconhecido';
+        if (error instanceof Error) {
+          errorMessage = error.message;
+          
+          // Se for erro da API, tentar extrair mais detalhes
+          if (error.message.includes('Falha ao trocar código por tokens')) {
+            errorMessage = 'Erro na autenticação com a Kommo. Verifique suas credenciais e URL da conta.';
+          }
+        }
+        
+        setMessage(errorMessage);
         
         toast({
           title: "Erro na autorização",
-          description: error instanceof Error ? error.message : "Erro desconhecido",
+          description: errorMessage,
           variant: "destructive",
         });
       }

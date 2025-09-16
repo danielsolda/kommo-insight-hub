@@ -83,7 +83,8 @@ export class KommoAuthService {
         client_secret: this.config.secretKey,
         refresh_token: refreshToken,
         grant_type: 'refresh_token',
-        account_url: this.config.accountUrl
+        account_url: this.config.accountUrl,
+        redirect_uri: this.config.redirectUri
       })
     });
 

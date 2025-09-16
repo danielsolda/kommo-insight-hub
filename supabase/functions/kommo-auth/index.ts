@@ -79,54 +79,76 @@ serve(async (req) => {
       );
     }
 
-    // Preparar dados para requisição à API da Kommo como URL encoded
-    const formData = new URLSearchParams();
-    formData.append('client_id', tokenRequest.client_id);
-    formData.append('client_secret', tokenRequest.client_secret);
-    formData.append('grant_type', tokenRequest.grant_type);
+    // Preparar dados para requisição à API da Kommo como JSON (conforme documentação)
+    const requestBody: any = {
+      client_id: tokenRequest.client_id,
+      client_secret: tokenRequest.client_secret,
+      grant_type: tokenRequest.grant_type,
+    };
 
     if (tokenRequest.action === 'exchange_code') {
-      formData.append('code', tokenRequest.code || '');
-      formData.append('redirect_uri', tokenRequest.redirect_uri || '');
+      requestBody.code = tokenRequest.code;
+      requestBody.redirect_uri = tokenRequest.redirect_uri;
     } else if (tokenRequest.action === 'refresh_token') {
-      formData.append('refresh_token', tokenRequest.refresh_token || '');
+      requestBody.refresh_token = tokenRequest.refresh_token;
+      if (tokenRequest.redirect_uri) {
+        requestBody.redirect_uri = tokenRequest.redirect_uri;
+      }
     }
 
     // Construir URL do endpoint específico da conta
     const kommoApiUrl = `https://${accountSubdomain}.kommo.com/oauth2/access_token`;
     console.log('Using Kommo API URL:', kommoApiUrl);
+    console.log('Request body (masked):', { 
+      ...requestBody, 
+      client_secret: '[MASKED]',
+      refresh_token: requestBody.refresh_token ? '[MASKED]' : undefined 
+    });
 
     // Fazer requisição para a API OAuth da Kommo
     const kommoResponse = await fetch(kommoApiUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
         'User-Agent': 'KommoInsightHub/1.0'
       },
-      body: formData.toString()
+      body: JSON.stringify(requestBody)
     });
 
     console.log('Kommo Response Status:', kommoResponse.status);
 
     if (!kommoResponse.ok) {
       const errorText = await kommoResponse.text();
-      console.error('Kommo API Error:', errorText);
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText };
+      }
+      
+      console.error('Kommo API Error:', {
+        status: kommoResponse.status,
+        error: errorData,
+        url: kommoApiUrl
+      });
       
       // Log do erro
       await supabase.rpc('log_kommo_request', {
         action: tokenRequest.action,
         request_data: { 
           grant_type: tokenRequest.grant_type,
-          client_id: tokenRequest.client_id 
+          account_subdomain: accountSubdomain
         },
-        error_message: `HTTP ${kommoResponse.status}: ${errorText}`
+        error_message: `HTTP ${kommoResponse.status}: ${JSON.stringify(errorData)}`
       });
 
       return new Response(
         JSON.stringify({ 
-          error: 'Kommo API error', 
-          details: errorText,
-          status: kommoResponse.status 
+          error: 'Kommo API Error', 
+          status: kommoResponse.status,
+          details: errorData.message || errorData.error || 'Unknown error',
+          hint: kommoResponse.status === 400 ? 'Verifique suas credenciais e URL da conta' : 'Erro interno da API da Kommo'
         }),
         { 
           status: kommoResponse.status, 
@@ -136,14 +158,17 @@ serve(async (req) => {
     }
 
     const tokenData = await kommoResponse.json();
-    console.log('Kommo Token Response received successfully');
+    console.log('Kommo API success:', { 
+      token_type: tokenData.token_type, 
+      expires_in: tokenData.expires_in 
+    });
 
     // Log da requisição bem-sucedida
     await supabase.rpc('log_kommo_request', {
       action: tokenRequest.action,
       request_data: { 
         grant_type: tokenRequest.grant_type,
-        client_id: tokenRequest.client_id 
+        account_subdomain: accountSubdomain
       },
       response_data: {
         token_type: tokenData.token_type,

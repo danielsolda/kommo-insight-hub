@@ -24,6 +24,24 @@ export const KommoConfig = ({ onSave }: KommoConfigProps) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  // Função para normalizar URL da conta
+  const normalizeAccountUrl = (url: string): string => {
+    if (!url) return '';
+    
+    // Se já tem protocolo, usar como está
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // Se é só o subdomínio, adicionar protocolo e domínio
+    if (url.includes('.kommo.com')) {
+      return `https://${url}`;
+    }
+    
+    // Se é só o subdomínio sem .kommo.com, adicionar tudo
+    return `https://${url}.kommo.com`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -34,11 +52,17 @@ export const KommoConfig = ({ onSave }: KommoConfigProps) => {
         throw new Error('Integration ID e Secret Key são obrigatórios');
       }
 
+      // Normalizar URL da conta se fornecida
+      const normalizedConfig = {
+        ...config,
+        accountUrl: config.accountUrl ? normalizeAccountUrl(config.accountUrl) : ''
+      };
+
       // Salvar configuração temporariamente
-      localStorage.setItem('kommoConfig', JSON.stringify(config));
+      localStorage.setItem('kommoConfig', JSON.stringify(normalizedConfig));
       
       // Iniciar processo OAuth
-      const authService = new KommoAuthService(config);
+      const authService = new KommoAuthService(normalizedConfig);
       const state = Math.random().toString(36).substring(2, 15);
       const authUrl = authService.generateAuthUrl(state);
       
