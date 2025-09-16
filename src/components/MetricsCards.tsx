@@ -57,9 +57,9 @@ export const MetricsCards = ({ generalStats, loading }: MetricsCardsProps) => {
     },
     {
       title: "Chamadas Realizadas",
-      value: loading ? "..." : generalStats ? generalStats.totalCalls.toString() : "0",
-      change: generalStats?.callsChange || "+0%",
-      trend: generalStats?.callsChange?.startsWith('+') ? "up" : "down",
+      value: loading ? "..." : generalStats ? (generalStats.totalCalls > 0 ? generalStats.totalCalls.toString() : "N/A") : "N/A",
+      change: generalStats?.callsChange || "N/A",
+      trend: generalStats?.callsChange === "N/A" ? "neutral" : generalStats?.callsChange?.startsWith('+') ? "up" : "down",
       icon: Phone,
       color: "text-primary-glow",
       bgColor: "bg-primary/10"
@@ -82,12 +82,17 @@ export const MetricsCards = ({ generalStats, loading }: MetricsCardsProps) => {
             <CardContent>
               <div className="text-2xl font-bold mb-1">{metric.value}</div>
               <div className="flex items-center text-xs">
-                {metric.trend === "up" ? (
+                {metric.trend === "neutral" ? (
+                  <span className="h-3 w-3 mr-1" /> // Empty space for neutral
+                ) : metric.trend === "up" ? (
                   <TrendingUp className="h-3 w-3 text-success mr-1" />
                 ) : (
                   <TrendingDown className="h-3 w-3 text-destructive mr-1" />
                 )}
-                <span className={metric.trend === "up" ? "text-success" : "text-destructive"}>
+                <span className={
+                  metric.trend === "neutral" ? "text-muted-foreground" :
+                  metric.trend === "up" ? "text-success" : "text-destructive"
+                }>
                   {metric.change}
                 </span>
                 <span className="text-muted-foreground ml-1">vs mês anterior</span>

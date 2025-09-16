@@ -243,28 +243,103 @@ export const useKommoApi = () => {
       ]);
 
       const allLeads = leadsResponse._embedded?.leads || [];
-      const totalRevenue = allLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
-      const activeLeads = allLeads.length;
+      console.log(`📊 Total leads carregados: ${allLeads.length}`);
       
-      // Calculate conversion rate (simplified: closed leads / total leads)
-      const closedLeads = allLeads.filter(lead => {
-        const statusId = lead.status_id;
-        // You might need to adjust this logic based on your status IDs for "closed won"
-        return statusId && (lead.closest_task_at || lead.updated_at);
+      // Get closed won status IDs
+      const closedWonStatusIds = new Set<number>();
+      const allPipelines = pipelinesResponse._embedded?.pipelines || [];
+      
+      allPipelines.forEach(pipeline => {
+        pipeline.statuses?.forEach((status: any) => {
+          const statusName = status.name.toLowerCase();
+          if ((statusName.includes('fechado') || 
+               statusName.includes('ganho') || 
+               statusName.includes('won') || 
+               statusName.includes('closed') ||
+               statusName.includes('venda') ||
+               statusName.includes('concluído') ||
+               statusName.includes('finalizado')) &&
+              !statusName.includes('lost') && 
+              !statusName.includes('perdido') && 
+              !statusName.includes('perdida')) {
+            closedWonStatusIds.add(status.id);
+          }
+        });
       });
-      const conversionRate = activeLeads > 0 ? (closedLeads.length / activeLeads) * 100 : 0;
-
-      // Mock values for changes (in real scenario, you'd compare with previous period)
+      
+      // Add manual status ID based on previous analysis
+      closedWonStatusIds.add(142);
+      
+      console.log('🎯 Status IDs considerados "Closed Won":', Array.from(closedWonStatusIds));
+      
+      // Get current month boundaries for filtering
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+      
+      // Filter leads by categories
+      const closedWonLeads = allLeads.filter(lead => closedWonStatusIds.has(lead.status_id));
+      const activeLeads = allLeads.filter(lead => !closedWonStatusIds.has(lead.status_id));
+      
+      // Calculate current month metrics
+      const currentMonthClosedWon = closedWonLeads.filter(lead => {
+        const leadDate = new Date(lead.closed_at || lead.updated_at);
+        return leadDate >= currentMonthStart && leadDate <= currentMonthEnd;
+      });
+      
+      const currentMonthActive = allLeads.filter(lead => {
+        const leadDate = new Date(lead.created_at || lead.updated_at);
+        return leadDate >= currentMonthStart && leadDate <= currentMonthEnd;
+      });
+      
+      // Calculate previous month metrics for comparison
+      const previousMonthClosedWon = closedWonLeads.filter(lead => {
+        const leadDate = new Date(lead.closed_at || lead.updated_at);
+        return leadDate >= previousMonthStart && leadDate <= previousMonthEnd;
+      });
+      
+      const previousMonthActive = allLeads.filter(lead => {
+        const leadDate = new Date(lead.created_at || lead.updated_at);
+        return leadDate >= previousMonthStart && leadDate <= previousMonthEnd;
+      });
+      
+      // Calculate metrics
+      const totalRevenue = closedWonLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
+      const currentRevenue = currentMonthClosedWon.reduce((sum, lead) => sum + (lead.price || 0), 0);
+      const previousRevenue = previousMonthClosedWon.reduce((sum, lead) => sum + (lead.price || 0), 0);
+      
+      const conversionRate = allLeads.length > 0 ? (closedWonLeads.length / allLeads.length) * 100 : 0;
+      const previousConversionRate = (previousMonthActive.length + currentMonthActive.length) > 0 ? 
+        ((previousMonthClosedWon.length + currentMonthClosedWon.length) / (previousMonthActive.length + currentMonthActive.length)) * 100 : 0;
+      
+      // Calculate percentage changes
+      const calculateChange = (current: number, previous: number): string => {
+        if (previous === 0) return current > 0 ? "+100%" : "0%";
+        const change = ((current - previous) / previous) * 100;
+        return change >= 0 ? `+${change.toFixed(1)}%` : `${change.toFixed(1)}%`;
+      };
+      
       const stats: GeneralStats = {
         totalRevenue,
-        activeLeads,
+        activeLeads: activeLeads.length,
         conversionRate,
-        totalCalls: Math.floor(activeLeads * 2.5), // Estimated calls per lead
-        revenueChange: "+12.5%",
-        leadsChange: "+8.2%", 
-        conversionChange: conversionRate > 20 ? "+2.1%" : "-2.1%",
-        callsChange: "+15.3%"
+        totalCalls: 0, // Not available from Kommo API
+        revenueChange: calculateChange(currentRevenue, previousRevenue),
+        leadsChange: calculateChange(currentMonthActive.length, previousMonthActive.length),
+        conversionChange: calculateChange(conversionRate, previousConversionRate),
+        callsChange: "N/A" // Not available from Kommo API
       };
+      
+      console.log('📊 Estatísticas calculadas:', {
+        totalRevenue,
+        activeLeads: activeLeads.length,
+        closedWonLeads: closedWonLeads.length,
+        conversionRate: `${conversionRate.toFixed(1)}%`,
+        currentMonthRevenue: currentRevenue,
+        previousMonthRevenue: previousRevenue
+      });
 
       setGeneralStats(stats);
     } catch (err: any) {
