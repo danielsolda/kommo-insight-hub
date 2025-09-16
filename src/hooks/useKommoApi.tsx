@@ -335,17 +335,45 @@ export const useKommoApi = () => {
     }
   };
 
+  // Helper function to identify "Closed Won" status IDs from all pipelines
+  const getClosedWonStatusIds = () => {
+    const closedWonStatusIds = new Set<number>();
+    
+    pipelines.forEach(pipeline => {
+      pipeline.statuses.forEach(status => {
+        const statusName = status.name.toLowerCase();
+        // Identify status that represents closed/won deals
+        if (statusName.includes('fechado') || 
+            statusName.includes('ganho') || 
+            statusName.includes('won') || 
+            statusName.includes('closed') ||
+            statusName.includes('venda') ||
+            statusName.includes('concluído') ||
+            statusName.includes('finalizado')) {
+          // Exclude "lost" or "perdido" statuses
+          if (!statusName.includes('lost') && 
+              !statusName.includes('perdido') && 
+              !statusName.includes('perdida')) {
+            closedWonStatusIds.add(status.id);
+          }
+        }
+      });
+    });
+    
+    return closedWonStatusIds;
+  };
+
   const calculateSalesRanking = () => {
-    if (!users.length || !allLeads.length) return;
+    if (!users.length || !allLeads.length || !pipelines.length) return;
     
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
+    const closedWonStatusIds = getClosedWonStatusIds();
     
     const ranking = users.map(user => {
       // Filter leads for this user, optionally by ranking pipeline filter
-      const userLeads = allLeads.filter(lead => {
-        const isUserLead = lead.responsible_user_id === user.id || 
-                          (typeof lead.id === 'string' && lead.id.includes('unsorted'));
+      let userLeads = allLeads.filter(lead => {
+        const isUserLead = lead.responsible_user_id === user.id;
         
         if (rankingPipelineFilter) {
           return isUserLead && lead.pipeline_id === rankingPipelineFilter;
@@ -353,17 +381,22 @@ export const useKommoApi = () => {
         return isUserLead;
       });
       
-      const totalSales = userLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
-      const salesQuantity = userLeads.length;
+      // Filter to only count "Closed Won" leads (actual sales)
+      const closedWonLeads = userLeads.filter(lead => 
+        closedWonStatusIds.has(lead.status_id)
+      );
       
-      // Calculate current month sales
-      const currentMonthLeads = userLeads.filter(lead => {
+      const totalSales = closedWonLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+      const salesQuantity = closedWonLeads.length;
+      
+      // Calculate current month sales (only closed won)
+      const currentMonthClosedWonLeads = closedWonLeads.filter(lead => {
         const leadDate = new Date(lead.lastContact);
         return leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
       });
       
-      const currentMonthSales = currentMonthLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
-      const currentMonthQuantity = currentMonthLeads.length;
+      const currentMonthSales = currentMonthClosedWonLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+      const currentMonthQuantity = currentMonthClosedWonLeads.length;
       
       // Calculate monthly average (assuming 12 months of data)
       const monthlyAverage = totalSales / 12;
@@ -377,7 +410,7 @@ export const useKommoApi = () => {
         currentMonthSales,
         currentMonthQuantity
       };
-    }).filter(user => user.salesQuantity > 0) // Only show users with sales
+    }).filter(user => user.salesQuantity > 0) // Only show users with actual sales
       .sort((a, b) => b.totalSales - a.totalSales); // Sort by total sales descending
     
     setSalesRanking(ranking);
