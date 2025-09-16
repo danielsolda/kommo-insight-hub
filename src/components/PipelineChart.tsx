@@ -1,27 +1,79 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { Loader2, Target } from "lucide-react";
 
-const pipelineData = [
-  { name: "Prospecção", leads: 156, value: 234000 },
-  { name: "Qualificação", leads: 98, value: 187000 },
-  { name: "Proposta", leads: 45, value: 156000 },
-  { name: "Negociação", leads: 23, value: 89000 },
-  { name: "Fechamento", leads: 12, value: 67000 },
-];
+interface PipelineStats {
+  pipelineId: number;
+  pipelineName: string;
+  statuses: Array<{
+    id: number;
+    name: string;
+    count: number;
+    value: number;
+    color: string;
+  }>;
+}
 
-const pieData = [
-  { name: "Prospecção", value: 156, color: "#8b5cf6" },
-  { name: "Qualificação", value: 98, color: "#a78bfa" },
-  { name: "Proposta", value: 45, color: "#c4b5fd" },
-  { name: "Negociação", value: 23, color: "#ddd6fe" },
-  { name: "Fechamento", value: 12, color: "#ede9fe" },
-];
+interface PipelineChartProps {
+  pipelineStats?: PipelineStats;
+  loading?: boolean;
+}
 
-export const PipelineChart = () => {
+export const PipelineChart = ({ pipelineStats, loading = false }: PipelineChartProps) => {
+  if (loading) {
+    return (
+      <Card className="bg-gradient-card border-border/50 shadow-card">
+        <CardHeader>
+          <CardTitle>Pipeline de Vendas</CardTitle>
+          <CardDescription>
+            Carregando dados do pipeline...
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[300px]">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!pipelineStats || !pipelineStats.statuses.length) {
+    return (
+      <Card className="bg-gradient-card border-border/50 shadow-card">
+        <CardHeader>
+          <CardTitle>Pipeline de Vendas</CardTitle>
+          <CardDescription>
+            Selecione um pipeline para visualizar os dados
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
+            <Target className="h-12 w-12 mb-4 opacity-50" />
+            <p>Nenhum dado disponível para este pipeline</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Prepare data for charts
+  const pipelineData = pipelineStats.statuses.map(status => ({
+    name: status.name,
+    leads: status.count,
+    value: status.value,
+  }));
+
+  const pieData = pipelineStats.statuses.map(status => ({
+    name: status.name,
+    value: status.count,
+    color: status.color,
+  }));
+
   return (
     <Card className="bg-gradient-card border-border/50 shadow-card">
       <CardHeader>
-        <CardTitle>Pipeline de Vendas</CardTitle>
+        <CardTitle>{pipelineStats.pipelineName}</CardTitle>
         <CardDescription>
           Distribuição de leads por estágio do pipeline
         </CardDescription>
@@ -98,13 +150,15 @@ export const PipelineChart = () => {
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {pipelineData.map((stage, index) => (
             <div key={index} className="text-center p-3 bg-muted/30 rounded-lg">
-              <div className="text-sm font-medium text-muted-foreground">{stage.name}</div>
+              <div className="text-sm font-medium text-muted-foreground truncate" title={stage.name}>
+                {stage.name}
+              </div>
               <div className="text-lg font-bold">{stage.leads}</div>
               <div className="text-xs text-muted-foreground">
-                R$ {(stage.value / 1000).toFixed(0)}k
+                R$ {stage.value > 1000 ? (stage.value / 1000).toFixed(0) + 'k' : stage.value.toFixed(0)}
               </div>
             </div>
           ))}

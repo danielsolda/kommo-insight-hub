@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart3, Settings, Users, TrendingUp, DollarSign, Target, RefreshCw, LogOut } from "lucide-react";
 import { MetricsCards } from "@/components/MetricsCards";
 import { PipelineChart } from "@/components/PipelineChart";
 import { LeadsTable } from "@/components/LeadsTable";
 import { SalesChart } from "@/components/SalesChart";
 import { useToast } from "@/hooks/use-toast";
+import { useKommoApi } from "@/hooks/useKommoApi";
 
 interface DashboardProps {
   config: any;
@@ -19,12 +21,12 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const { toast } = useToast();
+  const kommoApi = useKommoApi();
 
   const handleRefresh = async () => {
     setLoading(true);
     try {
-      // Simular carregamento de dados
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await kommoApi.refreshData();
       setLastUpdate(new Date());
       toast({
         title: "Dados atualizados!",
@@ -64,10 +66,10 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 variant="outline"
                 size="sm"
                 onClick={handleRefresh}
-                disabled={loading}
+                disabled={loading || kommoApi.loading}
                 className="flex items-center gap-2"
               >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 ${(loading || kommoApi.loading) ? 'animate-spin' : ''}`} />
                 Atualizar
               </Button>
               <Button
@@ -108,27 +110,42 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
           <TabsContent value="overview" className="space-y-6">
             <MetricsCards />
             <div className="grid lg:grid-cols-2 gap-6">
-              <PipelineChart />
+              <PipelineChart pipelineStats={kommoApi.pipelineStats} loading={kommoApi.loading} />
               <SalesChart />
             </div>
           </TabsContent>
 
           <TabsContent value="pipelines" className="space-y-6">
-            <PipelineChart />
             <Card className="bg-gradient-card border-border/50 shadow-card">
               <CardHeader>
-                <CardTitle>Pipeline de Vendas</CardTitle>
+                <CardTitle>Selecionar Pipeline</CardTitle>
                 <CardDescription>
-                  Análise detalhada do seu pipeline de vendas
+                  Escolha o pipeline para visualizar as estatísticas
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Dados detalhados do pipeline em desenvolvimento...</p>
-                </div>
+                <Select 
+                  value={kommoApi.selectedPipeline?.toString()} 
+                  onValueChange={(value) => kommoApi.setSelectedPipeline(Number(value))}
+                  disabled={kommoApi.loading}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione um pipeline" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {kommoApi.pipelines.map((pipeline) => (
+                      <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
+                        {pipeline.name} {pipeline.is_main && "(Principal)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </CardContent>
             </Card>
+            
+            {kommoApi.selectedPipeline && (
+              <PipelineChart pipelineStats={kommoApi.pipelineStats} loading={kommoApi.loading} />
+            )}
           </TabsContent>
 
           <TabsContent value="leads" className="space-y-6">
