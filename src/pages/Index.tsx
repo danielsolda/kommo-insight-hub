@@ -5,6 +5,7 @@ import { BarChart3, Settings, Users, TrendingUp, DollarSign, Target } from "luci
 import { KommoConfig } from "@/components/KommoConfig";
 import { Dashboard } from "@/components/Dashboard";
 import { useToast } from "@/hooks/use-toast";
+import { KommoAuthService } from "@/services/kommoAuth";
 
 const Index = () => {
   const [isConfigured, setIsConfigured] = useState(false);
@@ -12,19 +13,30 @@ const Index = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Verificar se já existe configuração salva
+    // Verificar se já existe configuração e tokens válidos
     const savedConfig = localStorage.getItem('kommoConfig');
     if (savedConfig) {
       const config = JSON.parse(savedConfig);
       setKommoConfig(config);
-      setIsConfigured(true);
+      
+      // Verificar se existem tokens válidos
+      const authService = new KommoAuthService(config);
+      const tokens = authService.loadTokens();
+      
+      if (tokens && authService.isTokenValid(tokens)) {
+        setIsConfigured(true);
+        toast({
+          title: "Bem-vindo de volta!",
+          description: "Sua sessão da Kommo ainda está ativa.",
+        });
+      }
     }
-  }, []);
+  }, [toast]);
 
   const handleConfigSave = (config: any) => {
+    // Esta função agora é chamada apenas quando o OAuth é bem-sucedido
     setKommoConfig(config);
     setIsConfigured(true);
-    localStorage.setItem('kommoConfig', JSON.stringify(config));
     toast({
       title: "Configuração salva!",
       description: "Sua integração com a Kommo foi configurada com sucesso.",
@@ -35,6 +47,8 @@ const Index = () => {
     setIsConfigured(false);
     setKommoConfig(null);
     localStorage.removeItem('kommoConfig');
+    localStorage.removeItem('kommoTokens');
+    localStorage.removeItem('kommoOAuthState');
     toast({
       title: "Configuração resetada",
       description: "Você pode configurar uma nova integração.",

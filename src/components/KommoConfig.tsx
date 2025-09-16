@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Settings, Key, Link as LinkIcon, Shield } from "lucide-react";
+import { Settings, Key, Link as LinkIcon, Shield, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { KommoAuthService } from "@/services/kommoAuth";
 
 interface KommoConfigProps {
   onSave: (config: any) => void;
@@ -32,13 +33,25 @@ export const KommoConfig = ({ onSave }: KommoConfigProps) => {
         throw new Error('Integration ID e Secret Key são obrigatórios');
       }
 
-      // Salvar configuração
-      onSave(config);
+      // Salvar configuração temporariamente
+      localStorage.setItem('kommoConfig', JSON.stringify(config));
+      
+      // Iniciar processo OAuth
+      const authService = new KommoAuthService(config);
+      const state = Math.random().toString(36).substring(2, 15);
+      const authUrl = authService.generateAuthUrl(state);
       
       toast({
-        title: "Configuração salva!",
-        description: "Sua integração foi configurada com sucesso.",
+        title: "Redirecionando para a Kommo",
+        description: "Você será redirecionado para autorizar a integração.",
       });
+
+      // Salvar state para validação posterior
+      localStorage.setItem('kommoOAuthState', state);
+      
+      // Abrir janela de autorização
+      window.location.href = authUrl;
+      
     } catch (error) {
       toast({
         title: "Erro na configuração",
@@ -151,7 +164,17 @@ export const KommoConfig = ({ onSave }: KommoConfigProps) => {
             className="w-full bg-gradient-primary hover:bg-primary-dark shadow-elegant"
             disabled={loading}
           >
-            {loading ? "Configurando..." : "Salvar Configuração"}
+            {loading ? (
+              <>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Redirecionando para Kommo...
+              </>
+            ) : (
+              <>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Conectar com Kommo
+              </>
+            )}
           </Button>
         </form>
 
