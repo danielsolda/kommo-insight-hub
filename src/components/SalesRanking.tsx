@@ -1,7 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Crown, TrendingUp, TrendingDown, Users, DollarSign } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Crown, TrendingUp, TrendingDown, Users, DollarSign, Filter } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useState } from "react";
 
 interface SalesRankingData {
   userId: number;
@@ -13,12 +15,21 @@ interface SalesRankingData {
   currentMonthQuantity: number;
 }
 
+interface Pipeline {
+  id: number;
+  name: string;
+  is_main: boolean;
+}
+
 interface SalesRankingProps {
   salesRanking: SalesRankingData[];
   loading: boolean;
+  pipelines: Pipeline[];
+  onPipelineChange: (pipelineId: number | null) => void;
 }
 
-export const SalesRanking = ({ salesRanking, loading }: SalesRankingProps) => {
+export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChange }: SalesRankingProps) => {
+  const [selectedPipeline, setSelectedPipeline] = useState<string>("all");
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -28,17 +39,46 @@ export const SalesRanking = ({ salesRanking, loading }: SalesRankingProps) => {
     }).format(value);
   };
 
+  const handlePipelineChange = (value: string) => {
+    setSelectedPipeline(value);
+    if (value === "all") {
+      onPipelineChange(null);
+    } else {
+      onPipelineChange(Number(value));
+    }
+  };
+
   if (loading) {
     return (
       <Card className="bg-gradient-card border-border/50 shadow-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Crown className="h-5 w-5 text-primary" />
-            Ranking de Vendedores
-          </CardTitle>
-          <CardDescription>
-            Top performers com vendas e métricas do mês atual
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-primary" />
+                Ranking de Vendedores
+              </CardTitle>
+              <CardDescription>
+                Top performers com vendas e métricas do mês atual
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={selectedPipeline} onValueChange={handlePipelineChange}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filtrar por pipeline" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os pipelines</SelectItem>
+                  {pipelines.map((pipeline) => (
+                    <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
+                      {pipeline.name} {pipeline.is_main && "(Principal)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -62,17 +102,37 @@ export const SalesRanking = ({ salesRanking, loading }: SalesRankingProps) => {
   }
 
   if (!salesRanking.length) {
-    return (
-      <Card className="bg-gradient-card border-border/50 shadow-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Crown className="h-5 w-5 text-primary" />
-            Ranking de Vendedores
-          </CardTitle>
-          <CardDescription>
-            Top performers com vendas e métricas do mês atual
-          </CardDescription>
-        </CardHeader>
+  return (
+    <Card className="bg-gradient-card border-border/50 shadow-card">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Crown className="h-5 w-5 text-primary" />
+              Ranking de Vendedores
+            </CardTitle>
+            <CardDescription>
+              Top performers com vendas e métricas do mês atual
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedPipeline} onValueChange={handlePipelineChange}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filtrar por pipeline" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os pipelines</SelectItem>
+                {pipelines.map((pipeline) => (
+                  <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
+                    {pipeline.name} {pipeline.is_main && "(Principal)"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-muted-foreground">
             <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -84,17 +144,37 @@ export const SalesRanking = ({ salesRanking, loading }: SalesRankingProps) => {
     );
   }
 
-  return (
-    <Card className="bg-gradient-card border-border/50 shadow-card">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Crown className="h-5 w-5 text-primary" />
-          Ranking de Vendedores
-        </CardTitle>
-        <CardDescription>
-          Top performers com vendas e métricas do mês atual
-        </CardDescription>
-      </CardHeader>
+    return (
+      <Card className="bg-gradient-card border-border/50 shadow-card">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-primary" />
+                Ranking de Vendedores
+              </CardTitle>
+              <CardDescription>
+                Top performers com vendas e métricas do mês atual
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={selectedPipeline} onValueChange={handlePipelineChange}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filtrar por pipeline" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os pipelines</SelectItem>
+                  {pipelines.map((pipeline) => (
+                    <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
+                      {pipeline.name} {pipeline.is_main && "(Principal)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {salesRanking.slice(0, 10).map((seller, index) => {

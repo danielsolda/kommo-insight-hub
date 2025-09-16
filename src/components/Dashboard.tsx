@@ -114,7 +114,12 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
               <PipelineChart pipelineStats={kommoApi.pipelineStats} loading={kommoApi.loading} />
               <SalesChart salesData={kommoApi.salesData} loading={kommoApi.loading} />
             </div>
-            <SalesRanking salesRanking={kommoApi.salesRanking} loading={kommoApi.loading} />
+            <SalesRanking 
+              salesRanking={kommoApi.salesRanking} 
+              loading={kommoApi.loading}
+              pipelines={kommoApi.pipelines}
+              onPipelineChange={kommoApi.setRankingPipeline}
+            />
           </TabsContent>
 
           <TabsContent value="pipelines" className="space-y-6">

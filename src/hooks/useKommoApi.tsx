@@ -63,6 +63,7 @@ export const useKommoApi = () => {
   const [salesData, setSalesData] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [salesRanking, setSalesRanking] = useState<SalesRankingData[]>([]);
+  const [rankingPipelineFilter, setRankingPipelineFilter] = useState<number | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export const useKommoApi = () => {
     if (users.length > 0 && allLeads.length > 0) {
       calculateSalesRanking();
     }
-  }, [users, allLeads, selectedPipeline]);
+  }, [users, allLeads, rankingPipelineFilter]);
 
   const fetchPipelines = async () => {
     setLoading(true);
@@ -341,13 +342,13 @@ export const useKommoApi = () => {
     const currentYear = new Date().getFullYear();
     
     const ranking = users.map(user => {
-      // Filter leads for this user, optionally by selected pipeline
+      // Filter leads for this user, optionally by ranking pipeline filter
       const userLeads = allLeads.filter(lead => {
         const isUserLead = lead.responsible_user_id === user.id || 
                           (typeof lead.id === 'string' && lead.id.includes('unsorted'));
         
-        if (selectedPipeline) {
-          return isUserLead && lead.pipeline_id === selectedPipeline;
+        if (rankingPipelineFilter) {
+          return isUserLead && lead.pipeline_id === rankingPipelineFilter;
         }
         return isUserLead;
       });
@@ -382,6 +383,10 @@ export const useKommoApi = () => {
     setSalesRanking(ranking);
   };
 
+  const setRankingPipeline = (pipelineId: number | null) => {
+    setRankingPipelineFilter(pipelineId);
+  };
+
   const refreshData = async () => {
     await Promise.all([
       fetchPipelines(),
@@ -407,5 +412,6 @@ export const useKommoApi = () => {
     salesData,
     users,
     salesRanking,
+    setRankingPipeline,
   };
 };
