@@ -340,8 +340,14 @@ export const useKommoApi = () => {
   const getClosedWonStatusIds = () => {
     const closedWonStatusIds = new Set<number>();
     
+    console.log('🔍 DEBUG: Analyzing pipelines for Closed Won statuses');
+    console.log('📊 Available pipelines:', pipelines);
+    
     pipelines.forEach(pipeline => {
+      console.log(`\n📈 Pipeline: ${pipeline.name} (ID: ${pipeline.id})`);
       pipeline.statuses.forEach(status => {
+        console.log(`  📋 Status: "${status.name}" (ID: ${status.id})`);
+        
         const statusName = status.name.toLowerCase();
         // Identify status that represents closed/won deals
         if (statusName.includes('fechado') || 
@@ -356,22 +362,40 @@ export const useKommoApi = () => {
               !statusName.includes('perdido') && 
               !statusName.includes('perdida')) {
             closedWonStatusIds.add(status.id);
+            console.log(`  ✅ Found Closed Won status: "${status.name}" (ID: ${status.id})`);
+          } else {
+            console.log(`  ❌ Excluded lost status: "${status.name}" (ID: ${status.id})`);
           }
         }
       });
     });
     
+    // Based on real API data, status ID 142 appears to be "Closed Won"
+    // Adding it manually for now
+    closedWonStatusIds.add(142);
+    console.log(`\n🎯 Manual addition: Status ID 142 (from real data analysis)`);
+    
+    console.log(`\n🏆 Final Closed Won Status IDs:`, Array.from(closedWonStatusIds));
     return closedWonStatusIds;
   };
 
   const calculateSalesRanking = () => {
     if (!users.length || !allLeads.length || !pipelines.length) return;
     
+    console.log('\n🚀 Starting Sales Ranking Calculation');
+    console.log('👥 Users:', users.length);
+    console.log('📋 All Leads:', allLeads.length);
+    console.log('🔄 Pipeline Filter:', rankingPipelineFilter);
+    
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     const closedWonStatusIds = getClosedWonStatusIds();
     
+    console.log(`\n📅 Current Month: ${currentMonth}, Year: ${currentYear}`);
+    
     const ranking = users.map(user => {
+      console.log(`\n👤 Processing user: ${user.name} (ID: ${user.id})`);
+      
       // Filter leads for this user, optionally by ranking pipeline filter
       let userLeads = allLeads.filter(lead => {
         const isUserLead = lead.responsible_user_id === user.id;
@@ -382,22 +406,38 @@ export const useKommoApi = () => {
         return isUserLead;
       });
       
+      console.log(`  📊 User leads found: ${userLeads.length}`);
+      
       // Filter to only count "Closed Won" leads (actual sales)
-      const closedWonLeads = userLeads.filter(lead => 
-        closedWonStatusIds.has(lead.status_id)
-      );
+      const closedWonLeads = userLeads.filter(lead => {
+        const isClosedWon = closedWonStatusIds.has(lead.status_id);
+        if (isClosedWon) {
+          console.log(`    ✅ Closed Won Lead: ${lead.name} (Status: ${lead.status_id}, Value: ${lead.value})`);
+        }
+        return isClosedWon;
+      });
+      
+      console.log(`  🎯 Closed Won leads for ${user.name}: ${closedWonLeads.length}`);
       
       const totalSales = closedWonLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
       const salesQuantity = closedWonLeads.length;
       
+      console.log(`  💰 Total Sales: R$ ${totalSales.toLocaleString()}`);
+      
       // Calculate current month sales (only closed won)
       const currentMonthClosedWonLeads = closedWonLeads.filter(lead => {
         const leadDate = new Date(lead.lastContact);
-        return leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
+        const isCurrentMonth = leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
+        if (isCurrentMonth) {
+          console.log(`    📅 Current month sale: ${lead.name} - R$ ${lead.value}`);
+        }
+        return isCurrentMonth;
       });
       
       const currentMonthSales = currentMonthClosedWonLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
       const currentMonthQuantity = currentMonthClosedWonLeads.length;
+      
+      console.log(`  📆 Current Month Sales: R$ ${currentMonthSales.toLocaleString()} (${currentMonthQuantity} deals)`);
       
       // Calculate monthly average (assuming 12 months of data)
       const monthlyAverage = totalSales / 12;
@@ -411,9 +451,17 @@ export const useKommoApi = () => {
         currentMonthSales,
         currentMonthQuantity
       };
-    }).filter(user => user.salesQuantity > 0) // Only show users with actual sales
-      .sort((a, b) => b.totalSales - a.totalSales); // Sort by total sales descending
+    }).filter(user => {
+      const hasActualSales = user.salesQuantity > 0;
+      if (hasActualSales) {
+        console.log(`✅ Including in ranking: ${user.userName} with ${user.salesQuantity} sales`);
+      } else {
+        console.log(`❌ Excluding from ranking: ${user.userName} (no sales)`);
+      }
+      return hasActualSales;
+    }).sort((a, b) => b.totalSales - a.totalSales); // Sort by total sales descending
     
+    console.log('\n🏆 Final Sales Ranking:', ranking);
     setSalesRanking(ranking);
   };
 
