@@ -167,6 +167,27 @@ export class KommoApiService {
     return this.makeRequest('/users');
   }
 
+  // Obter leads não organizados (etapa de entrada)
+  async getUnsortedLeads(params: {
+    limit?: number;
+    page?: number;
+    filter?: any;
+  } = {}): Promise<{ _embedded: { unsorted: any[] }, _page?: any }> {
+    const queryParams = new URLSearchParams();
+    
+    if (params.limit) queryParams.set('limit', params.limit.toString());
+    if (params.page) queryParams.set('page', params.page.toString());
+    
+    if (params.filter) {
+      Object.entries(params.filter).forEach(([key, value]) => {
+        queryParams.set(`filter[${key}]`, value as string);
+      });
+    }
+
+    const query = queryParams.toString();
+    return this.makeRequest(`/leads/unsorted${query ? `?${query}` : ''}`);
+  }
+
   // Obter estatísticas básicas
   async getStats(): Promise<any> {
     const [leadsResponse, pipelinesResponse] = await Promise.all([

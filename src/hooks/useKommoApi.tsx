@@ -99,18 +99,25 @@ export const useKommoApi = () => {
       const authService = new KommoAuthService(kommoConfig);
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
 
-      // Fetch leads for this pipeline
-      const leadsResponse = await apiService.getLeads({
-        filter: { pipeline_id: pipelineId },
-        limit: 250 // Get more leads to have better stats
-      });
+      // Fetch both sorted and unsorted leads for this pipeline
+      const [leadsResponse, unsortedResponse] = await Promise.all([
+        apiService.getLeads({
+          filter: { pipeline_id: pipelineId },
+          limit: 250
+        }).catch(() => ({ _embedded: { leads: [] } })),
+        apiService.getUnsortedLeads({
+          filter: { pipeline_id: pipelineId },
+          limit: 250
+        }).catch(() => ({ _embedded: { unsorted: [] } }))
+      ]);
 
       const leads = leadsResponse._embedded?.leads || [];
+      const unsortedLeads = unsortedResponse._embedded?.unsorted || [];
       const pipeline = pipelines.find(p => p.id === pipelineId);
       
       if (!pipeline) return;
 
-      // Calculate stats by status
+      // Calculate stats by status for sorted leads
       const statusStats = pipeline.statuses.map(status => {
         const statusLeads = leads.filter(lead => lead.status_id === status.id);
         const totalValue = statusLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
@@ -123,6 +130,23 @@ export const useKommoApi = () => {
           color: status.color,
         };
       });
+
+      // Add unsorted leads as a special entry stage if there are any
+      if (unsortedLeads.length > 0) {
+        const unsortedValue = unsortedLeads.reduce((sum: number, lead: any) => {
+          // Extract value from embedded leads if available
+          const leadValue = lead._embedded?.leads?.[0]?.price || 0;
+          return sum + leadValue;
+        }, 0);
+
+        statusStats.unshift({
+          id: -1, // Special ID for unsorted
+          name: "Etapa de entrada",
+          count: unsortedLeads.length,
+          value: unsortedValue,
+          color: "#c1c1c1", // Gray color for unsorted leads
+        });
+      }
 
       const stats: PipelineStats = {
         pipelineId: pipeline.id,

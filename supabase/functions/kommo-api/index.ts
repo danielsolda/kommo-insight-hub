@@ -97,7 +97,24 @@ serve(async (req) => {
       );
     }
 
-    const responseData = await kommoResponse.json();
+    // Handle empty responses (204 No Content)
+    let responseData;
+    if (kommoResponse.status === 204 || kommoResponse.headers.get('content-length') === '0') {
+      responseData = { _embedded: {} };
+    } else {
+      const responseText = await kommoResponse.text();
+      if (!responseText.trim()) {
+        responseData = { _embedded: {} };
+      } else {
+        try {
+          responseData = JSON.parse(responseText);
+        } catch (error) {
+          console.error('Failed to parse response as JSON:', responseText);
+          responseData = { _embedded: {} };
+        }
+      }
+    }
+    
     console.log('Kommo API success for endpoint:', endpoint);
 
     return new Response(
