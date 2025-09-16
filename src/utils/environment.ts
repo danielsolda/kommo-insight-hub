@@ -9,7 +9,11 @@ export const isProduction = () => {
 };
 
 export const isGitHubPages = () => {
-  return window.location.hostname.includes('github.io');
+  const hostname = window.location.hostname;
+  console.log('Current hostname:', hostname);
+  const isGitHub = hostname.includes('github.io');
+  console.log('Is GitHub Pages:', isGitHub);
+  return isGitHub;
 };
 
 export const getBaseUrl = () => {
