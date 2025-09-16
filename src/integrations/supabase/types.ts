@@ -14,13 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      kommo_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          error_message: string | null
+          id: string
+          request_data: Json | null
+          response_data: Json | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          request_data?: Json | null
+          response_data?: Json | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          request_data?: Json | null
+          response_data?: Json | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      log_kommo_request: {
+        Args: {
+          action: string
+          error_message?: string
+          request_data: Json
+          response_data?: Json
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
