@@ -3,13 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart3, Settings, Users, TrendingUp, DollarSign, Target, RefreshCw, LogOut } from "lucide-react";
+import { BarChart3, Settings, Users, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen } from "lucide-react";
 import { MetricsCards } from "@/components/MetricsCards";
 import { PipelineChart } from "@/components/PipelineChart";
 import { LeadsTable } from "@/components/LeadsTable";
 import { SalesChart } from "@/components/SalesChart";
 import { SalesRanking } from "@/components/SalesRanking";
 import { CustomFieldAnalysis } from "@/components/CustomFieldAnalysis";
+import { NomenclaturesModal } from "@/components/NomenclaturesModal";
 import { useToast } from "@/hooks/use-toast";
 import { useKommoApi } from "@/hooks/useKommoApi";
 import { APP_VERSION } from "@/version";
@@ -23,6 +24,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [nomenclaturesOpen, setNomenclaturesOpen] = useState(false);
   const { toast } = useToast();
   const kommoApi = useKommoApi();
 
@@ -74,6 +76,15 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
               >
                 <RefreshCw className={`h-4 w-4 ${(loading || kommoApi.loading) ? 'animate-spin' : ''}`} />
                 Atualizar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setNomenclaturesOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <BookOpen className="h-4 w-4" />
+                Nomenclaturas
               </Button>
               <Button
                 variant="outline"
@@ -212,6 +223,11 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <NomenclaturesModal 
+        open={nomenclaturesOpen} 
+        onOpenChange={setNomenclaturesOpen} 
+      />
     </div>
   );
 };
