@@ -419,7 +419,7 @@ export const useKommoApi = () => {
     return closedWonStatusIds;
   };
 
-  const calculateSalesRanking = () => {
+  const calculateSalesRanking = (includeZeroSales = false) => {
     if (!users.length || !allLeads.length || !pipelines.length) return;
     
     console.log('\n🚀 Starting Sales Ranking Calculation');
@@ -427,6 +427,7 @@ export const useKommoApi = () => {
     console.log('📋 All Leads:', allLeads.length);
     console.log('🔄 Pipeline Filter:', rankingPipelineFilter);
     console.log('📅 Date Range:', rankingDateRange);
+    console.log('🐛 Include Zero Sales:', includeZeroSales);
     
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
@@ -539,9 +540,9 @@ export const useKommoApi = () => {
       if (hasActualSales) {
         console.log(`✅ Including in ranking: ${user.userName} with ${user.salesQuantity} sales`);
       } else {
-        console.log(`❌ Excluding from ranking: ${user.userName} (no sales)`);
+        console.log(`${includeZeroSales ? '🔍' : '❌'} ${includeZeroSales ? 'Including' : 'Excluding'} from ranking: ${user.userName} (no sales)`);
       }
-      return hasActualSales;
+      return includeZeroSales || hasActualSales;
     }).sort((a, b) => b.totalSales - a.totalSales); // Sort by total sales descending
     
     console.log('\n🏆 Final Sales Ranking:', ranking);
@@ -584,5 +585,6 @@ export const useKommoApi = () => {
     setRankingPipeline,
     setRankingDateRange,
     rankingDateRange,
+    calculateSalesRanking,
   };
 };

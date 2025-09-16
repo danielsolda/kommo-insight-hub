@@ -4,12 +4,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Crown, TrendingUp, TrendingDown, Users, DollarSign, Filter, Calendar as CalendarIcon } from "lucide-react";
+import { Crown, TrendingUp, TrendingDown, Users, DollarSign, Filter, Calendar as CalendarIcon, Bug, Eye, EyeOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { useKommoApi } from "@/hooks/useKommoApi";
 
 interface SalesRankingData {
   userId: number;
@@ -44,6 +45,9 @@ interface SalesRankingProps {
 export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChange, dateRange, onDateRangeChange }: SalesRankingProps) => {
   const [selectedPipeline, setSelectedPipeline] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("current-month");
+  const [debugMode, setDebugMode] = useState<boolean>(false);
+  
+  const { calculateSalesRanking, users, allLeads } = useKommoApi();
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -61,6 +65,13 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
     } else {
       onPipelineChange(Number(value));
     }
+  };
+
+  // Handle debug mode toggle
+  const handleDebugToggle = () => {
+    setDebugMode(!debugMode);
+    // Recalculate ranking with or without zero sales
+    calculateSalesRanking(!debugMode);
   };
 
   const handleDateFilterChange = (value: string) => {
@@ -301,6 +312,21 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
               
+              {/* Debug Mode Toggle */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDebugToggle}
+                className={cn(
+                  "flex items-center gap-2",
+                  debugMode && "bg-orange-100 text-orange-700 border-orange-300"
+                )}
+              >
+                <Bug className="h-4 w-4" />
+                Debug
+                {debugMode ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              </Button>
+              
               {/* Date Filter */}
               <Select value={dateFilter} onValueChange={handleDateFilterChange}>
                 <SelectTrigger className="w-40">
@@ -387,7 +413,45 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
             </div>
           </div>
         </CardHeader>
-      <CardContent>
+        <CardContent>
+          {/* Debug Information */}
+          {debugMode && (
+            <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <Bug className="h-4 w-4 text-orange-600" />
+                <h3 className="font-medium text-orange-800">Informações de Debug</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <strong className="text-orange-700">Dados Carregados:</strong>
+                  <ul className="mt-1 space-y-1 text-orange-600">
+                    <li>👥 Usuários: {users?.length || 0}</li>
+                    <li>📋 Leads: {allLeads?.length || 0}</li>
+                    <li>🔄 Pipelines: {pipelines?.length || 0}</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong className="text-orange-700">Filtros Ativos:</strong>
+                  <ul className="mt-1 space-y-1 text-orange-600">
+                    <li>🔄 Pipeline: {selectedPipeline !== "all" ? `ID ${selectedPipeline}` : 'Todas'}</li>
+                    <li>📅 Período: {dateFilter}</li>
+                    <li>🐛 Mostrar Zero: {debugMode ? 'Sim' : 'Não'}</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong className="text-orange-700">Resultado:</strong>
+                  <ul className="mt-1 space-y-1 text-orange-600">
+                    <li>🏆 Vendedores: {salesRanking?.length || 0}</li>
+                    <li>📊 Status: {loading ? 'Carregando...' : 'Pronto'}</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="mt-3 p-2 bg-orange-100 rounded text-xs text-orange-700">
+                💡 <strong>Dica:</strong> Abra o console do navegador (F12) para ver logs detalhados do processamento.
+              </div>
+            </div>
+          )}
+
         <div className="space-y-4">
           {salesRanking.slice(0, 10).map((seller, index) => {
             const isCurrentMonthBetter = seller.currentMonthSales >= seller.monthlyAverage;
@@ -443,6 +507,16 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
                     {seller.currentMonthQuantity} este mês
                   </Badge>
                 </div>
+                
+                {/* Debug Info for Each Seller */}
+                {debugMode && (
+                  <div className="text-xs text-muted-foreground mt-2 p-2 bg-gray-50 rounded w-full">
+                    <div className="grid grid-cols-2 gap-2">
+                      <span>ID do Usuário: {seller.userId}</span>
+                      <span>Vendas Totais: {seller.salesQuantity}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -451,8 +525,18 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
         {salesRanking.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Nenhum dado de vendas disponível</p>
-            <p className="text-sm">Aguarde o carregamento dos dados da Kommo</p>
+            {debugMode ? (
+              <div className="space-y-2">
+                <p>🔍 <strong>Debug Mode:</strong> Nenhum vendedor encontrado</p>
+                <p className="text-sm">Verifique o console para logs detalhados</p>
+                <p className="text-xs">Dados: {users?.length || 0} usuários, {allLeads?.length || 0} leads, {pipelines?.length || 0} pipelines</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p>📊 Nenhum vendedor com vendas encontrado no período selecionado</p>
+                <p className="text-sm">Ative o modo Debug para mais informações</p>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
