@@ -410,14 +410,23 @@ export const useKommoApi = () => {
 
       setAllLeads(formattedLeads);
 
-      // Generate sales data by month from leads
-      const monthlyData = Array.from({ length: 12 }, (_, i) => {
+      // Generate sales data by month from leads - only current year up to current month
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth(); // 0-based (0 = January, 11 = December)
+      
+      const monthlyData = Array.from({ length: currentMonth + 1 }, (_, i) => {
         const month = i + 1;
-        const monthName = new Date(2024, i, 1).toLocaleString('pt-BR', { month: 'short' });
+        const monthName = new Date(currentYear, i, 1).toLocaleString('pt-BR', { month: 'short' });
         const monthLeads = sortedLeads.filter(lead => {
-          if (!lead.updated_at) return false;
-          const leadDate = new Date(lead.updated_at * 1000);
-          return leadDate.getMonth() === i;
+          if (!lead.updated_at && !lead.closed_at) return false;
+          
+          // Use closed_at for closed deals, updated_at as fallback
+          const leadTimestamp = lead.closed_at || lead.updated_at;
+          const leadDate = new Date(leadTimestamp * 1000);
+          
+          // Only include leads from current year and specific month
+          return leadDate.getFullYear() === currentYear && leadDate.getMonth() === i;
         });
         
         const monthRevenue = monthLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
