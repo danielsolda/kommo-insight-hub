@@ -119,6 +119,8 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
               loading={kommoApi.loading}
               pipelines={kommoApi.pipelines}
               onPipelineChange={kommoApi.setRankingPipeline}
+              dateRange={kommoApi.rankingDateRange}
+              onDateRangeChange={kommoApi.setRankingDateRange}
             />
           </TabsContent>
 

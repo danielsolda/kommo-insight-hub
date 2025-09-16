@@ -52,6 +52,11 @@ interface SalesRankingData {
   currentMonthQuantity: number;
 }
 
+interface DateRange {
+  startDate: Date | null;
+  endDate: Date | null;
+}
+
 export const useKommoApi = () => {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [pipelineStats, setPipelineStats] = useState<PipelineStats[]>([]);
@@ -64,6 +69,12 @@ export const useKommoApi = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [salesRanking, setSalesRanking] = useState<SalesRankingData[]>([]);
   const [rankingPipelineFilter, setRankingPipelineFilter] = useState<number | null>(null);
+  const [rankingDateRange, setRankingDateRangeState] = useState<DateRange>(() => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { startDate: startOfMonth, endDate: endOfMonth };
+  });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -83,7 +94,7 @@ export const useKommoApi = () => {
     if (users.length > 0 && allLeads.length > 0 && pipelines.length > 0) {
       calculateSalesRanking();
     }
-  }, [users, allLeads, rankingPipelineFilter, pipelines]);
+  }, [users, allLeads, rankingPipelineFilter, rankingDateRange, pipelines]);
 
   const fetchPipelines = async () => {
     setLoading(true);
@@ -415,12 +426,21 @@ export const useKommoApi = () => {
     console.log('👥 Users:', users.length);
     console.log('📋 All Leads:', allLeads.length);
     console.log('🔄 Pipeline Filter:', rankingPipelineFilter);
+    console.log('📅 Date Range:', rankingDateRange);
     
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     const closedWonStatusIds = getClosedWonStatusIds();
     
+    // Determine the date range for calculations
+    const { startDate, endDate } = rankingDateRange;
+    const hasDateFilter = startDate && endDate;
+    
     console.log(`\n📅 Current Month: ${currentMonth}, Year: ${currentYear}`);
+    console.log(`📊 Date Filter Active: ${hasDateFilter ? 'Yes' : 'No'}`);
+    if (hasDateFilter) {
+      console.log(`📊 Date Range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+    }
     
     const ranking = users
       .filter(user => user.rights?.is_active !== false) // Only include active users
@@ -455,30 +475,52 @@ export const useKommoApi = () => {
       
       console.log(`  💰 Total Sales: R$ ${totalSales.toLocaleString()}`);
       
-      // Calculate current month sales (only closed won leads with closed_at)
-      const currentMonthClosedWonLeads = closedWonLeads.filter(lead => {
-        if (!lead.closed_at) {
-          // Fallback to lastContact if closed_at is not available
-          const leadDate = new Date(lead.lastContact);
-          const isCurrentMonth = leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
+      // Calculate period-based sales (current month or custom date range)
+      const periodClosedWonLeads = closedWonLeads.filter(lead => {
+        if (hasDateFilter && startDate && endDate) {
+          // Use custom date range
+          if (!lead.closed_at) {
+            // Fallback to lastContact if closed_at is not available
+            const leadDate = new Date(lead.lastContact);
+            const isInDateRange = leadDate >= startDate && leadDate <= endDate;
+            if (isInDateRange) {
+              console.log(`    📅 Date range sale (using lastContact): ${lead.name} - R$ ${lead.value}`);
+            }
+            return isInDateRange;
+          }
+          
+          const closedDate = new Date(lead.closed_at * 1000);
+          const isInDateRange = closedDate >= startDate && closedDate <= endDate;
+          if (isInDateRange) {
+            console.log(`    📅 Date range sale (using closed_at): ${lead.name} - R$ ${lead.value}`);
+          }
+          return isInDateRange;
+        } else {
+          // Use current month logic (default)
+          if (!lead.closed_at) {
+            // Fallback to lastContact if closed_at is not available
+            const leadDate = new Date(lead.lastContact);
+            const isCurrentMonth = leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
+            if (isCurrentMonth) {
+              console.log(`    📅 Current month sale (using lastContact): ${lead.name} - R$ ${lead.value}`);
+            }
+            return isCurrentMonth;
+          }
+          
+          const closedDate = new Date(lead.closed_at * 1000);
+          const isCurrentMonth = closedDate.getMonth() === currentMonth && closedDate.getFullYear() === currentYear;
           if (isCurrentMonth) {
-            console.log(`    📅 Current month sale (using lastContact): ${lead.name} - R$ ${lead.value}`);
+            console.log(`    📅 Current month sale (using closed_at): ${lead.name} - R$ ${lead.value}`);
           }
           return isCurrentMonth;
         }
-        
-        const closedDate = new Date(lead.closed_at * 1000);
-        const isCurrentMonth = closedDate.getMonth() === currentMonth && closedDate.getFullYear() === currentYear;
-        if (isCurrentMonth) {
-          console.log(`    📅 Current month sale (using closed_at): ${lead.name} - R$ ${lead.value}`);
-        }
-        return isCurrentMonth;
       });
       
-      const currentMonthSales = currentMonthClosedWonLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
-      const currentMonthQuantity = currentMonthClosedWonLeads.length;
+      const currentMonthSales = periodClosedWonLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+      const currentMonthQuantity = periodClosedWonLeads.length;
       
-      console.log(`  📆 Current Month Sales: R$ ${currentMonthSales.toLocaleString()} (${currentMonthQuantity} deals)`);
+      const periodLabel = hasDateFilter ? 'Period Sales' : 'Current Month Sales';
+      console.log(`  📆 ${periodLabel}: R$ ${currentMonthSales.toLocaleString()} (${currentMonthQuantity} deals)`);
       
       // Calculate monthly average (assuming 12 months of data)
       const monthlyAverage = totalSales / 12;
@@ -510,6 +552,10 @@ export const useKommoApi = () => {
     setRankingPipelineFilter(pipelineId);
   };
 
+  const setRankingDateRange = (dateRange: DateRange) => {
+    setRankingDateRangeState(dateRange);
+  };
+
   const refreshData = async () => {
     await Promise.all([
       fetchPipelines(),
@@ -536,5 +582,7 @@ export const useKommoApi = () => {
     users,
     salesRanking,
     setRankingPipeline,
+    setRankingDateRange,
+    rankingDateRange,
   };
 };
