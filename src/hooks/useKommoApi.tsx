@@ -81,8 +81,8 @@ export const useKommoApi = () => {
       const errorMsg = `Erro ao carregar pipelines: ${err.message}`;
       setError(errorMsg);
       toast({
-        title: "Erro",
-        description: errorMsg,
+        title: "Erro ao Conectar com Kommo",
+        description: err.message || 'Verifique sua configuração e conexão de internet.',
         variant: "destructive",
       });
     } finally {
@@ -135,8 +135,8 @@ export const useKommoApi = () => {
       const errorMsg = `Erro ao carregar estatísticas: ${err.message}`;
       setError(errorMsg);
       toast({
-        title: "Erro",
-        description: errorMsg,
+        title: "Erro ao Carregar Dados",
+        description: err.message || 'Não foi possível carregar as estatísticas da pipeline.',
         variant: "destructive",
       });
     } finally {

@@ -2,3 +2,6 @@ project_id = "askrsvzzfesdchyfvcpv"
 
 [functions.kommo-auth]
 verify_jwt = false
+
+[functions.kommo-api]
+verify_jwt = false

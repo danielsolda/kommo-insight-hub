@@ -1,4 +1,5 @@
 import { KommoAuthService, KommoTokens } from './kommoAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface Lead {
   id: number;
@@ -56,11 +57,11 @@ export interface CustomFieldValue {
 
 export class KommoApiService {
   private authService: KommoAuthService;
-  private baseUrl: string;
+  private accountUrl: string;
 
   constructor(authService: KommoAuthService, accountUrl?: string) {
     this.authService = authService;
-    this.baseUrl = accountUrl ? `${accountUrl}/api/v4` : 'https://api.kommo.com/api/v4';
+    this.accountUrl = accountUrl || 'https://api.kommo.com';
   }
 
   private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
@@ -70,24 +71,35 @@ export class KommoApiService {
       throw new Error('Não autenticado. Faça login na Kommo.');
     }
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      ...options,
-      headers: {
-        'Authorization': `Bearer ${tokens.accessToken}`,
-        'Content-Type': 'application/json',
-        ...options.headers
-      }
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('kommo-api', {
+        body: {
+          endpoint,
+          method: options.method || 'GET',
+          accessToken: tokens.accessToken,
+          accountUrl: this.accountUrl,
+          body: options.body ? JSON.parse(options.body as string) : undefined
+        }
+      });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        this.authService.clearTokens();
-        throw new Error('Sessão expirada. Faça login novamente.');
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(`Erro na função: ${error.message}`);
       }
-      throw new Error(`Erro na API: ${response.status} ${response.statusText}`);
+
+      if (data?.error) {
+        if (data.status === 401) {
+          this.authService.clearTokens();
+          throw new Error('Sessão expirada. Faça login novamente.');
+        }
+        throw new Error(data.details || `Erro na API: ${data.status}`);
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('Error in makeRequest:', error);
+      throw new Error(error.message || 'Erro ao fazer requisição para API');
     }
-
-    return response.json();
   }
 
   // Obter informações da conta
