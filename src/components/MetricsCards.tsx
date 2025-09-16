@@ -29,7 +29,7 @@ export const MetricsCards = ({ generalStats, loading }: MetricsCardsProps) => {
 
   const metrics = [
     {
-      title: "Receita Total",
+      title: "Receita Fechada",
       value: loading ? "..." : generalStats ? formatCurrency(generalStats.totalRevenue) : "R$ 0",
       change: generalStats?.revenueChange || "+0%",
       trend: generalStats?.revenueChange?.startsWith('+') ? "up" : "down",
@@ -38,7 +38,7 @@ export const MetricsCards = ({ generalStats, loading }: MetricsCardsProps) => {
       bgColor: "bg-success/10"
     },
     {
-      title: "Leads Ativos",
+      title: "Leads em Andamento",
       value: loading ? "..." : generalStats ? generalStats.activeLeads.toString() : "0",
       change: generalStats?.leadsChange || "+0%",
       trend: generalStats?.leadsChange?.startsWith('+') ? "up" : "down", 
@@ -47,7 +47,7 @@ export const MetricsCards = ({ generalStats, loading }: MetricsCardsProps) => {
       bgColor: "bg-info/10"
     },
     {
-      title: "Taxa de Conversão",
+      title: "Taxa de Fechamento",
       value: loading ? "..." : generalStats ? `${generalStats.conversionRate.toFixed(1)}%` : "0%",
       change: generalStats?.conversionChange || "+0%",
       trend: generalStats?.conversionChange?.startsWith('+') ? "up" : "down",
@@ -56,10 +56,10 @@ export const MetricsCards = ({ generalStats, loading }: MetricsCardsProps) => {
       bgColor: "bg-warning/10"
     },
     {
-      title: "Chamadas Realizadas",
-      value: loading ? "..." : generalStats ? (generalStats.totalCalls > 0 ? generalStats.totalCalls.toString() : "N/A") : "N/A",
-      change: generalStats?.callsChange || "N/A",
-      trend: generalStats?.callsChange === "N/A" ? "neutral" : generalStats?.callsChange?.startsWith('+') ? "up" : "down",
+      title: "Atividades",
+      value: "N/A",
+      change: "N/A",
+      trend: "neutral",
       icon: Phone,
       color: "text-primary-glow",
       bgColor: "bg-primary/10"
