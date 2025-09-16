@@ -57,9 +57,9 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold">Kommo Insight Hub</h1>
-                 <p className="text-sm text-muted-foreground">
-                   Última atualização: {lastUpdate.toLocaleTimeString('pt-BR')} • {APP_VERSION.split('T')[0].replace('build: ', 'v')}
-                 </p>
+                <p className="text-sm text-muted-foreground">
+                  Última atualização: {lastUpdate.toLocaleTimeString('pt-BR')} • {APP_VERSION.split('T')[0].replace('build: ', 'v')}
+                </p>
               </div>
             </div>
 
