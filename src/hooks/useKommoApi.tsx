@@ -80,10 +80,10 @@ export const useKommoApi = () => {
   }, [selectedPipeline]);
 
   useEffect(() => {
-    if (users.length > 0 && allLeads.length > 0) {
+    if (users.length > 0 && allLeads.length > 0 && pipelines.length > 0) {
       calculateSalesRanking();
     }
-  }, [users, allLeads, rankingPipelineFilter]);
+  }, [users, allLeads, rankingPipelineFilter, pipelines]);
 
   const fetchPipelines = async () => {
     setLoading(true);
@@ -274,7 +274,8 @@ export const useKommoApi = () => {
           priority: lead.price > 30000 ? 'high' : lead.price > 15000 ? 'medium' : 'low',
           source: 'Kommo CRM',
           responsible_user_id: lead.responsible_user_id,
-          pipeline_id: lead.pipeline_id
+          pipeline_id: lead.pipeline_id,
+          status_id: lead.status_id,
         })),
         ...unsortedLeads.map((lead: any) => ({
           id: `unsorted-${lead.uid}`,
