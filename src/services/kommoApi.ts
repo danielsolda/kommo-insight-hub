@@ -171,10 +171,16 @@ export class KommoApiService {
         hasMore = pageLeads.length === limit;
         currentPage++;
 
-        // Segurança: evitar loops infinitos
-        if (currentPage > 100) {
-          console.warn('⚠️ Limite de páginas atingido (100)');
+        // Segurança: evitar loops infinitos - aumentado para contas grandes
+        if (currentPage > 500) {
+          console.warn('⚠️ Limite de páginas atingido (500) - conta muito grande');
           break;
+        }
+        
+        // Timeout para evitar requests muito longos
+        if (currentPage % 50 === 0) {
+          console.log(`🔄 Processando página ${currentPage}, aguardando 1s para evitar rate limiting...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       } catch (error) {
         console.error(`❌ Erro na página ${currentPage}:`, error);
@@ -273,9 +279,15 @@ export class KommoApiService {
         hasMore = pageUnsorted.length === limit;
         currentPage++;
 
-        if (currentPage > 100) {
-          console.warn('⚠️ Limite de páginas atingido (100)');
+        if (currentPage > 500) {
+          console.warn('⚠️ Limite de páginas atingido (500) - conta muito grande');
           break;
+        }
+        
+        // Timeout para evitar requests muito longos
+        if (currentPage % 50 === 0) {
+          console.log(`🔄 Processando página ${currentPage}, aguardando 1s para evitar rate limiting...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       } catch (error) {
         console.error(`❌ Erro na página ${currentPage}:`, error);

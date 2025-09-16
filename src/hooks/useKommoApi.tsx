@@ -504,6 +504,22 @@ export const useKommoApi = () => {
     console.log('📅 Date Range:', rankingDateRange);
     console.log('🐛 Include Zero Sales:', includeZeroSales);
     
+    // Data quality analysis
+    const leadsWithoutResponsible = allLeads.filter(lead => !lead.responsible_user_id).length;
+    const leadsWithoutStatus = allLeads.filter(lead => !lead.status_id).length;
+    const leadsWithoutValue = allLeads.filter(lead => !lead.value || lead.value === 0).length;
+    const leadsWithoutClosedDate = allLeads.filter(lead => !lead.closed_at).length;
+    
+    console.log('\n📊 DATA QUALITY REPORT:');
+    console.log(`❓ Leads sem responsável: ${leadsWithoutResponsible} (${((leadsWithoutResponsible/allLeads.length)*100).toFixed(1)}%)`);
+    console.log(`❓ Leads sem status: ${leadsWithoutStatus} (${((leadsWithoutStatus/allLeads.length)*100).toFixed(1)}%)`);
+    console.log(`❓ Leads sem valor: ${leadsWithoutValue} (${((leadsWithoutValue/allLeads.length)*100).toFixed(1)}%)`);
+    console.log(`❓ Leads sem data de fechamento: ${leadsWithoutClosedDate} (${((leadsWithoutClosedDate/allLeads.length)*100).toFixed(1)}%)`);
+    
+    if (leadsWithoutResponsible > allLeads.length * 0.1) {
+      console.warn('⚠️ ATENÇÃO: Mais de 10% dos leads não têm responsável definido!');
+    }
+    
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     const closedWonStatusIds = getClosedWonStatusIds();
@@ -523,9 +539,19 @@ export const useKommoApi = () => {
       .map(user => {
       console.log(`\n👤 Processing user: ${user.name} (ID: ${user.id})`);
       
-      // Filter leads for this user, optionally by ranking pipeline filter
+      // Filter leads for this user with fallbacks, optionally by ranking pipeline filter
       let userLeads = allLeads.filter(lead => {
-        const isUserLead = lead.responsible_user_id === user.id;
+        // Primary: responsible_user_id
+        const isPrimaryResponsible = lead.responsible_user_id === user.id;
+        
+        // Fallback: created_by field (se disponível)
+        const isCreatedBy = (lead as any).created_by === user.id;
+        
+        // Fallback: lead name contains user name (último recurso)
+        const nameContainsUser = lead.name && user.name && 
+          lead.name.toLowerCase().includes(user.name.toLowerCase().split(' ')[0].toLowerCase());
+        
+        const isUserLead = isPrimaryResponsible || isCreatedBy || nameContainsUser;
         
         if (rankingPipelineFilter) {
           return isUserLead && lead.pipeline_id === rankingPipelineFilter;
@@ -534,6 +560,15 @@ export const useKommoApi = () => {
       });
       
       console.log(`  📊 User leads found: ${userLeads.length}`);
+      
+      // Debug: Show lead assignment methods
+      const primaryLeads = userLeads.filter(lead => lead.responsible_user_id === user.id).length;
+      const createdByLeads = userLeads.filter(lead => (lead as any).created_by === user.id && lead.responsible_user_id !== user.id).length;
+      const nameMatchLeads = userLeads.length - primaryLeads - createdByLeads;
+      
+      if (primaryLeads > 0) console.log(`    📋 Leads por responsible_user_id: ${primaryLeads}`);
+      if (createdByLeads > 0) console.log(`    🆕 Leads por created_by: ${createdByLeads}`);
+      if (nameMatchLeads > 0) console.log(`    🔍 Leads por correspondência de nome: ${nameMatchLeads}`);
       
       // Filter to only count "Closed Won" leads (actual sales)
       const closedWonLeads = userLeads.filter(lead => {
