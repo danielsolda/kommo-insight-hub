@@ -141,42 +141,20 @@ export class KommoApiService {
     return this.makeRequest(`/leads${query ? `?${query}` : ''}`);
   }
 
-  // Obter todos os leads com paginação automática melhorada
+  // Obter todos os leads com paginação automática
   async getAllLeads(params: {
     filter?: any;
     with?: string[];
-    onProgress?: (loadedCount: number, currentPage: number, totalEstimated?: number) => void;
-    maxTimeMinutes?: number; // Limite de tempo em minutos
-  } = {}): Promise<{ 
-    _embedded: { leads: Lead[] };
-    integrity: {
-      totalLoaded: number;
-      pagesProcessed: number;
-      errors: string[];
-      timedOut: boolean;
-      completedFully: boolean;
-    }
-  }> {
+    onProgress?: (loadedCount: number, currentPage: number) => void;
+  } = {}): Promise<{ _embedded: { leads: Lead[] } }> {
     const allLeads: Lead[] = [];
     let currentPage = 1;
     let hasMore = true;
-    const limit = 250;
-    const maxTimeMs = (params.maxTimeMinutes || 15) * 60 * 1000; // Default: 15 minutos
-    const startTime = Date.now();
-    const errors: string[] = [];
-    let consecutiveErrors = 0;
-    let timedOut = false;
+    const limit = 250; // Máximo por página
 
-    console.log(`🔄 Iniciando busca robusta de leads (timeout: ${params.maxTimeMinutes || 15}min)...`);
+    console.log('🔄 Iniciando busca paginada de leads...');
 
-    while (hasMore && !timedOut) {
-      // Verificar timeout
-      if (Date.now() - startTime > maxTimeMs) {
-        console.warn(`⏰ Timeout atingido após ${Math.round((Date.now() - startTime) / 1000 / 60)}min`);
-        timedOut = true;
-        break;
-      }
-
+    while (hasMore) {
       try {
         const response = await this.getLeads({
           ...params,
@@ -186,64 +164,39 @@ export class KommoApiService {
 
         const pageLeads = response._embedded?.leads || [];
         allLeads.push(...pageLeads);
-        consecutiveErrors = 0; // Reset contador de erros
 
-        console.log(`📄 Página ${currentPage}: ${pageLeads.length} leads carregados (total: ${allLeads.length})`);
+        console.log(`📄 Página ${currentPage}: ${pageLeads.length} leads carregados`);
 
-        // Callback de progresso com estimativa
+        // Callback de progresso
         if (params.onProgress) {
-          const totalEstimated = pageLeads.length === limit ? 
-            Math.ceil(allLeads.length / pageLeads.length) * limit : 
-            allLeads.length;
-          params.onProgress(allLeads.length, currentPage, totalEstimated);
+          params.onProgress(allLeads.length, currentPage);
         }
 
         // Verificar se há mais páginas
         hasMore = pageLeads.length === limit;
         currentPage++;
 
-        // Rate limiting adaptativo
-        if (currentPage % 25 === 0) {
-          console.log(`🔄 Pausa estratégica na página ${currentPage}...`);
-          await new Promise(resolve => setTimeout(resolve, 800));
+        // Segurança: evitar loops infinitos - aumentado para contas grandes
+        if (currentPage > 500) {
+          console.warn('⚠️ Limite de páginas atingido (500) - conta muito grande');
+          break;
         }
         
-      } catch (error: any) {
-        consecutiveErrors++;
-        const errorMsg = `Página ${currentPage}: ${error.message}`;
-        errors.push(errorMsg);
+        // Timeout para evitar requests muito longos
+        if (currentPage % 50 === 0) {
+          console.log(`🔄 Processando página ${currentPage}, aguardando 1s para evitar rate limiting...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      } catch (error) {
         console.error(`❌ Erro na página ${currentPage}:`, error);
-
-        // Retry logic para falhas temporárias
-        if (consecutiveErrors <= 3) {
-          console.log(`🔄 Tentativa ${consecutiveErrors}/3 - Aguardando ${consecutiveErrors * 2}s...`);
-          await new Promise(resolve => setTimeout(resolve, consecutiveErrors * 2000));
-          continue; // Tentar novamente sem incrementar currentPage
-        }
-
-        // Se muitos erros consecutivos, parar
-        if (consecutiveErrors > 3) {
-          console.error(`🛑 Muitos erros consecutivos (${consecutiveErrors}) - parando busca`);
-          hasMore = false;
-        }
+        // Continuar mesmo se uma página falhar
+        hasMore = false;
       }
     }
 
-    const completedFully = !timedOut && consecutiveErrors <= 3 && !hasMore;
-    
-    console.log(`✅ Busca concluída: ${allLeads.length} leads em ${currentPage - 1} páginas`);
-    console.log(`📊 Status: ${completedFully ? 'Completa' : 'Parcial'} | Erros: ${errors.length} | Timeout: ${timedOut}`);
+    console.log(`✅ Busca concluída: ${allLeads.length} leads carregados em ${currentPage - 1} páginas`);
 
-    return { 
-      _embedded: { leads: allLeads },
-      integrity: {
-        totalLoaded: allLeads.length,
-        pagesProcessed: currentPage - 1,
-        errors,
-        timedOut,
-        completedFully
-      }
-    };
+    return { _embedded: { leads: allLeads } };
   }
 
   // Obter lead específico
@@ -338,40 +291,19 @@ export class KommoApiService {
     return this.makeRequest(`/leads/unsorted${query ? `?${query}` : ''}`);
   }
 
-  // Obter todos os leads não organizados com paginação robusta
+  // Obter todos os leads não organizados com paginação automática
   async getAllUnsortedLeads(params: {
     filter?: any;
     onProgress?: (loadedCount: number, currentPage: number) => void;
-    maxTimeMinutes?: number;
-  } = {}): Promise<{ 
-    _embedded: { unsorted: any[] };
-    integrity: {
-      totalLoaded: number;
-      pagesProcessed: number;
-      errors: string[];
-      timedOut: boolean;
-      completedFully: boolean;
-    }
-  }> {
+  } = {}): Promise<{ _embedded: { unsorted: any[] } }> {
     const allUnsorted: any[] = [];
     let currentPage = 1;
     let hasMore = true;
     const limit = 250;
-    const maxTimeMs = (params.maxTimeMinutes || 10) * 60 * 1000;
-    const startTime = Date.now();
-    const errors: string[] = [];
-    let consecutiveErrors = 0;
-    let timedOut = false;
 
-    console.log(`🔄 Iniciando busca robusta de leads não organizados (timeout: ${params.maxTimeMinutes || 10}min)...`);
+    console.log('🔄 Iniciando busca paginada de leads não organizados...');
 
-    while (hasMore && !timedOut) {
-      if (Date.now() - startTime > maxTimeMs) {
-        console.warn(`⏰ Timeout em leads não organizados após ${Math.round((Date.now() - startTime) / 1000 / 60)}min`);
-        timedOut = true;
-        break;
-      }
-
+    while (hasMore) {
       try {
         const response = await this.getUnsortedLeads({
           ...params,
@@ -381,9 +313,8 @@ export class KommoApiService {
 
         const pageUnsorted = response._embedded?.unsorted || [];
         allUnsorted.push(...pageUnsorted);
-        consecutiveErrors = 0;
 
-        console.log(`📄 Página ${currentPage}: ${pageUnsorted.length} leads não organizados carregados (total: ${allUnsorted.length})`);
+        console.log(`📄 Página ${currentPage}: ${pageUnsorted.length} leads não organizados carregados`);
 
         if (params.onProgress) {
           params.onProgress(allUnsorted.length, currentPage);
@@ -391,245 +322,67 @@ export class KommoApiService {
 
         hasMore = pageUnsorted.length === limit;
         currentPage++;
+
+        if (currentPage > 500) {
+          console.warn('⚠️ Limite de páginas atingido (500) - conta muito grande');
+          break;
+        }
         
-        // Rate limiting
-        if (currentPage % 20 === 0) {
+        // Timeout para evitar requests muito longos
+        if (currentPage % 50 === 0) {
+          console.log(`🔄 Processando página ${currentPage}, aguardando 1s para evitar rate limiting...`);
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
-        
-      } catch (error: any) {
-        consecutiveErrors++;
-        const errorMsg = `Página ${currentPage}: ${error.message}`;
-        errors.push(errorMsg);
-        console.error(`❌ Erro na página ${currentPage} (não organizados):`, error);
-
-        if (consecutiveErrors <= 2) {
-          console.log(`🔄 Retry ${consecutiveErrors}/2 para leads não organizados...`);
-          await new Promise(resolve => setTimeout(resolve, consecutiveErrors * 1500));
-          continue;
-        }
-
-        console.error(`🛑 Muitos erros em leads não organizados - parando`);
+      } catch (error) {
+        console.error(`❌ Erro na página ${currentPage}:`, error);
         hasMore = false;
       }
     }
 
-    const completedFully = !timedOut && consecutiveErrors <= 2 && !hasMore;
-    
     console.log(`✅ Busca de não organizados concluída: ${allUnsorted.length} leads em ${currentPage - 1} páginas`);
-    console.log(`📊 Status: ${completedFully ? 'Completa' : 'Parcial'} | Erros: ${errors.length}`);
 
-    return { 
-      _embedded: { unsorted: allUnsorted },
-      integrity: {
-        totalLoaded: allUnsorted.length,
-        pagesProcessed: currentPage - 1,
-        errors,
-        timedOut,
-        completedFully
-      }
-    };
+    return { _embedded: { unsorted: allUnsorted } };
   }
 
-  // Obter estatísticas completas com validação de integridade (versão otimizada)
-  async getStatsWithIntegrity(options: {
-    maxTimeMinutes?: number;
-    onProgress?: (status: string, progress: number) => void;
-  } = {}): Promise<{
-    stats: any;
-    integrity: {
-      totalLeads: number;
-      totalUnsorted: number;
-      pipelineCounts: Array<{ id: number; name: string; count: number }>;
-      missingData: string[];
-      dataQuality: number;
-      completedFully: boolean;
-      analysisTime: number;
-    }
-  }> {
-    const { maxTimeMinutes = 2, onProgress } = options;
-    console.log(`🔄 Iniciando análise rápida de integridade (máximo ${maxTimeMinutes} min)`);
-    
-    const startTime = Date.now();
-    const maxTime = maxTimeMinutes * 60 * 1000; // Converter para ms
-    
-    try {
-      onProgress?.('Carregando pipelines...', 10);
-      
-      // Buscar pipelines primeiro com validação robusta
-      const pipelinesResponse = await this.getPipelines();
-      if (!pipelinesResponse || typeof pipelinesResponse !== 'object') {
-        throw new Error('Resposta inválida da API de pipelines');
-      }
-      
-      const pipelines = pipelinesResponse._embedded?.pipelines || [];
-      if (!Array.isArray(pipelines)) {
-        console.warn('⚠️ Pipelines não é um array, usando array vazio');
-      }
-      
-      console.log(`📋 ${pipelines.length} pipelines encontrados`);
-      
-      onProgress?.('Analisando leads organizados...', 30);
-      
-      // Análise mais leve com timeout menor
-      const leadsResult = await this.getAllLeads({
-        with: ['contacts'],
-        onProgress: (loaded, page, total) => {
-          const elapsed = Date.now() - startTime;
-          const progress = 30 + Math.min(40, (elapsed / maxTime) * 40);
-          onProgress?.(`Carregados ${loaded} leads (página ${page})`, progress);
-        },
-        maxTimeMinutes: maxTimeMinutes * 0.7 // 70% do tempo para leads organizados
-      });
-      
-      const leads = leadsResult._embedded?.leads || [];
-      const totalLeads = leads.length;
-      const totalValue = leads.reduce((sum, lead) => sum + (lead.price || 0), 0);
-      
-      // Verificar se ainda temos tempo
-      const elapsed = Date.now() - startTime;
-      let unsorted: any[] = [];
-      let unsortedResult = { _embedded: { unsorted: [] }, integrity: { completedFully: false, errors: [] } };
-      
-      if (elapsed < maxTime * 0.8) { // Se ainda temos 20% do tempo
-        onProgress?.('Analisando leads não organizados...', 80);
-        
-        const remainingTime = (maxTime - elapsed) / (60 * 1000); // Tempo restante em minutos
-        unsortedResult = await this.getAllUnsortedLeads({
-          onProgress: (loaded, page) => {
-            const currentProgress = 80 + Math.min(15, (loaded / 1000) * 15);
-            onProgress?.(`${loaded} leads não organizados`, currentProgress);
-          },
-          maxTimeMinutes: Math.max(0.2, remainingTime) // Mínimo 0.2 min
-        });
-        unsorted = unsortedResult._embedded?.unsorted || [];
-      } else {
-        console.log('⏰ Tempo insuficiente para análise completa de leads não organizados');
-      }
-      
-      // Validação de integridade por pipeline
-      const pipelineCounts = pipelines.map(pipeline => {
-        const pipelineLeads = leads.filter(lead => lead.pipeline_id === pipeline.id);
-        return {
-          id: pipeline.id,
-          name: pipeline.name,
-          count: pipelineLeads.length
-        };
-      });
-
-      // Detectar possíveis problemas de dados
-      const missingData: string[] = [];
-      
-      // Verificar leads sem pipeline
-      const leadsWithoutPipeline = leads.filter(lead => !lead.pipeline_id);
-      if (leadsWithoutPipeline.length > 0) {
-        missingData.push(`${leadsWithoutPipeline.length} leads sem pipeline definido`);
-      }
-
-      // Verificar leads sem valor
-      const leadsWithoutValue = leads.filter(lead => !lead.price || lead.price === 0);
-      if (leadsWithoutValue.length > totalLeads * 0.3) { // Mais de 30% sem valor
-        missingData.push(`${leadsWithoutValue.length} leads sem valor (${Math.round(leadsWithoutValue.length/totalLeads*100)}%)`);
-      }
-
-      // Verificar integridade temporal
-      if (!leadsResult.integrity.completedFully) {
-        missingData.push('Busca de leads não foi completada totalmente');
-      }
-
-      if (!unsortedResult.integrity.completedFully) {
-        missingData.push('Busca de leads não organizados incompleta');
-      }
-
-      // Calcular score de qualidade de dados
-      let qualityScore = 100;
-      qualityScore -= leadsResult.integrity.errors.length * 5; // -5 por erro
-      qualityScore -= unsortedResult.integrity.errors.length * 3;
-      qualityScore -= missingData.length * 10;
-      if (!leadsResult.integrity.completedFully) qualityScore -= 20;
-      if (!unsortedResult.integrity.completedFully) qualityScore -= 10;
-      qualityScore = Math.max(0, qualityScore);
-
-      // Agrupar estatísticas por pipeline
-      const pipelineStats = pipelines.map(pipeline => {
-        const pipelineLeads = leads.filter(lead => lead.pipeline_id === pipeline.id);
-        const statusStats = pipeline.statuses.map(status => {
-          const statusLeads = pipelineLeads.filter(lead => lead.status_id === status.id);
-          return {
-            ...status,
-            count: statusLeads.length,
-            value: statusLeads.reduce((sum, lead) => sum + (lead.price || 0), 0)
-          };
-        });
-        
-        return {
-          ...pipeline,
-          totalLeads: pipelineLeads.length,
-          totalValue: pipelineLeads.reduce((sum, lead) => sum + (lead.price || 0), 0),
-          statuses: statusStats
-        };
-      });
-
-      onProgress?.('Finalizando análise...', 95);
-      
-      const totalTime = (Date.now() - startTime) / 1000;
-      console.log(`✅ Análise concluída em ${totalTime.toFixed(1)}s: ${totalLeads} leads + ${unsorted.length} não organizados`);
-      console.log(`📊 Qualidade dos dados: ${qualityScore}%`);
-
-      onProgress?.('Análise concluída!', 100);
-
-      return {
-        stats: {
-          totalLeads,
-          totalValue,
-          pipelines: pipelineStats,
-          leads: leads.slice(0, 100), // Primeiros 100 leads para análise
-          unsorted: unsorted.slice(0, 50), // Primeiros 50 não organizados
-          analysisTime: totalTime,
-          partial: elapsed >= maxTime * 0.9 // Indica se foi análise parcial
-        },
-        integrity: {
-          totalLeads,
-          totalUnsorted: unsorted.length,
-          pipelineCounts,
-          missingData,
-          dataQuality: qualityScore,
-          completedFully: elapsed < maxTime * 0.9,
-          analysisTime: totalTime
-        }
-      };
-    } catch (error: any) {
-      console.error('🚨 Erro em getStatsWithIntegrity:', error);
-      onProgress?.('Erro na análise', 0);
-      
-      // Retornar dados seguros em caso de erro
-      const errorTime = (Date.now() - startTime) / 1000;
-      return {
-        stats: {
-          totalLeads: 0,
-          totalValue: 0,
-          pipelines: [],
-          leads: [],
-          unsorted: [],
-          analysisTime: errorTime,
-          partial: true
-        },
-        integrity: {
-          totalLeads: 0,
-          totalUnsorted: 0,
-          pipelineCounts: [],
-          missingData: [`Erro na análise: ${error.message}`],
-          dataQuality: 0,
-          completedFully: false,
-          analysisTime: errorTime
-        }
-      };
-    }
-  }
-
-  // Manter método getStats original para compatibilidade
+  // Obter estatísticas básicas
   async getStats(): Promise<any> {
-    const result = await this.getStatsWithIntegrity();
-    return result.stats;
+    const [leadsResponse, pipelinesResponse] = await Promise.all([
+      this.getLeads({ limit: 250 }),
+      this.getPipelines()
+    ]);
+
+    const leads = leadsResponse._embedded?.leads || [];
+    const pipelines = pipelinesResponse._embedded?.pipelines || [];
+
+    // Calcular estatísticas
+    const totalLeads = leads.length;
+    const totalValue = leads.reduce((sum, lead) => sum + (lead.price || 0), 0);
+    
+    // Agrupar por pipeline/status
+    const pipelineStats = pipelines.map(pipeline => {
+      const pipelineLeads = leads.filter(lead => lead.pipeline_id === pipeline.id);
+      const statusStats = pipeline.statuses.map(status => {
+        const statusLeads = pipelineLeads.filter(lead => lead.status_id === status.id);
+        return {
+          ...status,
+          count: statusLeads.length,
+          value: statusLeads.reduce((sum, lead) => sum + (lead.price || 0), 0)
+        };
+      });
+      
+      return {
+        ...pipeline,
+        totalLeads: pipelineLeads.length,
+        totalValue: pipelineLeads.reduce((sum, lead) => sum + (lead.price || 0), 0),
+        statuses: statusStats
+      };
+    });
+
+    return {
+      totalLeads,
+      totalValue,
+      pipelines: pipelineStats,
+      leads: leads.slice(0, 50) // Limitar para performance
+    };
   }
 }

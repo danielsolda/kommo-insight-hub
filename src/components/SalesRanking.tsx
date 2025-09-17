@@ -10,7 +10,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import useKommoApi from "@/hooks/useKommoApi";
+import { useKommoApi } from "@/hooks/useKommoApi";
 
 interface SalesRankingData {
   userId: number;
@@ -441,7 +441,7 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
                 <div>
                   <strong className="text-orange-700">Resultado:</strong>
                   <ul className="mt-1 space-y-1 text-orange-600">
-                    <li>🏆 Vendedores: {(salesRanking || []).length}</li>
+                    <li>🏆 Vendedores: {salesRanking?.length || 0}</li>
                     <li>📊 Status: {loading ? 'Carregando...' : 'Pronto'}</li>
                   </ul>
                 </div>
@@ -453,7 +453,7 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
           )}
 
         <div className="space-y-4">
-          {(salesRanking || []).slice(0, 10).map((seller, index) => {
+          {salesRanking.slice(0, 10).map((seller, index) => {
             const isCurrentMonthBetter = seller.currentMonthSales >= seller.monthlyAverage;
             const positionIcon = index === 0 ? (
               <Crown className="h-5 w-5 text-yellow-500" />
@@ -522,7 +522,7 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
           })}
         </div>
         
-        {(salesRanking || []).length === 0 && (
+        {salesRanking.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
             {debugMode ? (

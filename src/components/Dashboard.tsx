@@ -22,9 +22,8 @@ import {
   LazySalesRanking 
 } from "@/components/LazyComponents";
 import { NomenclaturesModal } from "@/components/NomenclaturesModal";
-import { DataIntegrityReport } from "@/components/DataIntegrityReport";
 import { useToast } from "@/hooks/use-toast";
-import useKommoApi from "@/hooks/useKommoApi";
+import { useKommoApi } from "@/hooks/useKommoApi";
 import { APP_VERSION } from "@/version";
 
 interface DashboardProps {
@@ -39,18 +38,6 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
   const [nomenclaturesOpen, setNomenclaturesOpen] = useState(false);
   const { toast } = useToast();
   const kommoApi = useKommoApi();
-
-  // Log de debug no Dashboard
-  useEffect(() => {
-    console.log('🔍 Dashboard Debug - Dados recebidos:', {
-      dataIntegrity: kommoApi.dataIntegrity,
-      hasDataIntegrity: !!kommoApi.dataIntegrity,
-      loadingStats: kommoApi.loadingStates.stats,
-      salesData: kommoApi.salesData,
-      filteredSalesData: kommoApi.filteredSalesData,
-      selectedPipeline: kommoApi.selectedPipeline
-    });
-  }, [kommoApi.dataIntegrity, kommoApi.loadingStates.stats, kommoApi.salesData, kommoApi.filteredSalesData]);
 
   const handleRefresh = async () => {
     setLoading(true);
@@ -156,7 +143,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-muted/30">
+          <TabsList className="grid w-full grid-cols-4 bg-muted/30">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Visão Geral
@@ -173,36 +160,13 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
               <DollarSign className="h-4 w-4" />
               Vendas
             </TabsTrigger>
-            <TabsTrigger value="integrity" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Integridade
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            {/* Pipeline Selection Info */}
-            {kommoApi.selectedPipeline && (
-              <Card className="bg-gradient-card border-border/50 shadow-card">
-                <CardContent className="pt-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Target className="h-4 w-4" />
-                    <span>
-                      Exibindo dados do pipeline: <span className="font-medium text-foreground">
-                        {kommoApi.pipelines.find(p => p.id === kommoApi.selectedPipeline)?.name || 'Pipeline selecionado'}
-                      </span>
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
             {kommoApi.loadingStates.stats ? (
               <MetricsSkeleton />
             ) : (
-              <MetricsCards 
-                generalStats={kommoApi.selectedPipeline ? kommoApi.filteredGeneralStats : kommoApi.generalStats} 
-                loading={kommoApi.loadingStates.stats} 
-              />
+              <MetricsCards generalStats={kommoApi.generalStats} loading={kommoApi.loadingStates.stats} />
             )}
             
             <div className="grid lg:grid-cols-2 gap-6">
@@ -215,11 +179,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
               {kommoApi.loadingStates.leads ? (
                 <ChartSkeleton title="Vendas" />
               ) : (
-                <SalesChart 
-                  salesData={kommoApi.selectedPipeline ? kommoApi.filteredSalesData : kommoApi.salesData} 
-                  loading={kommoApi.loadingStates.leads}
-                  selectedPipeline={kommoApi.selectedPipeline ? kommoApi.pipelines.find(p => p.id === kommoApi.selectedPipeline)?.name : null}
-                />
+                <SalesChart salesData={kommoApi.salesData} loading={kommoApi.loadingStates.leads} />
               )}
             </div>
             
@@ -348,18 +308,6 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          <TabsContent value="integrity" className="space-y-6">
-            <Suspense fallback={<div className="p-8"><DataIntegrityReport integrity={null} isLoading={true} /></div>}>
-              <DataIntegrityReport 
-                integrity={kommoApi.dataIntegrity}
-                leadsIntegrity={kommoApi.leadsIntegrity}
-                unsortedIntegrity={kommoApi.unsortedIntegrity}
-                progress={kommoApi.dataIntegrityProgress}
-                isLoading={kommoApi.loadingStates.stats}
-              />
-            </Suspense>
           </TabsContent>
         </Tabs>
       </div>

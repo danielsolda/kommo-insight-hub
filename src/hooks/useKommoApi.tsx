@@ -75,14 +75,7 @@ interface LoadingProgress {
   unsorted: { current: number; total: number; phase: string };
 }
 
-export default function useKommoApi() {
-  // Novo estado para progresso da análise de integridade
-  const [dataIntegrityProgress, setDataIntegrityProgress] = useState<{
-    status: string;
-    progress: number;
-  }>({ status: '', progress: 0 });
-
-  // Estados existentes
+export const useKommoApi = () => {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [pipelineStats, setPipelineStats] = useState<PipelineStats[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
@@ -120,11 +113,6 @@ export default function useKommoApi() {
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     return { startDate: startOfMonth, endDate: endOfMonth };
   });
-  
-  // Novos estados para integridade de dados
-  const [dataIntegrity, setDataIntegrity] = useState<any>(null);
-  const [leadsIntegrity, setLeadsIntegrity] = useState<any>(null);
-  const [unsortedIntegrity, setUnsortedIntegrity] = useState<any>(null);
   const { toast } = useToast();
   const cache = useLocalCache({ ttl: 5 * 60 * 1000, key: 'kommo-api' }); // 5 minutes cache
 
@@ -133,7 +121,7 @@ export default function useKommoApi() {
     setLoadingStates(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  // Memoized closed won status IDs calculation (global - for all pipelines)
+  // Memoized closed won status IDs calculation
   const closedWonStatusIds = useMemo(() => {
     const statusIds = new Set<number>();
     pipelines.forEach(pipeline => {
@@ -153,58 +141,15 @@ export default function useKommoApi() {
         }
       });
     });
-    return statusIds;
-  }, [pipelines]);
-
-  // Helper function to get closed won status IDs for a specific pipeline
-  const getClosedWonStatusIdsForPipeline = useCallback((pipelineId: number) => {
-    const pipeline = pipelines.find(p => p.id === pipelineId);
-    if (!pipeline) return new Set<number>();
-    
-    const statusIds = new Set<number>();
-    pipeline.statuses.forEach(status => {
-      const statusName = status.name.toLowerCase();
-      if ((statusName.includes('fechado') || 
-           statusName.includes('ganho') || 
-           statusName.includes('won') || 
-           statusName.includes('closed') ||
-           statusName.includes('venda') ||
-           statusName.includes('concluído') ||
-           statusName.includes('finalizado')) &&
-          !statusName.includes('lost') && 
-          !statusName.includes('perdido') && 
-          !statusName.includes('perdida')) {
-        statusIds.add(status.id);
-      }
-    });
-    
-    console.log(`📊 Status "fechado/won" para pipeline ${pipelineId}:`, {
-      pipelineName: pipeline.name,
-      statusIds: Array.from(statusIds),
-      allStatuses: pipeline.statuses.map(s => ({ id: s.id, name: s.name }))
-    });
-    
+    statusIds.add(142); // Manual status ID
     return statusIds;
   }, [pipelines]);
 
   // Memoized sales ranking calculation
   const memoizedSalesRanking = useMemo(() => {
     if (!users.length || !allLeads.length || !pipelines.length) {
-      console.log('📊 Ranking: Dados insuficientes', { users: users.length, leads: allLeads.length, pipelines: pipelines.length });
       return [];
     }
-
-    // Get the appropriate closed won status IDs
-    const relevantClosedWonIds = rankingPipelineFilter ? 
-      getClosedWonStatusIdsForPipeline(rankingPipelineFilter) : 
-      closedWonStatusIds;
-
-    console.log('📊 Calculando ranking com filtros:', { 
-      pipeline: rankingPipelineFilter, 
-      dateRange: rankingDateRange,
-      relevantClosedWonIds: Array.from(relevantClosedWonIds),
-      usingPipelineSpecific: !!rankingPipelineFilter
-    });
 
     const filterByPipeline = rankingPipelineFilter ? 
       (lead: any) => lead.pipeline_id === rankingPipelineFilter : 
@@ -212,73 +157,21 @@ export default function useKommoApi() {
 
     const filterByDateRange = (lead: any) => {
       if (!rankingDateRange.startDate || !rankingDateRange.endDate) return true;
-      
-      // Use closed_at for sales ranking (when the sale was completed)
-      let leadDate: Date;
-      if (lead.closed_at) {
-        leadDate = new Date(lead.closed_at * 1000);
-      } else {
-        // Fallback to lastContact if closed_at is not available
-        leadDate = new Date(lead.lastContact);
-      }
-      
-      const startDate = new Date(rankingDateRange.startDate);
-      const endDate = new Date(rankingDateRange.endDate);
-      endDate.setHours(23, 59, 59, 999); // Include the entire end date
-      
-      return leadDate >= startDate && leadDate <= endDate;
+      const leadDate = new Date(lead.lastContact);
+      return leadDate >= rankingDateRange.startDate && leadDate <= rankingDateRange.endDate;
     };
 
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth();
-    const startOfCurrentMonth = new Date(currentYear, currentMonth, 1);
-    const endOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
-
     const ranking = users.map(user => {
-      // All user leads that are closed/won and match filters
       const userLeads = allLeads.filter(lead => 
         lead.responsible_user_id === user.id && 
-        relevantClosedWonIds.has(lead.status_id) &&
+        closedWonStatusIds.has(lead.status_id) &&
         filterByPipeline(lead) &&
         filterByDateRange(lead)
       );
       
-      // Current month sales (using same pipeline-specific logic if pipeline is filtered)
-      const currentMonthClosedWonIds = rankingPipelineFilter ? 
-        getClosedWonStatusIdsForPipeline(rankingPipelineFilter) : 
-        closedWonStatusIds;
-        
-      const currentMonthLeads = allLeads.filter(lead => {
-        if (lead.responsible_user_id !== user.id || !currentMonthClosedWonIds.has(lead.status_id)) {
-          return false;
-        }
-        
-        // Apply pipeline filter for current month too if set
-        if (rankingPipelineFilter && lead.pipeline_id !== rankingPipelineFilter) {
-          return false;
-        }
-        
-        let leadDate: Date;
-        if (lead.closed_at) {
-          leadDate = new Date(lead.closed_at * 1000);
-        } else {
-          leadDate = new Date(lead.lastContact);
-        }
-        
-        return leadDate >= startOfCurrentMonth && leadDate <= endOfCurrentMonth;
-      });
-      
       const totalSales = userLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
       const salesQuantity = userLeads.length;
-      const currentMonthSales = currentMonthLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
-      const currentMonthQuantity = currentMonthLeads.length;
-      
-      // Calculate monthly average based on filtered period
-      const monthsInPeriod = rankingDateRange.startDate && rankingDateRange.endDate ? 
-        Math.max(1, Math.ceil((rankingDateRange.endDate.getTime() - rankingDateRange.startDate.getTime()) / (1000 * 60 * 60 * 24 * 30))) :
-        12;
-      const monthlyAverage = totalSales / monthsInPeriod;
+      const monthlyAverage = totalSales / 12;
       
       return {
         userId: user.id,
@@ -286,21 +179,14 @@ export default function useKommoApi() {
         totalSales,
         salesQuantity,
         monthlyAverage,
-        currentMonthSales,
-        currentMonthQuantity
+        currentMonthSales: totalSales,
+        currentMonthQuantity: salesQuantity
       };
     }).filter(user => user.salesQuantity > 0)
       .sort((a, b) => b.totalSales - a.totalSales);
 
-    console.log('📊 Ranking calculado:', { 
-      totalUsers: users.length, 
-      usersWithSales: ranking.length,
-      topSeller: ranking[0]?.userName,
-      topSellerValue: ranking[0]?.totalSales
-    });
-
     return ranking;
-  }, [users, allLeads, pipelines, closedWonStatusIds, rankingPipelineFilter, rankingDateRange, getClosedWonStatusIdsForPipeline]);
+  }, [users, allLeads, pipelines, closedWonStatusIds, rankingPipelineFilter, rankingDateRange]);
 
   // Update sales ranking when memoized value changes
   useEffect(() => {
@@ -320,117 +206,6 @@ export default function useKommoApi() {
       performanceScore: Math.min(100, Math.round(generalStats.conversionRate * 2))
     };
   }, [generalStats]);
-
-  // Filtered general stats by selected pipeline
-  const filteredGeneralStats = useMemo(() => {
-    if (!selectedPipeline || !allLeads.length) {
-      return memoizedGeneralStats;
-    }
-
-    // Get pipeline-specific closed won status IDs
-    const pipelineClosedWonIds = getClosedWonStatusIdsForPipeline(selectedPipeline);
-
-    const pipelineLeads = allLeads.filter(lead => lead.pipeline_id === selectedPipeline);
-    const activePipelineLeads = pipelineLeads.filter(lead => !pipelineClosedWonIds.has(lead.status_id));
-    const closedWonPipelineLeads = pipelineLeads.filter(lead => pipelineClosedWonIds.has(lead.status_id));
-    
-    const totalRevenue = closedWonPipelineLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
-    const activeLeads = activePipelineLeads.length;
-    const conversions = closedWonPipelineLeads.length;
-    const totalLeads = pipelineLeads.length;
-    const conversionRate = totalLeads > 0 ? (conversions / totalLeads) * 100 : 0;
-
-    console.log('📊 Stats filtradas por pipeline:', {
-      selectedPipeline,
-      pipelineClosedWonIds: Array.from(pipelineClosedWonIds),
-      totalLeads,
-      activeLeads,
-      closedWonLeads: conversions,
-      totalRevenue,
-      conversionRate: `${conversionRate.toFixed(1)}%`
-    });
-
-    // Calculate changes (simplified for now)
-    const revenueChange = "+0%";
-    const leadsChange = "+0%";
-    const conversionChange = "+0%";
-    const callsChange = "+0%";
-
-    return {
-      totalRevenue,
-      activeLeads,
-      conversionRate,
-      totalCalls: 0, // Not available in current data
-      revenueChange,
-      leadsChange,
-      conversionChange,
-      callsChange,
-      averageLeadValue: activeLeads > 0 ? Math.round(totalRevenue / activeLeads) : 0,
-      performanceScore: Math.min(100, Math.round(conversionRate * 2))
-    };
-  }, [memoizedGeneralStats, selectedPipeline, allLeads, getClosedWonStatusIdsForPipeline]);
-
-  // Filtered sales data by selected pipeline
-  const filteredSalesData = useMemo(() => {
-    if (!selectedPipeline || !allLeads.length || !salesData?.length) {
-      return salesData || [];
-    }
-
-    // Get pipeline-specific closed won status IDs
-    const pipelineClosedWonIds = getClosedWonStatusIdsForPipeline(selectedPipeline);
-    
-    // Filtrar leads da pipeline selecionada que foram fechados com status específicos da pipeline
-    const pipelineLeads = allLeads.filter(lead => 
-      lead.pipeline_id === selectedPipeline && 
-      lead.status_id && 
-      pipelineClosedWonIds.has(lead.status_id) &&
-      lead.closed_at
-    );
-
-    console.log('📊 Filtrado por pipeline:', {
-      selectedPipeline,
-      pipelineClosedWonIds: Array.from(pipelineClosedWonIds),
-      totalLeads: allLeads.length,
-      pipelineAllLeads: allLeads.filter(l => l.pipeline_id === selectedPipeline).length,
-      pipelineClosedLeads: pipelineLeads.length,
-      sampleLeads: pipelineLeads.slice(0, 3).map(l => ({ 
-        id: l.id, 
-        name: l.name, 
-        value: l.value, 
-        status_id: l.status_id, 
-        closed_at: l.closed_at 
-      }))
-    });
-
-    // Recalcular dados mensais para a pipeline selecionada
-    const currentYear = new Date().getFullYear();
-    const monthlyData = salesData.map(monthData => {
-      const monthIndex = new Date(`${monthData.month} 1, ${currentYear}`).getMonth();
-      
-      const monthLeads = pipelineLeads.filter(lead => {
-        const leadDate = new Date(lead.closed_at * 1000);
-        return leadDate.getFullYear() === currentYear && leadDate.getMonth() === monthIndex;
-      });
-
-      const monthRevenue = monthLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
-      
-      return {
-        ...monthData,
-        vendas: monthRevenue,
-        leads: monthLeads.length,
-        meta: monthRevenue > 0 ? monthRevenue * 1.2 : 0
-      };
-    });
-
-    console.log('📊 Dados mensais recalculados para pipeline:', {
-      selectedPipeline,
-      totalAnual: monthlyData.reduce((sum, m) => sum + m.vendas, 0),
-      leadsAnual: monthlyData.reduce((sum, m) => sum + m.leads, 0),
-      mesesComVendas: monthlyData.filter(m => m.vendas > 0).length
-    });
-
-    return monthlyData;
-  }, [salesData, selectedPipeline, allLeads, getClosedWonStatusIdsForPipeline]);
 
   // Debounced functions for performance
   const debouncedSetRankingPipeline = useDebouncedCallback((pipelineId: number | null) => {
@@ -471,7 +246,11 @@ export default function useKommoApi() {
     }
   }, [selectedPipeline]);
 
-  // This useEffect is no longer needed as memoizedSalesRanking handles the calculation
+  useEffect(() => {
+    if (users.length > 0 && allLeads.length > 0 && pipelines.length > 0) {
+      calculateSalesRanking();
+    }
+  }, [users, allLeads, rankingPipelineFilter, rankingDateRange, pipelines]);
 
   const fetchPipelines = useCallback(async () => {
     updateLoadingState('pipelines', true);
@@ -610,50 +389,35 @@ export default function useKommoApi() {
 
   const fetchGeneralStats = useCallback(async () => {
     updateLoadingState('stats', true);
-    setDataIntegrityProgress({ status: 'Iniciando...', progress: 0 });
     
     try {
-      // Verificar cache primeiro (válido por 5 minutos)
       const cachedStats = cache.getCache('generalStats') as GeneralStats | null;
-      const cachedIntegrity = cache.getCache('dataIntegrity') as any | null;
-      
-      if (cachedStats && cachedIntegrity) {
-        console.log('📦 Loading general stats and integrity from cache');
+      if (cachedStats) {
+        console.log('📦 Loading general stats from cache');
         setGeneralStats(cachedStats);
-        setDataIntegrity(cachedIntegrity);
-        console.log('🔍 Debug - Cache carregado:', {
-          integrity: cachedIntegrity,
-          hasIntegrity: !!cachedIntegrity
-        });
-        setDataIntegrityProgress({ status: 'Carregado do cache', progress: 100 });
         updateLoadingState('stats', false);
         return;
       }
 
-      console.log('🔄 Fetching quick stats with integrity analysis...');
+      console.log('🔄 Fetching general stats from API');
       const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
       const authService = new KommoAuthService(kommoConfig);
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
 
-      // Análise rápida com timeout de 2 minutos e progress callback
-      console.log('🔍 Iniciando getStatsWithIntegrity...');
-      const statsResult = await apiService.getStatsWithIntegrity({
-        maxTimeMinutes: 2,
-        onProgress: (status, progress) => {
-          console.log(`📊 Progresso: ${status} - ${progress}%`);
-          setDataIntegrityProgress({ status, progress });
-        }
-      });
-      
-      console.log('📊 Resultado da análise de integridade:', {
-        stats: !!statsResult.stats,
-        integrity: !!statsResult.integrity,
-        integrity_data: statsResult.integrity
-      });
-      
-      const allLeads = statsResult.stats.leads || [];
-      const allPipelines = statsResult.stats.pipelines || [];
-      const integrity = statsResult.integrity;
+      const [leadsResponse, pipelinesResponse] = await Promise.all([
+        apiService.getAllLeads({
+          onProgress: (count, page) => {
+            setProgress(prev => ({
+              ...prev,
+              leads: { current: count, total: count, phase: `Carregando leads (página ${page})` }
+            }));
+          }
+        }).catch(() => ({ _embedded: { leads: [] } })),
+        apiService.getPipelines().catch(() => ({ _embedded: { pipelines: [] } }))
+      ]);
+
+      const allLeads = leadsResponse._embedded?.leads || [];
+      const allPipelines = pipelinesResponse._embedded?.pipelines || [];
       
       const closedWonStatusIds = new Set<number>();
       allPipelines.forEach(pipeline => {
@@ -719,123 +483,59 @@ export default function useKommoApi() {
       };
 
       setGeneralStats(stats);
-      setDataIntegrity(integrity);
-      
-      console.log('🔍 Debug - Dados de integridade definidos:', {
-        integrity: integrity,
-        hasIntegrity: !!integrity,
-        totalLeads: integrity?.totalLeads,
-        dataQuality: integrity?.dataQuality
-      });
-      
-      // Cache com TTL baseado na qualidade dos dados
-      const cacheTTL = integrity.dataQuality > 80 ? 5 * 60 * 1000 : 3 * 60 * 1000;
-      cache.setCache('generalStats', stats, cacheTTL);
-      cache.setCache('dataIntegrity', integrity, cacheTTL);
-
-      // Log de diagnóstico detalhado
-      console.log(`📊 Estatísticas carregadas:`);
-      console.log(`   • Total de leads: ${integrity.totalLeads}`);
-      console.log(`   • Leads não organizados: ${integrity.totalUnsorted}`);
-      console.log(`   • Qualidade dos dados: ${integrity.dataQuality}%`);
-      console.log(`   • Problemas detectados: ${integrity.missingData.length}`);
-
-      // Toast informativo sobre qualidade
-      if (integrity.dataQuality < 80) {
-        toast({
-          title: "Qualidade dos dados pode ser melhorada",
-          description: `Score: ${integrity.dataQuality}%. Verifique o relatório de integridade.`,
-          variant: "default",
-        });
-      }
-
+      cache.setCache('generalStats', stats, 3 * 60 * 1000);
     } catch (err: any) {
-      console.error('🚨 Erro em fetchGeneralStats:', err);
-      const errorMsg = `Erro ao carregar estatísticas: ${err.message}`;
-      setError(errorMsg);
-      
-      // Definir dados padrão seguros em caso de erro
-      const defaultIntegrity = {
-        totalLeads: 0,
-        totalUnsorted: 0,
-        pipelineCounts: [],
-        missingData: [`Erro ao carregar dados: ${err.message}. Clique em "Atualizar" para tentar novamente.`],
-        dataQuality: 0,
-        completedFully: false,
-        analysisTime: 0
-      };
-      
-      setDataIntegrity(defaultIntegrity);
-      setDataIntegrityProgress({ status: 'Erro ao carregar', progress: 0 });
-      
-      toast({
-        title: "Erro ao Carregar Estatísticas",
-        description: err.message || 'Não foi possível carregar as estatísticas.',
-        variant: "destructive",
-      });
+      console.error('Error fetching general stats:', err);
     } finally {
       updateLoadingState('stats', false);
-      setDataIntegrityProgress(prev => ({ ...prev, progress: 100 }));
     }
-  }, [updateLoadingState, cache, toast]);
+  }, [updateLoadingState, cache, setProgress]);
 
   const fetchAllLeads = useCallback(async () => {
     updateLoadingState('leads', true);
     
     try {
       const cachedLeads = cache.getCache('allLeads') as any[] | null;
-      const cachedIntegrity = cache.getCache('leadsIntegrity') as any | null;
+      const cachedSalesData = cache.getCache('salesData') as any[] | null;
       
-      if (cachedLeads && cachedIntegrity) {
-        console.log('📦 Loading all leads from cache');
+      if (cachedLeads && cachedSalesData) {
+        console.log('📦 Loading leads from cache');
         setAllLeads(cachedLeads);
-        setLeadsIntegrity(cachedIntegrity);
+        setSalesData(cachedSalesData);
         updateLoadingState('leads', false);
         return;
       }
 
-      console.log('🔄 Fetching all leads with integrity check...');
+      console.log('🔄 Fetching leads from API');
       const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
       const authService = new KommoAuthService(kommoConfig);
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
 
       const [leadsResponse, unsortedResponse] = await Promise.all([
-        apiService.getAllLeads({
+        apiService.getAllLeads({ 
           with: ['contacts'],
-          maxTimeMinutes: 20, // Timeout aumentado para contas grandes
-          onProgress: (count, page, totalEstimated) => {
+          onProgress: (count, page) => {
             setProgress(prev => ({
               ...prev,
-              leads: { 
-                current: count, 
-                total: totalEstimated || count, 
-                phase: `Carregando leads: ${count} carregados (página ${page})${totalEstimated ? ` | ~${totalEstimated} estimado` : ''}` 
-              }
+              leads: { current: count, total: count, phase: `Carregando leads (página ${page})` }
             }));
           }
-        }),
+        }).catch(() => ({ _embedded: { leads: [] } })),
         apiService.getAllUnsortedLeads({
-          maxTimeMinutes: 10,
           onProgress: (count, page) => {
             setProgress(prev => ({
               ...prev,
               unsorted: { current: count, total: count, phase: `Carregando não organizados (página ${page})` }
             }));
           }
-        })
+        }).catch(() => ({ _embedded: { unsorted: [] } }))
       ]);
-      
+
       const sortedLeads = leadsResponse._embedded?.leads || [];
       const unsortedLeads = unsortedResponse._embedded?.unsorted || [];
-      const leadsIntegrityData = leadsResponse.integrity;
-      const unsortedIntegrityData = unsortedResponse.integrity;
-      
-      // Salvar dados de integridade
-      setLeadsIntegrity(leadsIntegrityData);
-      setUnsortedIntegrity(unsortedIntegrityData);
       
       const formattedLeads = [
-        ...sortedLeads.map((lead: any) => ({
+        ...sortedLeads.map(lead => ({
           id: lead.id,
           name: lead.name || 'Lead sem nome',
           company: lead._embedded?.companies?.[0]?.name || 'Empresa não informada',
@@ -875,27 +575,17 @@ export default function useKommoApi() {
       const currentYear = currentDate.getFullYear();
       const currentMonth = currentDate.getMonth();
       
-      // Filtrar apenas leads fechados (closed won) dos leads organizados para o gráfico de vendas
-      const closedWonLeads = sortedLeads.filter(lead => 
-        closedWonStatusIds.has(lead.status_id) && lead.closed_at
-      );
-      
-      console.log('📊 Calculando dados de vendas mensais:', {
-        totalLeads: sortedLeads.length,
-        closedWonLeads: closedWonLeads.length,
-        closedWonStatusIds: Array.from(closedWonStatusIds),
-        leadsSample: closedWonLeads.slice(0, 3).map(l => ({ id: l.id, status_id: l.status_id, closed_at: l.closed_at, price: l.price }))
-      });
-      
-      const monthlyData = Array.from({ length: 12 }, (_, i) => {
+      const monthlyData = Array.from({ length: currentMonth + 1 }, (_, i) => {
         const monthName = new Date(currentYear, i, 1).toLocaleString('pt-BR', { month: 'short' });
-        const monthLeads = closedWonLeads.filter(lead => {
-          const leadDate = new Date(lead.closed_at * 1000);
+        const monthLeads = sortedLeads.filter(lead => {
+          if (!lead.updated_at && !lead.closed_at) return false;
+          const leadTimestamp = lead.closed_at || lead.updated_at;
+          const leadDate = new Date(leadTimestamp * 1000);
           return leadDate.getFullYear() === currentYear && leadDate.getMonth() === i;
         });
         
         const monthRevenue = monthLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
-        const monthTarget = monthRevenue > 0 ? monthRevenue * 1.2 : 0; // Meta 20% acima
+        const monthTarget = monthRevenue * 1.1;
         
         return {
           month: monthName,
@@ -907,52 +597,21 @@ export default function useKommoApi() {
 
       setAllLeads(formattedLeads);
       setSalesData(monthlyData);
-      
-      console.log('📊 Dados de vendas finalizados:', {
-        monthlyData: monthlyData.map(m => ({ 
-          month: m.month, 
-          vendas: m.vendas, 
-          leads: m.leads 
-        })),
-        totalVendas: monthlyData.reduce((sum, m) => sum + m.vendas, 0)
-      });
 
-      // Cache com TTL baseado na qualidade dos dados
-      const cacheTTL = leadsIntegrityData.completedFully ? 5 * 60 * 1000 : 2 * 60 * 1000;
-      cache.setCache('allLeads', formattedLeads, cacheTTL);
-      cache.setCache('salesData', monthlyData, cacheTTL);
-      cache.setCache('leadsIntegrity', leadsIntegrityData, cacheTTL);
-      cache.setCache('unsortedIntegrity', unsortedIntegrityData, cacheTTL);
+      cache.setCache('allLeads', formattedLeads, 5 * 60 * 1000);
+      cache.setCache('salesData', monthlyData, 5 * 60 * 1000);
 
       console.log('✅ Leads loading completed:', {
         total: formattedLeads.length,
         sorted: sortedLeads.length,
-        unsorted: unsortedLeads.length,
-        leadsQuality: leadsIntegrityData.completedFully ? 'High' : 'Partial',
-        unsortedQuality: unsortedIntegrityData.completedFully ? 'High' : 'Partial'
+        unsorted: unsortedLeads.length
       });
-
-      // Toast informativo sobre qualidade dos dados
-      if (!leadsIntegrityData.completedFully || !unsortedIntegrityData.completedFully) {
-        toast({
-          title: "Carregamento de leads concluído",
-          description: `${formattedLeads.length} leads carregados. Verifique a aba "Integridade" para detalhes.`,
-          variant: "default",
-        });
-      }
-
     } catch (err: any) {
-      const errorMsg = `Erro ao carregar leads: ${err.message}`;
-      setError(errorMsg);
-      toast({
-        title: "Erro ao Carregar Leads",
-        description: err.message || 'Não foi possível carregar os leads.',
-        variant: "destructive",
-      });
+      console.error('Error fetching leads:', err);
     } finally {
       updateLoadingState('leads', false);
     }
-  }, [updateLoadingState, cache, toast, pipelines]);
+  }, [updateLoadingState, cache, setProgress, pipelines]);
 
   const fetchUsers = useCallback(async () => {
     updateLoadingState('users', true);
@@ -1011,11 +670,51 @@ export default function useKommoApi() {
     }
   }, [updateLoadingState, cache]);
 
-  // Legacy function - now handled by memoizedSalesRanking
-  const calculateSalesRanking = useCallback((includeZeroSales: boolean = true) => {
-    console.log('🔄 calculateSalesRanking called (legacy) - now using memoized calculation');
-    // The actual calculation is now handled by memoizedSalesRanking useMemo above
-  }, []);
+  const calculateSalesRanking = (includeZeroSales: boolean = true) => {
+    if (!users.length || !allLeads.length) return;
+    
+    const closedWonStatusIds = new Set<number>();
+    pipelines.forEach(pipeline => {
+      pipeline.statuses.forEach(status => {
+        const statusName = status.name.toLowerCase();
+        if ((statusName.includes('fechado') || 
+             statusName.includes('ganho') || 
+             statusName.includes('won') || 
+             statusName.includes('closed') ||
+             statusName.includes('venda') ||
+             statusName.includes('concluído') ||
+             statusName.includes('finalizado')) &&
+            !statusName.includes('lost') && 
+            !statusName.includes('perdido') && 
+            !statusName.includes('perdida')) {
+          closedWonStatusIds.add(status.id);
+        }
+      });
+    });
+
+    const ranking: SalesRankingData[] = users.map(user => {
+      const userLeads = allLeads.filter(lead => 
+        lead.responsible_user_id === user.id && closedWonStatusIds.has(lead.status_id)
+      );
+      
+      const totalSales = userLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+      const salesQuantity = userLeads.length;
+      const monthlyAverage = totalSales / 12;
+      
+      return {
+        userId: user.id,
+        userName: user.name || 'Usuário sem nome',
+        totalSales,
+        salesQuantity,
+        monthlyAverage,
+        currentMonthSales: totalSales, // Simplified for now
+        currentMonthQuantity: salesQuantity
+      };
+    }).filter(user => includeZeroSales || user.salesQuantity > 0)
+      .sort((a, b) => b.totalSales - a.totalSales);
+    
+    setSalesRanking(ranking);
+  };
 
   const refreshData = useCallback(async () => {
     cache.clearCache();
@@ -1039,33 +738,17 @@ export default function useKommoApi() {
     error,
     refreshData,
     generalStats: memoizedGeneralStats,
-    filteredGeneralStats,
     allLeads,
-    salesData: salesData || [],
-    filteredSalesData,
+    salesData,
     users,
-    salesRanking: memoizedSalesRanking || [],
+    salesRanking,
     setRankingPipeline: debouncedSetRankingPipeline,
     setRankingDateRange: debouncedSetRankingDateRange,
     rankingDateRange,
-    calculateSalesRanking,
+    calculateSalesRanking: useCallback((includeZeroSales: boolean = true) => {
+      // This will be handled by the memoized calculation above
+      console.log('Recalculating sales ranking with includeZeroSales:', includeZeroSales);
+    }, []),
     customFields,
-    
-    // Integridade de dados
-    dataIntegrity,
-    leadsIntegrity,
-    unsortedIntegrity,
-    dataIntegrityProgress,
-    closedWonStatusIds
   };
-
-  // Log de debug para verificar os valores no retorno
-  useEffect(() => {
-    console.log('🔍 Hook Debug - Estados atuais:', {
-      dataIntegrity: dataIntegrity,
-      hasDataIntegrity: !!dataIntegrity,
-      loadingStats: loadingStates.stats,
-      dataIntegrityKeys: dataIntegrity ? Object.keys(dataIntegrity) : 'n/a'
-    });
-  }, [dataIntegrity, loadingStates.stats]);
-}
+};

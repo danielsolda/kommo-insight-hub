@@ -23,7 +23,7 @@ interface NomenclaturesModalProps {
 export const NomenclaturesModal = ({ open, onOpenChange }: NomenclaturesModalProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl bg-gradient-card border-border/50">
+      <DialogContent className="max-w-4xl max-h-[80vh] bg-gradient-card border-border/50">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <BookOpen className="h-5 w-5" />
@@ -31,7 +31,7 @@ export const NomenclaturesModal = ({ open, onOpenChange }: NomenclaturesModalPro
           </DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="h-[60vh] pr-4">
+        <ScrollArea className="pr-4">
           <div className="space-y-6">
             
             {/* Métricas Gerais */}
