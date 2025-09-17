@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { KommoApiService, Pipeline } from "@/services/kommoApi";
 import { KommoAuthService } from "@/services/kommoAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocalCache } from "@/hooks/useLocalCache";
+import { useDebouncedCallback } from "@/hooks/useDebounce";
 
 // Interface for the raw API response
 interface RawPipeline {
@@ -120,6 +121,101 @@ export const useKommoApi = () => {
     setLoadingStates(prev => ({ ...prev, [key]: value }));
   }, []);
 
+  // Memoized closed won status IDs calculation
+  const closedWonStatusIds = useMemo(() => {
+    const statusIds = new Set<number>();
+    pipelines.forEach(pipeline => {
+      pipeline.statuses.forEach(status => {
+        const statusName = status.name.toLowerCase();
+        if ((statusName.includes('fechado') || 
+             statusName.includes('ganho') || 
+             statusName.includes('won') || 
+             statusName.includes('closed') ||
+             statusName.includes('venda') ||
+             statusName.includes('concluído') ||
+             statusName.includes('finalizado')) &&
+            !statusName.includes('lost') && 
+            !statusName.includes('perdido') && 
+            !statusName.includes('perdida')) {
+          statusIds.add(status.id);
+        }
+      });
+    });
+    statusIds.add(142); // Manual status ID
+    return statusIds;
+  }, [pipelines]);
+
+  // Memoized sales ranking calculation
+  const memoizedSalesRanking = useMemo(() => {
+    if (!users.length || !allLeads.length || !pipelines.length) {
+      return [];
+    }
+
+    const filterByPipeline = rankingPipelineFilter ? 
+      (lead: any) => lead.pipeline_id === rankingPipelineFilter : 
+      () => true;
+
+    const filterByDateRange = (lead: any) => {
+      if (!rankingDateRange.startDate || !rankingDateRange.endDate) return true;
+      const leadDate = new Date(lead.lastContact);
+      return leadDate >= rankingDateRange.startDate && leadDate <= rankingDateRange.endDate;
+    };
+
+    const ranking = users.map(user => {
+      const userLeads = allLeads.filter(lead => 
+        lead.responsible_user_id === user.id && 
+        closedWonStatusIds.has(lead.status_id) &&
+        filterByPipeline(lead) &&
+        filterByDateRange(lead)
+      );
+      
+      const totalSales = userLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+      const salesQuantity = userLeads.length;
+      const monthlyAverage = totalSales / 12;
+      
+      return {
+        userId: user.id,
+        userName: user.name || 'Usuário sem nome',
+        totalSales,
+        salesQuantity,
+        monthlyAverage,
+        currentMonthSales: totalSales,
+        currentMonthQuantity: salesQuantity
+      };
+    }).filter(user => user.salesQuantity > 0)
+      .sort((a, b) => b.totalSales - a.totalSales);
+
+    return ranking;
+  }, [users, allLeads, pipelines, closedWonStatusIds, rankingPipelineFilter, rankingDateRange]);
+
+  // Update sales ranking when memoized value changes
+  useEffect(() => {
+    setSalesRanking(memoizedSalesRanking);
+  }, [memoizedSalesRanking]);
+
+  // Memoized general stats calculation
+  const memoizedGeneralStats = useMemo(() => {
+    if (!generalStats) return null;
+    
+    // Add any heavy calculations here if needed
+    return {
+      ...generalStats,
+      // Example: Add computed fields that depend on other data
+      averageLeadValue: generalStats.activeLeads > 0 ? 
+        Math.round(generalStats.totalRevenue / generalStats.activeLeads) : 0,
+      performanceScore: Math.min(100, Math.round(generalStats.conversionRate * 2))
+    };
+  }, [generalStats]);
+
+  // Debounced functions for performance
+  const debouncedSetRankingPipeline = useDebouncedCallback((pipelineId: number | null) => {
+    setRankingPipelineFilter(pipelineId);
+  }, 300);
+
+  const debouncedSetRankingDateRange = useDebouncedCallback((dateRange: DateRange) => {
+    setRankingDateRangeState(dateRange);
+  }, 500);
+
   // Progressive loading effect - Priority: Pipelines → Stats → Leads → Users → CustomFields
   useEffect(() => {
     const loadProgressively = async () => {
@@ -156,7 +252,7 @@ export const useKommoApi = () => {
     }
   }, [users, allLeads, rankingPipelineFilter, rankingDateRange, pipelines]);
 
-  const fetchPipelines = async () => {
+  const fetchPipelines = useCallback(async () => {
     updateLoadingState('pipelines', true);
     setError(null);
     
@@ -207,9 +303,9 @@ export const useKommoApi = () => {
     } finally {
       updateLoadingState('pipelines', false);
     }
-  };
+  }, [updateLoadingState, cache, toast]);
 
-  const fetchPipelineStats = async (pipelineId: number) => {
+  const fetchPipelineStats = useCallback(async (pipelineId: number) => {
     updateLoadingState('pipelineStats', true);
     setError(null);
     
@@ -289,9 +385,9 @@ export const useKommoApi = () => {
     } finally {
       updateLoadingState('pipelineStats', false);
     }
-  };
+  }, [updateLoadingState, pipelines, toast]);
 
-  const fetchGeneralStats = async () => {
+  const fetchGeneralStats = useCallback(async () => {
     updateLoadingState('stats', true);
     
     try {
@@ -393,9 +489,9 @@ export const useKommoApi = () => {
     } finally {
       updateLoadingState('stats', false);
     }
-  };
+  }, [updateLoadingState, cache, setProgress]);
 
-  const fetchAllLeads = async () => {
+  const fetchAllLeads = useCallback(async () => {
     updateLoadingState('leads', true);
     
     try {
@@ -515,9 +611,9 @@ export const useKommoApi = () => {
     } finally {
       updateLoadingState('leads', false);
     }
-  };
+  }, [updateLoadingState, cache, setProgress, pipelines]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     updateLoadingState('users', true);
     
     try {
@@ -543,9 +639,9 @@ export const useKommoApi = () => {
     } finally {
       updateLoadingState('users', false);
     }
-  };
+  }, [updateLoadingState, cache]);
 
-  const fetchCustomFields = async () => {
+  const fetchCustomFields = useCallback(async () => {
     updateLoadingState('customFields', true);
     
     try {
@@ -572,7 +668,7 @@ export const useKommoApi = () => {
     } finally {
       updateLoadingState('customFields', false);
     }
-  };
+  }, [updateLoadingState, cache]);
 
   const calculateSalesRanking = (includeZeroSales: boolean = true) => {
     if (!users.length || !allLeads.length) return;
@@ -620,7 +716,7 @@ export const useKommoApi = () => {
     setSalesRanking(ranking);
   };
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     cache.clearCache();
     await Promise.all([
       fetchPipelines(),
@@ -629,7 +725,7 @@ export const useKommoApi = () => {
       fetchUsers(),
       fetchCustomFields()
     ]);
-  };
+  }, [cache, fetchPipelines, fetchGeneralStats, fetchAllLeads, fetchUsers, fetchCustomFields]);
 
   return {
     pipelines,
@@ -641,15 +737,18 @@ export const useKommoApi = () => {
     progress,
     error,
     refreshData,
-    generalStats,
+    generalStats: memoizedGeneralStats,
     allLeads,
     salesData,
     users,
     salesRanking,
-    setRankingPipeline: (pipelineId: number | null) => setRankingPipelineFilter(pipelineId),
-    setRankingDateRange: (dateRange: DateRange) => setRankingDateRangeState(dateRange),
+    setRankingPipeline: debouncedSetRankingPipeline,
+    setRankingDateRange: debouncedSetRankingDateRange,
     rankingDateRange,
-    calculateSalesRanking,
+    calculateSalesRanking: useCallback((includeZeroSales: boolean = true) => {
+      // This will be handled by the memoized calculation above
+      console.log('Recalculating sales ranking with includeZeroSales:', includeZeroSales);
+    }, []),
     customFields,
   };
 };

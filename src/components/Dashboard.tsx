@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +14,13 @@ import { LeadsTable } from "@/components/LeadsTable";
 import { SalesChart } from "@/components/SalesChart";
 import { SalesRanking } from "@/components/SalesRanking";
 import { CustomFieldAnalysis } from "@/components/CustomFieldAnalysis";
+import { 
+  LazyPipelineChart, 
+  LazyLeadsTable, 
+  LazySalesChart, 
+  LazyCustomFieldAnalysis,
+  LazySalesRanking 
+} from "@/components/LazyComponents";
 import { NomenclaturesModal } from "@/components/NomenclaturesModal";
 import { useToast } from "@/hooks/use-toast";
 import { useKommoApi } from "@/hooks/useKommoApi";
@@ -176,29 +183,33 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
               )}
             </div>
             
-            {kommoApi.loadingStates.customFields ? (
-              <ChartSkeleton title="Análise de Campos Personalizados" height="h-64" />
-            ) : (
-              <CustomFieldAnalysis 
-                customFields={kommoApi.customFields}
-                allLeads={kommoApi.allLeads}
-                pipelines={kommoApi.pipelines}
-                loading={kommoApi.loadingStates.customFields}
-              />
-            )}
+            <Suspense fallback={<ChartSkeleton title="Análise de Campos Personalizados" height="h-64" />}>
+              {kommoApi.loadingStates.customFields ? (
+                <ChartSkeleton title="Análise de Campos Personalizados" height="h-64" />
+              ) : (
+                <LazyCustomFieldAnalysis 
+                  customFields={kommoApi.customFields}
+                  allLeads={kommoApi.allLeads}
+                  pipelines={kommoApi.pipelines}
+                  loading={kommoApi.loadingStates.customFields}
+                />
+              )}
+            </Suspense>
             
-            {kommoApi.loadingStates.users || kommoApi.loadingStates.leads ? (
-              <TableSkeleton title="Ranking de Vendas" rows={8} columns={5} />
-            ) : (
-              <SalesRanking 
-                salesRanking={kommoApi.salesRanking} 
-                loading={kommoApi.loadingStates.users || kommoApi.loadingStates.leads}
-                pipelines={kommoApi.pipelines}
-                onPipelineChange={kommoApi.setRankingPipeline}
-                dateRange={kommoApi.rankingDateRange}
-                onDateRangeChange={kommoApi.setRankingDateRange}
-              />
-            )}
+            <Suspense fallback={<TableSkeleton title="Ranking de Vendas" rows={8} columns={5} />}>
+              {kommoApi.loadingStates.users || kommoApi.loadingStates.leads ? (
+                <TableSkeleton title="Ranking de Vendas" rows={8} columns={5} />
+              ) : (
+                <LazySalesRanking 
+                  salesRanking={kommoApi.salesRanking} 
+                  loading={kommoApi.loadingStates.users || kommoApi.loadingStates.leads}
+                  pipelines={kommoApi.pipelines}
+                  onPipelineChange={kommoApi.setRankingPipeline}
+                  dateRange={kommoApi.rankingDateRange}
+                  onDateRangeChange={kommoApi.setRankingDateRange}
+                />
+              )}
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="pipelines" className="space-y-6">
@@ -230,29 +241,35 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
             </Card>
             
             {kommoApi.selectedPipeline && (
-              kommoApi.loadingStates.pipelineStats ? (
-                <ChartSkeleton title="Estatísticas do Pipeline" />
-              ) : (
-                <PipelineChart pipelineStats={kommoApi.pipelineStats} loading={kommoApi.loadingStates.pipelineStats} />
-              )
+              <Suspense fallback={<ChartSkeleton title="Estatísticas do Pipeline" />}>
+                {kommoApi.loadingStates.pipelineStats ? (
+                  <ChartSkeleton title="Estatísticas do Pipeline" />
+                ) : (
+                  <LazyPipelineChart pipelineStats={kommoApi.pipelineStats} loading={kommoApi.loadingStates.pipelineStats} />
+                )}
+              </Suspense>
             )}
           </TabsContent>
 
           <TabsContent value="leads" className="space-y-6">
-            {kommoApi.loadingStates.leads ? (
-              <TableSkeleton title="Tabela de Leads" rows={10} columns={8} />
-            ) : (
-              <LeadsTable leads={kommoApi.allLeads} loading={kommoApi.loadingStates.leads} />
-            )}
+            <Suspense fallback={<TableSkeleton title="Tabela de Leads" rows={10} columns={8} />}>
+              {kommoApi.loadingStates.leads ? (
+                <TableSkeleton title="Tabela de Leads" rows={10} columns={8} />
+              ) : (
+                <LazyLeadsTable leads={kommoApi.allLeads} loading={kommoApi.loadingStates.leads} />
+              )}
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="sales" className="space-y-6">
             <div className="grid lg:grid-cols-2 gap-6">
-              {kommoApi.loadingStates.leads ? (
-                <ChartSkeleton title="Vendas Mensais" />
-              ) : (
-                <SalesChart salesData={kommoApi.salesData} loading={kommoApi.loadingStates.leads} />
-              )}
+              <Suspense fallback={<ChartSkeleton title="Vendas Mensais" />}>
+                {kommoApi.loadingStates.leads ? (
+                  <ChartSkeleton title="Vendas Mensais" />
+                ) : (
+                  <LazySalesChart salesData={kommoApi.salesData} loading={kommoApi.loadingStates.leads} />
+                )}
+              </Suspense>
               
               <Card className="bg-gradient-card border-border/50 shadow-card">
                 <CardHeader>
