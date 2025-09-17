@@ -472,14 +472,14 @@ export class KommoApiService {
       maxTimeMinutes: maxTimeMinutes * 0.7 // 70% do tempo para leads organizados
     });
     
-    const leads = leadsResult.leads;
+    const leads = leadsResult._embedded?.leads || [];
     const totalLeads = leads.length;
     const totalValue = leads.reduce((sum, lead) => sum + (lead.price || 0), 0);
     
     // Verificar se ainda temos tempo
     const elapsed = Date.now() - startTime;
     let unsorted: any[] = [];
-    let unsortedResult = { leads: [], integrity: { completedFully: false, errors: [] } };
+    let unsortedResult = { _embedded: { unsorted: [] }, integrity: { completedFully: false, errors: [] } };
     
     if (elapsed < maxTime * 0.8) { // Se ainda temos 20% do tempo
       onProgress?.('Analisando leads não organizados...', 80);
@@ -492,7 +492,7 @@ export class KommoApiService {
         },
         maxTimeMinutes: Math.max(0.2, remainingTime) // Mínimo 0.2 min
       });
-      unsorted = unsortedResult.leads;
+      unsorted = unsortedResult._embedded?.unsorted || [];
     } else {
       console.log('⏰ Tempo insuficiente para análise completa de leads não organizados');
     }

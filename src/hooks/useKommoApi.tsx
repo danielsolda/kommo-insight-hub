@@ -75,6 +75,7 @@ interface LoadingProgress {
   unsorted: { current: number; total: number; phase: string };
 }
 
+export default function useKommoApi() {
   // Novo estado para progresso da análise de integridade
   const [dataIntegrityProgress, setDataIntegrityProgress] = useState<{
     status: string;
@@ -817,7 +818,7 @@ interface LoadingProgress {
     allLeads,
     salesData,
     users,
-    salesRanking,
+    salesRanking: memoizedSalesRanking,
     setRankingPipeline: debouncedSetRankingPipeline,
     setRankingDateRange: debouncedSetRankingDateRange,
     rankingDateRange,
@@ -832,9 +833,6 @@ interface LoadingProgress {
     leadsIntegrity,
     unsortedIntegrity,
     dataIntegrityProgress,
-    refreshData,
-    closedWonStatusIds,
-    memoizedGeneralStats,
-    memoizedSalesRanking
+    closedWonStatusIds
   };
-};
+}

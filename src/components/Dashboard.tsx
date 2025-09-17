@@ -24,7 +24,7 @@ import {
 import { NomenclaturesModal } from "@/components/NomenclaturesModal";
 import { DataIntegrityReport } from "@/components/DataIntegrityReport";
 import { useToast } from "@/hooks/use-toast";
-import { useKommoApi } from "@/hooks/useKommoApi";
+import useKommoApi from "@/hooks/useKommoApi";
 import { APP_VERSION } from "@/version";
 
 interface DashboardProps {
