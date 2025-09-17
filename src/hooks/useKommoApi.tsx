@@ -278,7 +278,7 @@ export default function useKommoApi() {
 
   // Filtered general stats by selected pipeline
   const filteredGeneralStats = useMemo(() => {
-    if (!selectedPipeline || !allLeads.length || !memoizedGeneralStats) {
+    if (!selectedPipeline || !allLeads.length) {
       return memoizedGeneralStats;
     }
 
@@ -292,12 +292,21 @@ export default function useKommoApi() {
     const totalLeads = pipelineLeads.length;
     const conversionRate = totalLeads > 0 ? (conversions / totalLeads) * 100 : 0;
 
+    // Calculate changes (simplified for now)
+    const revenueChange = "+0%";
+    const leadsChange = "+0%";
+    const conversionChange = "+0%";
+    const callsChange = "+0%";
+
     return {
-      ...memoizedGeneralStats,
       totalRevenue,
       activeLeads,
-      conversions,
       conversionRate,
+      totalCalls: 0, // Not available in current data
+      revenueChange,
+      leadsChange,
+      conversionChange,
+      callsChange,
       averageLeadValue: activeLeads > 0 ? Math.round(totalRevenue / activeLeads) : 0,
       performanceScore: Math.min(100, Math.round(conversionRate * 2))
     };
@@ -305,8 +314,8 @@ export default function useKommoApi() {
 
   // Filtered sales data by selected pipeline
   const filteredSalesData = useMemo(() => {
-    if (!selectedPipeline || !allLeads.length || !salesData.length) {
-      return salesData;
+    if (!selectedPipeline || !allLeads.length || !salesData?.length) {
+      return salesData || [];
     }
 
     const pipelineLeads = allLeads.filter(lead => 
@@ -887,10 +896,10 @@ export default function useKommoApi() {
     generalStats: memoizedGeneralStats,
     filteredGeneralStats,
     allLeads,
-    salesData,
+    salesData: salesData || [],
     filteredSalesData,
     users,
-    salesRanking: memoizedSalesRanking,
+    salesRanking: memoizedSalesRanking || [],
     setRankingPipeline: debouncedSetRankingPipeline,
     setRankingDateRange: debouncedSetRankingDateRange,
     rankingDateRange,
