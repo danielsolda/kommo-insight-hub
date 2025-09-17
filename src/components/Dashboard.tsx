@@ -22,6 +22,7 @@ import {
   LazySalesRanking 
 } from "@/components/LazyComponents";
 import { NomenclaturesModal } from "@/components/NomenclaturesModal";
+import { DataIntegrityReport } from "@/components/DataIntegrityReport";
 import { useToast } from "@/hooks/use-toast";
 import { useKommoApi } from "@/hooks/useKommoApi";
 import { APP_VERSION } from "@/version";
@@ -143,7 +144,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-muted/30">
+          <TabsList className="grid w-full grid-cols-5 bg-muted/30">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Visão Geral
@@ -159,6 +160,10 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
             <TabsTrigger value="sales" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Vendas
+            </TabsTrigger>
+            <TabsTrigger value="integrity" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Integridade
             </TabsTrigger>
           </TabsList>
 
@@ -308,6 +313,25 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="integrity" className="space-y-6">
+            {kommoApi.dataIntegrity ? (
+              <DataIntegrityReport 
+                integrity={kommoApi.dataIntegrity}
+                leadsIntegrity={kommoApi.leadsIntegrity}
+                unsortedIntegrity={kommoApi.unsortedIntegrity}
+              />
+            ) : (
+              <Card className="bg-gradient-card border-border/50 shadow-card">
+                <CardContent className="pt-6">
+                  <div className="text-center space-y-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                    <p className="text-muted-foreground">Analisando integridade dos dados...</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>

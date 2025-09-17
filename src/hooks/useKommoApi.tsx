@@ -113,6 +113,11 @@ export const useKommoApi = () => {
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     return { startDate: startOfMonth, endDate: endOfMonth };
   });
+  
+  // Novos estados para integridade de dados
+  const [dataIntegrity, setDataIntegrity] = useState<any>(null);
+  const [leadsIntegrity, setLeadsIntegrity] = useState<any>(null);
+  const [unsortedIntegrity, setUnsortedIntegrity] = useState<any>(null);
   const { toast } = useToast();
   const cache = useLocalCache({ ttl: 5 * 60 * 1000, key: 'kommo-api' }); // 5 minutes cache
 
@@ -392,32 +397,26 @@ export const useKommoApi = () => {
     
     try {
       const cachedStats = cache.getCache('generalStats') as GeneralStats | null;
-      if (cachedStats) {
-        console.log('📦 Loading general stats from cache');
+      const cachedIntegrity = cache.getCache('dataIntegrity') as any | null;
+      
+      if (cachedStats && cachedIntegrity) {
+        console.log('📦 Loading general stats and integrity from cache');
         setGeneralStats(cachedStats);
+        setDataIntegrity(cachedIntegrity);
         updateLoadingState('stats', false);
         return;
       }
 
-      console.log('🔄 Fetching general stats from API');
+      console.log('🔄 Fetching comprehensive stats with integrity analysis...');
       const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
       const authService = new KommoAuthService(kommoConfig);
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
 
-      const [leadsResponse, pipelinesResponse] = await Promise.all([
-        apiService.getAllLeads({
-          onProgress: (count, page) => {
-            setProgress(prev => ({
-              ...prev,
-              leads: { current: count, total: count, phase: `Carregando leads (página ${page})` }
-            }));
-          }
-        }).catch(() => ({ _embedded: { leads: [] } })),
-        apiService.getPipelines().catch(() => ({ _embedded: { pipelines: [] } }))
-      ]);
-
-      const allLeads = leadsResponse._embedded?.leads || [];
-      const allPipelines = pipelinesResponse._embedded?.pipelines || [];
+      // Usar novo método que inclui análise de integridade
+      const statsResult = await apiService.getStatsWithIntegrity();
+      const allLeads = statsResult.stats.leads || [];
+      const allPipelines = statsResult.stats.pipelines || [];
+      const integrity = statsResult.integrity;
       
       const closedWonStatusIds = new Set<number>();
       allPipelines.forEach(pipeline => {
@@ -483,59 +482,99 @@ export const useKommoApi = () => {
       };
 
       setGeneralStats(stats);
-      cache.setCache('generalStats', stats, 3 * 60 * 1000);
+      setDataIntegrity(integrity);
+      
+      // Cache com TTL baseado na qualidade dos dados
+      const cacheTTL = integrity.dataQuality > 80 ? 5 * 60 * 1000 : 3 * 60 * 1000;
+      cache.setCache('generalStats', stats, cacheTTL);
+      cache.setCache('dataIntegrity', integrity, cacheTTL);
+
+      // Log de diagnóstico detalhado
+      console.log(`📊 Estatísticas carregadas:`);
+      console.log(`   • Total de leads: ${integrity.totalLeads}`);
+      console.log(`   • Leads não organizados: ${integrity.totalUnsorted}`);
+      console.log(`   • Qualidade dos dados: ${integrity.dataQuality}%`);
+      console.log(`   • Problemas detectados: ${integrity.missingData.length}`);
+
+      // Toast informativo sobre qualidade
+      if (integrity.dataQuality < 80) {
+        toast({
+          title: "Qualidade dos dados pode ser melhorada",
+          description: `Score: ${integrity.dataQuality}%. Verifique o relatório de integridade.`,
+          variant: "default",
+        });
+      }
+
     } catch (err: any) {
-      console.error('Error fetching general stats:', err);
+      const errorMsg = `Erro ao carregar estatísticas: ${err.message}`;
+      setError(errorMsg);
+      toast({
+        title: "Erro ao Carregar Estatísticas",
+        description: err.message || 'Não foi possível carregar as estatísticas.',
+        variant: "destructive",
+      });
     } finally {
       updateLoadingState('stats', false);
     }
-  }, [updateLoadingState, cache, setProgress]);
+  }, [updateLoadingState, cache, toast]);
 
   const fetchAllLeads = useCallback(async () => {
     updateLoadingState('leads', true);
     
     try {
       const cachedLeads = cache.getCache('allLeads') as any[] | null;
-      const cachedSalesData = cache.getCache('salesData') as any[] | null;
+      const cachedIntegrity = cache.getCache('leadsIntegrity') as any | null;
       
-      if (cachedLeads && cachedSalesData) {
-        console.log('📦 Loading leads from cache');
+      if (cachedLeads && cachedIntegrity) {
+        console.log('📦 Loading all leads from cache');
         setAllLeads(cachedLeads);
-        setSalesData(cachedSalesData);
+        setLeadsIntegrity(cachedIntegrity);
         updateLoadingState('leads', false);
         return;
       }
 
-      console.log('🔄 Fetching leads from API');
+      console.log('🔄 Fetching all leads with integrity check...');
       const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
       const authService = new KommoAuthService(kommoConfig);
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
 
       const [leadsResponse, unsortedResponse] = await Promise.all([
-        apiService.getAllLeads({ 
+        apiService.getAllLeads({
           with: ['contacts'],
-          onProgress: (count, page) => {
+          maxTimeMinutes: 20, // Timeout aumentado para contas grandes
+          onProgress: (count, page, totalEstimated) => {
             setProgress(prev => ({
               ...prev,
-              leads: { current: count, total: count, phase: `Carregando leads (página ${page})` }
+              leads: { 
+                current: count, 
+                total: totalEstimated || count, 
+                phase: `Carregando leads: ${count} carregados (página ${page})${totalEstimated ? ` | ~${totalEstimated} estimado` : ''}` 
+              }
             }));
           }
-        }).catch(() => ({ _embedded: { leads: [] } })),
+        }),
         apiService.getAllUnsortedLeads({
+          maxTimeMinutes: 10,
           onProgress: (count, page) => {
             setProgress(prev => ({
               ...prev,
               unsorted: { current: count, total: count, phase: `Carregando não organizados (página ${page})` }
             }));
           }
-        }).catch(() => ({ _embedded: { unsorted: [] } }))
+        })
       ]);
-
+      
       const sortedLeads = leadsResponse._embedded?.leads || [];
       const unsortedLeads = unsortedResponse._embedded?.unsorted || [];
+      const leadsIntegrityData = leadsResponse.integrity;
+      const unsortedIntegrityData = unsortedResponse.integrity;
+      
+      // Salvar dados de integridade
+      setLeadsIntegrity(leadsIntegrityData);
+      setUnsortedIntegrity(unsortedIntegrityData);
       
       const formattedLeads = [
-        ...sortedLeads.map(lead => ({
+        ...sortedLeads.map((lead: any) => ({
           id: lead.id,
           name: lead.name || 'Lead sem nome',
           company: lead._embedded?.companies?.[0]?.name || 'Empresa não informada',
@@ -598,20 +637,42 @@ export const useKommoApi = () => {
       setAllLeads(formattedLeads);
       setSalesData(monthlyData);
 
-      cache.setCache('allLeads', formattedLeads, 5 * 60 * 1000);
-      cache.setCache('salesData', monthlyData, 5 * 60 * 1000);
+      // Cache com TTL baseado na qualidade dos dados
+      const cacheTTL = leadsIntegrityData.completedFully ? 5 * 60 * 1000 : 2 * 60 * 1000;
+      cache.setCache('allLeads', formattedLeads, cacheTTL);
+      cache.setCache('salesData', monthlyData, cacheTTL);
+      cache.setCache('leadsIntegrity', leadsIntegrityData, cacheTTL);
+      cache.setCache('unsortedIntegrity', unsortedIntegrityData, cacheTTL);
 
       console.log('✅ Leads loading completed:', {
         total: formattedLeads.length,
         sorted: sortedLeads.length,
-        unsorted: unsortedLeads.length
+        unsorted: unsortedLeads.length,
+        leadsQuality: leadsIntegrityData.completedFully ? 'High' : 'Partial',
+        unsortedQuality: unsortedIntegrityData.completedFully ? 'High' : 'Partial'
       });
+
+      // Toast informativo sobre qualidade dos dados
+      if (!leadsIntegrityData.completedFully || !unsortedIntegrityData.completedFully) {
+        toast({
+          title: "Carregamento de leads concluído",
+          description: `${formattedLeads.length} leads carregados. Verifique a aba "Integridade" para detalhes.`,
+          variant: "default",
+        });
+      }
+
     } catch (err: any) {
-      console.error('Error fetching leads:', err);
+      const errorMsg = `Erro ao carregar leads: ${err.message}`;
+      setError(errorMsg);
+      toast({
+        title: "Erro ao Carregar Leads",
+        description: err.message || 'Não foi possível carregar os leads.',
+        variant: "destructive",
+      });
     } finally {
       updateLoadingState('leads', false);
     }
-  }, [updateLoadingState, cache, setProgress, pipelines]);
+  }, [updateLoadingState, cache, toast, pipelines]);
 
   const fetchUsers = useCallback(async () => {
     updateLoadingState('users', true);
@@ -750,5 +811,10 @@ export const useKommoApi = () => {
       console.log('Recalculating sales ranking with includeZeroSales:', includeZeroSales);
     }, []),
     customFields,
+    
+    // Integridade de dados
+    dataIntegrity,
+    leadsIntegrity,
+    unsortedIntegrity,
   };
 };
