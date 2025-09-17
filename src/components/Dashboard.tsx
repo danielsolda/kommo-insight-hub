@@ -176,11 +176,45 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 <PipelineChart pipelineStats={kommoApi.pipelineStats} loading={kommoApi.loadingStates.pipelineStats} />
               )}
               
-              {kommoApi.loadingStates.leads ? (
-                <ChartSkeleton title="Vendas" />
-              ) : (
-                <SalesChart salesData={kommoApi.salesData} loading={kommoApi.loadingStates.leads} />
-              )}
+              <div className="space-y-4">
+                <Card className="bg-gradient-card border-border/50 shadow-card">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium">Filtro de Vendas</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <Select 
+                      value={kommoApi.salesChartPipelineFilter?.toString() || "all"} 
+                      onValueChange={(value) => kommoApi.setSalesChartPipelineFilter(value === "all" ? null : Number(value))}
+                      disabled={kommoApi.loadingStates.pipelines}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecione uma pipeline" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas as pipelines</SelectItem>
+                        {kommoApi.pipelines.map((pipeline) => (
+                          <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
+                            {pipeline.name} {pipeline.is_main && "(Principal)"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </CardContent>
+                </Card>
+                
+                {kommoApi.loadingStates.leads ? (
+                  <ChartSkeleton title="Vendas" />
+                ) : (
+                  <SalesChart 
+                    salesData={kommoApi.salesData} 
+                    loading={kommoApi.loadingStates.leads}
+                    pipelineName={kommoApi.salesChartPipelineFilter ? 
+                      kommoApi.pipelines.find(p => p.id === kommoApi.salesChartPipelineFilter)?.name : 
+                      undefined
+                    }
+                  />
+                )}
+              </div>
             </div>
             
             <Suspense fallback={<ChartSkeleton title="Análise de Campos Personalizados" height="h-64" />}>

@@ -107,6 +107,7 @@ export const useKommoApi = () => {
   const [salesRanking, setSalesRanking] = useState<SalesRankingData[]>([]);
   const [rankingPipelineFilter, setRankingPipelineFilter] = useState<number | null>(null);
   const [customFields, setCustomFields] = useState<any[]>([]);
+  const [salesChartPipelineFilter, setSalesChartPipelineFilter] = useState<number | null>(null);
   const [rankingDateRange, setRankingDateRangeState] = useState<DateRange>(() => {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -192,6 +193,67 @@ export const useKommoApi = () => {
   useEffect(() => {
     setSalesRanking(memoizedSalesRanking);
   }, [memoizedSalesRanking]);
+
+  // Memoized filtered sales data calculation
+  const filteredSalesData = useMemo(() => {
+    if (!salesChartPipelineFilter || !pipelines.length || !allLeads.length) {
+      return salesData;
+    }
+
+    // Get pipeline-specific closed won status IDs
+    const selectedPipeline = pipelines.find(p => p.id === salesChartPipelineFilter);
+    if (!selectedPipeline) return salesData;
+
+    const pipelineClosedWonStatusIds = new Set<number>();
+    selectedPipeline.statuses.forEach(status => {
+      const statusName = status.name.toLowerCase();
+      if ((statusName.includes('fechado') || 
+           statusName.includes('ganho') || 
+           statusName.includes('won') || 
+           statusName.includes('closed') ||
+           statusName.includes('venda') ||
+           statusName.includes('concluído') ||
+           statusName.includes('finalizado')) &&
+          !statusName.includes('lost') && 
+          !statusName.includes('perdido') && 
+          !statusName.includes('perdida')) {
+        pipelineClosedWonStatusIds.add(status.id);
+      }
+    });
+
+    // Filter leads by pipeline and closed won status
+    const pipelineLeads = allLeads.filter(lead => 
+      lead.pipeline_id === salesChartPipelineFilter && 
+      pipelineClosedWonStatusIds.has(lead.status_id) &&
+      lead.closed_at // Only closed leads
+    );
+
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    
+    // Recalculate monthly data for the selected pipeline
+    const monthlyData = Array.from({ length: currentMonth + 1 }, (_, i) => {
+      const monthName = new Date(currentYear, i, 1).toLocaleString('pt-BR', { month: 'short' });
+      const monthLeads = pipelineLeads.filter(lead => {
+        if (!lead.closed_at) return false;
+        const leadDate = new Date(lead.closed_at * 1000);
+        return leadDate.getFullYear() === currentYear && leadDate.getMonth() === i;
+      });
+      
+      const monthRevenue = monthLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+      const monthTarget = monthRevenue * 1.1;
+      
+      return {
+        month: monthName,
+        vendas: monthRevenue,
+        meta: monthTarget,
+        leads: monthLeads.length
+      };
+    });
+
+    return monthlyData;
+  }, [salesData, salesChartPipelineFilter, pipelines, allLeads]);
 
   // Memoized general stats calculation
   const memoizedGeneralStats = useMemo(() => {
@@ -739,7 +801,9 @@ export const useKommoApi = () => {
     refreshData,
     generalStats: memoizedGeneralStats,
     allLeads,
-    salesData,
+    salesData: filteredSalesData,
+    salesChartPipelineFilter,
+    setSalesChartPipelineFilter,
     users,
     salesRanking,
     setRankingPipeline: debouncedSetRankingPipeline,
