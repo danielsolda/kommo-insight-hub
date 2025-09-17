@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, ReferenceLine } from "recharts";
 import { Loader2 } from "lucide-react";
 
 interface SalesData {
@@ -16,6 +16,14 @@ interface SalesChartProps {
 }
 
 export const SalesChart = ({ salesData = [], loading = false, selectedPipeline }: SalesChartProps) => {
+  console.log('📊 SalesChart - Dados recebidos:', {
+    salesData,
+    dataLength: salesData.length,
+    loading,
+    selectedPipeline,
+    totalVendas: salesData.reduce((sum, data) => sum + data.vendas, 0)
+  });
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -75,10 +83,10 @@ export const SalesChart = ({ salesData = [], loading = false, selectedPipeline }
                   borderRadius: "8px",
                   color: "hsl(var(--popover-foreground))"
                 }}
-                formatter={(value, name) => [
-                  name === 'leads' ? `${value} leads` : `R$ ${value.toLocaleString()}`,
-                  name === 'vendas' ? 'Vendas' : name === 'meta' ? 'Meta' : 'Leads'
-                ]}
+                 formatter={(value, name) => [
+                   name === 'leads' ? `${value} leads` : formatCurrency(Number(value)),
+                   name === 'vendas' ? 'Vendas Fechadas' : name === 'meta' ? 'Meta' : 'Leads'
+                 ]}
               />
               <Area
                 type="monotone"
@@ -106,9 +114,9 @@ export const SalesChart = ({ salesData = [], loading = false, selectedPipeline }
 
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center p-3 bg-muted/30 rounded-lg">
-                <div className="text-sm font-medium text-muted-foreground">Vendas Totais</div>
+                <div className="text-sm font-medium text-muted-foreground">Vendas Fechadas</div>
                 <div className="text-xl font-bold text-success">{formatCurrency(totalSales)}</div>
-                <div className="text-xs text-muted-foreground">Baseado em leads fechados</div>
+                <div className="text-xs text-muted-foreground">Leads com status "Fechado"</div>
               </div>
               <div className="text-center p-3 bg-muted/30 rounded-lg">
                 <div className="text-sm font-medium text-muted-foreground">Meta Atingida</div>
@@ -116,9 +124,9 @@ export const SalesChart = ({ salesData = [], loading = false, selectedPipeline }
                 <div className="text-xs text-muted-foreground">{formatCurrency(remainingTarget)} restante</div>
               </div>
               <div className="text-center p-3 bg-muted/30 rounded-lg">
-                <div className="text-sm font-medium text-muted-foreground">Leads Convertidos</div>
-                <div className="text-xl font-bold text-info">{Math.floor(conversionRate)}</div>
-                <div className="text-xs text-muted-foreground">Taxa de fechamento estimada</div>
+                <div className="text-sm font-medium text-muted-foreground">Qtd. Leads Fechados</div>
+                <div className="text-xl font-bold text-info">{totalLeads}</div>
+                <div className="text-xs text-muted-foreground">Total de vendas realizadas</div>
               </div>
             </div>
           </>

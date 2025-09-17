@@ -318,16 +318,28 @@ export default function useKommoApi() {
       return salesData || [];
     }
 
+    // Filtrar leads da pipeline selecionada que foram fechados
     const pipelineLeads = allLeads.filter(lead => 
-      lead.pipeline_id === selectedPipeline && closedWonStatusIds.has(lead.status_id)
+      lead.pipeline_id === selectedPipeline && 
+      lead.status_id && 
+      closedWonStatusIds.has(lead.status_id) &&
+      lead.closed_at
     );
 
-    // Recalculate monthly data for the selected pipeline
+    console.log('📊 Filtrado por pipeline:', {
+      selectedPipeline,
+      totalLeads: allLeads.length,
+      pipelineLeads: pipelineLeads.length
+    });
+
+    // Recalcular dados mensais para a pipeline selecionada
+    const currentYear = new Date().getFullYear();
     const monthlyData = salesData.map(monthData => {
+      const monthIndex = new Date(`${monthData.month} 1, ${currentYear}`).getMonth();
+      
       const monthLeads = pipelineLeads.filter(lead => {
-        if (!lead.closed_at) return false;
         const leadDate = new Date(lead.closed_at * 1000);
-        return leadDate.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) === monthData.month;
+        return leadDate.getFullYear() === currentYear && leadDate.getMonth() === monthIndex;
       });
 
       const monthRevenue = monthLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
@@ -335,7 +347,8 @@ export default function useKommoApi() {
       return {
         ...monthData,
         vendas: monthRevenue,
-        leads: monthLeads.length
+        leads: monthLeads.length,
+        meta: monthRevenue > 0 ? monthRevenue * 1.2 : 0
       };
     });
 
@@ -760,17 +773,27 @@ export default function useKommoApi() {
       const currentYear = currentDate.getFullYear();
       const currentMonth = currentDate.getMonth();
       
-      const monthlyData = Array.from({ length: currentMonth + 1 }, (_, i) => {
+      // Filtrar apenas leads fechados (closed won) dos leads organizados para o gráfico de vendas
+      const closedWonLeads = sortedLeads.filter(lead => 
+        closedWonStatusIds.has(lead.status_id) && lead.closed_at
+      );
+      
+      console.log('📊 Calculando dados de vendas mensais:', {
+        totalLeads: sortedLeads.length,
+        closedWonLeads: closedWonLeads.length,
+        closedWonStatusIds: Array.from(closedWonStatusIds),
+        leadsSample: closedWonLeads.slice(0, 3).map(l => ({ id: l.id, status_id: l.status_id, closed_at: l.closed_at, price: l.price }))
+      });
+      
+      const monthlyData = Array.from({ length: 12 }, (_, i) => {
         const monthName = new Date(currentYear, i, 1).toLocaleString('pt-BR', { month: 'short' });
-        const monthLeads = sortedLeads.filter(lead => {
-          if (!lead.updated_at && !lead.closed_at) return false;
-          const leadTimestamp = lead.closed_at || lead.updated_at;
-          const leadDate = new Date(leadTimestamp * 1000);
+        const monthLeads = closedWonLeads.filter(lead => {
+          const leadDate = new Date(lead.closed_at * 1000);
           return leadDate.getFullYear() === currentYear && leadDate.getMonth() === i;
         });
         
         const monthRevenue = monthLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
-        const monthTarget = monthRevenue * 1.1;
+        const monthTarget = monthRevenue > 0 ? monthRevenue * 1.2 : 0; // Meta 20% acima
         
         return {
           month: monthName,
@@ -782,6 +805,15 @@ export default function useKommoApi() {
 
       setAllLeads(formattedLeads);
       setSalesData(monthlyData);
+      
+      console.log('📊 Dados de vendas finalizados:', {
+        monthlyData: monthlyData.map(m => ({ 
+          month: m.month, 
+          vendas: m.vendas, 
+          leads: m.leads 
+        })),
+        totalVendas: monthlyData.reduce((sum, m) => sum + m.vendas, 0)
+      });
 
       // Cache com TTL baseado na qualidade dos dados
       const cacheTTL = leadsIntegrityData.completedFully ? 5 * 60 * 1000 : 2 * 60 * 1000;

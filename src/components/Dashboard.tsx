@@ -45,9 +45,12 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
     console.log('🔍 Dashboard Debug - Dados recebidos:', {
       dataIntegrity: kommoApi.dataIntegrity,
       hasDataIntegrity: !!kommoApi.dataIntegrity,
-      loadingStats: kommoApi.loadingStates.stats
+      loadingStats: kommoApi.loadingStates.stats,
+      salesData: kommoApi.salesData,
+      filteredSalesData: kommoApi.filteredSalesData,
+      selectedPipeline: kommoApi.selectedPipeline
     });
-  }, [kommoApi.dataIntegrity, kommoApi.loadingStates.stats]);
+  }, [kommoApi.dataIntegrity, kommoApi.loadingStates.stats, kommoApi.salesData, kommoApi.filteredSalesData]);
 
   const handleRefresh = async () => {
     setLoading(true);
