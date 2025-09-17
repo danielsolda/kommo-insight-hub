@@ -139,10 +139,11 @@ export const useKommoApi = () => {
             !statusName.includes('perdido') && 
             !statusName.includes('perdida')) {
           statusIds.add(status.id);
+          console.log(`🎯 Pipeline "${pipeline.name}" - Status "closed won" detectado: ${status.name} (ID: ${status.id})`);
         }
       });
     });
-    statusIds.add(142); // Manual status ID
+    console.log('🔍 Total de status "closed won" encontrados:', statusIds.size);
     return statusIds;
   }, [pipelines]);
 
@@ -163,14 +164,14 @@ export const useKommoApi = () => {
     };
 
     const ranking = users.map(user => {
-      const userLeads = allLeads.filter(lead => 
-        lead.responsible_user_id === user.id && 
-        closedWonStatusIds.has(lead.status_id) &&
-        filterByPipeline(lead) &&
-        filterByDateRange(lead)
-      );
-      
-      const totalSales = userLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+    const userLeads = allLeads.filter(lead => 
+      lead.responsible_user_id === user.id && 
+      closedWonStatusIds.has(lead.status_id) &&
+      filterByPipeline(lead) &&
+      filterByDateRange(lead)
+    );
+    
+    const totalSales = userLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
       const salesQuantity = userLeads.length;
       const monthlyAverage = totalSales / 12;
       
@@ -218,26 +219,29 @@ export const useKommoApi = () => {
           !statusName.includes('perdido') && 
           !statusName.includes('perdida')) {
         pipelineClosedWonStatusIds.add(status.id);
+        console.log(`📊 Pipeline "${selectedPipeline.name}" - Status "closed won": ${status.name} (ID: ${status.id})`);
       }
     });
 
-    // Filter leads by pipeline and closed won status
+    console.log(`🎯 Filtrando gráfico de vendas por pipeline: ${selectedPipeline.name} (${pipelineClosedWonStatusIds.size} status "closed won")`);
+
+    // Filter leads by pipeline and closed won status (using status_id, not closed_at)
     const pipelineLeads = allLeads.filter(lead => 
       lead.pipeline_id === salesChartPipelineFilter && 
-      pipelineClosedWonStatusIds.has(lead.status_id) &&
-      lead.closed_at // Only closed leads
+      pipelineClosedWonStatusIds.has(lead.status_id)
     );
+
+    console.log(`📈 Leads da pipeline filtrada: ${pipelineLeads.length} de ${allLeads.length} total`);
 
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
     
-    // Recalculate monthly data for the selected pipeline
+    // Recalculate monthly data for the selected pipeline using lastContact date
     const monthlyData = Array.from({ length: currentMonth + 1 }, (_, i) => {
       const monthName = new Date(currentYear, i, 1).toLocaleString('pt-BR', { month: 'short' });
       const monthLeads = pipelineLeads.filter(lead => {
-        if (!lead.closed_at) return false;
-        const leadDate = new Date(lead.closed_at * 1000);
+        const leadDate = new Date(lead.lastContact);
         return leadDate.getFullYear() === currentYear && leadDate.getMonth() === i;
       });
       
@@ -500,8 +504,6 @@ export const useKommoApi = () => {
         });
       });
       
-      closedWonStatusIds.add(142);
-      
       const now = new Date();
       const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
@@ -759,7 +761,7 @@ export const useKommoApi = () => {
         lead.responsible_user_id === user.id && closedWonStatusIds.has(lead.status_id)
       );
       
-      const totalSales = userLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+      const totalSales = userLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
       const salesQuantity = userLeads.length;
       const monthlyAverage = totalSales / 12;
       
