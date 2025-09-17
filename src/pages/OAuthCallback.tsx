@@ -37,7 +37,7 @@ const OAuthCallback = () => {
 
         let config = JSON.parse(savedConfig);
 
-        // Se temos o referer da Kommo, atualizar/definir a account URL
+        // Definir/atualizar account URL com base em referer param ou document.referrer
         if (referer) {
           const normalizedAccountUrl = referer.startsWith('http') 
             ? referer 
@@ -46,7 +46,19 @@ const OAuthCallback = () => {
           config.accountUrl = normalizedAccountUrl;
           localStorage.setItem('kommoConfig', JSON.stringify(config));
           
-          console.log('🔄 Account URL atualizada do referer:', normalizedAccountUrl);
+          console.log('🔄 Account URL atualizada do referer (param):', normalizedAccountUrl);
+        } else if (document.referrer && document.referrer.includes('.kommo.com')) {
+          try {
+            const refUrl = new URL(document.referrer);
+            const normalizedAccountUrl = `https://${refUrl.hostname}`;
+            
+            config.accountUrl = normalizedAccountUrl;
+            localStorage.setItem('kommoConfig', JSON.stringify(config));
+            
+            console.log('🔄 Account URL inferida do document.referrer:', normalizedAccountUrl);
+          } catch (e) {
+            console.warn('Não foi possível parsear document.referrer:', document.referrer);
+          }
         }
 
         // Criar o serviço de auth para detectar a conta
