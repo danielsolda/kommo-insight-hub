@@ -160,8 +160,15 @@ export default function useKommoApi() {
   // Memoized sales ranking calculation
   const memoizedSalesRanking = useMemo(() => {
     if (!users.length || !allLeads.length || !pipelines.length) {
+      console.log('📊 Ranking: Dados insuficientes', { users: users.length, leads: allLeads.length, pipelines: pipelines.length });
       return [];
     }
+
+    console.log('📊 Calculando ranking com filtros:', { 
+      pipeline: rankingPipelineFilter, 
+      dateRange: rankingDateRange,
+      closedWonIds: Array.from(closedWonStatusIds)
+    });
 
     const filterByPipeline = rankingPipelineFilter ? 
       (lead: any) => lead.pipeline_id === rankingPipelineFilter : 
@@ -169,11 +176,31 @@ export default function useKommoApi() {
 
     const filterByDateRange = (lead: any) => {
       if (!rankingDateRange.startDate || !rankingDateRange.endDate) return true;
-      const leadDate = new Date(lead.lastContact);
-      return leadDate >= rankingDateRange.startDate && leadDate <= rankingDateRange.endDate;
+      
+      // Use closed_at for sales ranking (when the sale was completed)
+      let leadDate: Date;
+      if (lead.closed_at) {
+        leadDate = new Date(lead.closed_at * 1000);
+      } else {
+        // Fallback to lastContact if closed_at is not available
+        leadDate = new Date(lead.lastContact);
+      }
+      
+      const startDate = new Date(rankingDateRange.startDate);
+      const endDate = new Date(rankingDateRange.endDate);
+      endDate.setHours(23, 59, 59, 999); // Include the entire end date
+      
+      return leadDate >= startDate && leadDate <= endDate;
     };
 
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    const startOfCurrentMonth = new Date(currentYear, currentMonth, 1);
+    const endOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
+
     const ranking = users.map(user => {
+      // All user leads that are closed/won and match filters
       const userLeads = allLeads.filter(lead => 
         lead.responsible_user_id === user.id && 
         closedWonStatusIds.has(lead.status_id) &&
@@ -181,9 +208,32 @@ export default function useKommoApi() {
         filterByDateRange(lead)
       );
       
+      // Current month sales (regardless of filters)
+      const currentMonthLeads = allLeads.filter(lead => {
+        if (lead.responsible_user_id !== user.id || !closedWonStatusIds.has(lead.status_id)) {
+          return false;
+        }
+        
+        let leadDate: Date;
+        if (lead.closed_at) {
+          leadDate = new Date(lead.closed_at * 1000);
+        } else {
+          leadDate = new Date(lead.lastContact);
+        }
+        
+        return leadDate >= startOfCurrentMonth && leadDate <= endOfCurrentMonth;
+      });
+      
       const totalSales = userLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
       const salesQuantity = userLeads.length;
-      const monthlyAverage = totalSales / 12;
+      const currentMonthSales = currentMonthLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+      const currentMonthQuantity = currentMonthLeads.length;
+      
+      // Calculate monthly average based on filtered period
+      const monthsInPeriod = rankingDateRange.startDate && rankingDateRange.endDate ? 
+        Math.max(1, Math.ceil((rankingDateRange.endDate.getTime() - rankingDateRange.startDate.getTime()) / (1000 * 60 * 60 * 24 * 30))) :
+        12;
+      const monthlyAverage = totalSales / monthsInPeriod;
       
       return {
         userId: user.id,
@@ -191,11 +241,18 @@ export default function useKommoApi() {
         totalSales,
         salesQuantity,
         monthlyAverage,
-        currentMonthSales: totalSales,
-        currentMonthQuantity: salesQuantity
+        currentMonthSales,
+        currentMonthQuantity
       };
     }).filter(user => user.salesQuantity > 0)
       .sort((a, b) => b.totalSales - a.totalSales);
+
+    console.log('📊 Ranking calculado:', { 
+      totalUsers: users.length, 
+      usersWithSales: ranking.length,
+      topSeller: ranking[0]?.userName,
+      topSellerValue: ranking[0]?.totalSales
+    });
 
     return ranking;
   }, [users, allLeads, pipelines, closedWonStatusIds, rankingPipelineFilter, rankingDateRange]);
@@ -258,11 +315,7 @@ export default function useKommoApi() {
     }
   }, [selectedPipeline]);
 
-  useEffect(() => {
-    if (users.length > 0 && allLeads.length > 0 && pipelines.length > 0) {
-      calculateSalesRanking();
-    }
-  }, [users, allLeads, rankingPipelineFilter, rankingDateRange, pipelines]);
+  // This useEffect is no longer needed as memoizedSalesRanking handles the calculation
 
   const fetchPipelines = useCallback(async () => {
     updateLoadingState('pipelines', true);
@@ -747,51 +800,11 @@ export default function useKommoApi() {
     }
   }, [updateLoadingState, cache]);
 
-  const calculateSalesRanking = (includeZeroSales: boolean = true) => {
-    if (!users.length || !allLeads.length) return;
-    
-    const closedWonStatusIds = new Set<number>();
-    pipelines.forEach(pipeline => {
-      pipeline.statuses.forEach(status => {
-        const statusName = status.name.toLowerCase();
-        if ((statusName.includes('fechado') || 
-             statusName.includes('ganho') || 
-             statusName.includes('won') || 
-             statusName.includes('closed') ||
-             statusName.includes('venda') ||
-             statusName.includes('concluído') ||
-             statusName.includes('finalizado')) &&
-            !statusName.includes('lost') && 
-            !statusName.includes('perdido') && 
-            !statusName.includes('perdida')) {
-          closedWonStatusIds.add(status.id);
-        }
-      });
-    });
-
-    const ranking: SalesRankingData[] = users.map(user => {
-      const userLeads = allLeads.filter(lead => 
-        lead.responsible_user_id === user.id && closedWonStatusIds.has(lead.status_id)
-      );
-      
-      const totalSales = userLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
-      const salesQuantity = userLeads.length;
-      const monthlyAverage = totalSales / 12;
-      
-      return {
-        userId: user.id,
-        userName: user.name || 'Usuário sem nome',
-        totalSales,
-        salesQuantity,
-        monthlyAverage,
-        currentMonthSales: totalSales, // Simplified for now
-        currentMonthQuantity: salesQuantity
-      };
-    }).filter(user => includeZeroSales || user.salesQuantity > 0)
-      .sort((a, b) => b.totalSales - a.totalSales);
-    
-    setSalesRanking(ranking);
-  };
+  // Legacy function - now handled by memoizedSalesRanking
+  const calculateSalesRanking = useCallback((includeZeroSales: boolean = true) => {
+    console.log('🔄 calculateSalesRanking called (legacy) - now using memoized calculation');
+    // The actual calculation is now handled by memoizedSalesRanking useMemo above
+  }, []);
 
   const refreshData = useCallback(async () => {
     cache.clearCache();
@@ -822,10 +835,7 @@ export default function useKommoApi() {
     setRankingPipeline: debouncedSetRankingPipeline,
     setRankingDateRange: debouncedSetRankingDateRange,
     rankingDateRange,
-    calculateSalesRanking: useCallback((includeZeroSales: boolean = true) => {
-      // This will be handled by the memoized calculation above
-      console.log('Recalculating sales ranking with includeZeroSales:', includeZeroSales);
-    }, []),
+    calculateSalesRanking,
     customFields,
     
     // Integridade de dados
