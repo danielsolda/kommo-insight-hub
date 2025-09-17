@@ -531,6 +531,10 @@ export default function useKommoApi() {
         console.log('📦 Loading general stats and integrity from cache');
         setGeneralStats(cachedStats);
         setDataIntegrity(cachedIntegrity);
+        console.log('🔍 Debug - Cache carregado:', {
+          integrity: cachedIntegrity,
+          hasIntegrity: !!cachedIntegrity
+        });
         setDataIntegrityProgress({ status: 'Carregado do cache', progress: 100 });
         updateLoadingState('stats', false);
         return;
@@ -618,6 +622,13 @@ export default function useKommoApi() {
 
       setGeneralStats(stats);
       setDataIntegrity(integrity);
+      
+      console.log('🔍 Debug - Dados de integridade definidos:', {
+        integrity: integrity,
+        hasIntegrity: !!integrity,
+        totalLeads: integrity?.totalLeads,
+        dataQuality: integrity?.dataQuality
+      });
       
       // Cache com TTL baseado na qualidade dos dados
       const cacheTTL = integrity.dataQuality > 80 ? 5 * 60 * 1000 : 3 * 60 * 1000;
@@ -913,4 +924,14 @@ export default function useKommoApi() {
     dataIntegrityProgress,
     closedWonStatusIds
   };
+
+  // Log de debug para verificar os valores no retorno
+  useEffect(() => {
+    console.log('🔍 Hook Debug - Estados atuais:', {
+      dataIntegrity: dataIntegrity,
+      hasDataIntegrity: !!dataIntegrity,
+      loadingStats: loadingStates.stats,
+      dataIntegrityKeys: dataIntegrity ? Object.keys(dataIntegrity) : 'n/a'
+    });
+  }, [dataIntegrity, loadingStates.stats]);
 }

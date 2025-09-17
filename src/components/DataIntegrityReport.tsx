@@ -38,6 +38,45 @@ export const DataIntegrityReport = ({
   progress,
   isLoading = false
 }: DataIntegrityReportProps) => {
+  // Inicializar com valores padrão seguros se não há dados
+  const defaultIntegrity = {
+    totalLeads: 0,
+    totalUnsorted: 0,
+    pipelineCounts: [],
+    missingData: ['Dados não disponíveis. Clique em "Atualizar" para carregar.'],
+    dataQuality: 0,
+    completedFully: false,
+    analysisTime: 0
+  };
+
+  // Se não há dados de integridade e não está carregando, mostrar estado vazio
+  if (!integrity && !isLoading) {
+    return (
+      <Card className="bg-gradient-card border-border/50 shadow-card">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Relatório de Integridade de Dados</CardTitle>
+          <CardDescription>
+            Análise não disponível
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 space-y-4">
+            <Database className="h-16 w-16 mx-auto opacity-30" />
+            <div className="space-y-2">
+              <p className="text-lg font-medium">Dados de integridade não encontrados</p>
+              <p className="text-muted-foreground">
+                Clique no botão "Atualizar" no topo da página para gerar o relatório de integridade.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Verificar se integrity existe antes de usar suas propriedades
+  const safeIntegrity = integrity || defaultIntegrity;
+
   const getQualityColor = (score: number) => {
     if (score >= 90) return "text-success";
     if (score >= 70) return "text-warning";
@@ -59,7 +98,7 @@ export const DataIntegrityReport = ({
   // Mostrar progresso se estiver carregando
   if (isLoading && progress) {
     return (
-      <Card>
+      <Card className="bg-gradient-card border-border/50 shadow-card">
         <CardHeader>
           <CardTitle className="text-2xl font-bold">Análise de Integridade</CardTitle>
         </CardHeader>
@@ -84,18 +123,18 @@ export const DataIntegrityReport = ({
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="text-2xl font-bold">
           Relatório de Integridade de Dados
-          {integrity.analysisTime && (
+          {safeIntegrity.analysisTime && (
             <span className="text-sm font-normal text-muted-foreground ml-2">
-              (análise em {integrity.analysisTime.toFixed(1)}s)
+              (análise em {safeIntegrity.analysisTime.toFixed(1)}s)
             </span>
           )}
         </CardTitle>
         <div className="flex items-center space-x-2">
-          {getQualityIcon(integrity.dataQuality)}
+          {getQualityIcon(safeIntegrity.dataQuality)}
           <span className="text-sm font-medium">
-            Qualidade: {integrity.dataQuality}%
+            Qualidade: {safeIntegrity.dataQuality}%
           </span>
-          {!integrity.completedFully && (
+          {!safeIntegrity.completedFully && (
             <Badge variant="outline" className="text-orange-600">
               Parcial
             </Badge>
@@ -108,15 +147,15 @@ export const DataIntegrityReport = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {getQualityIcon(integrity.dataQuality)}
+              {getQualityIcon(safeIntegrity.dataQuality)}
               <span className="font-medium">Score de Qualidade</span>
             </div>
-            <span className={`text-lg font-bold ${getQualityColor(integrity.dataQuality)}`}>
-              {integrity.dataQuality}%
+            <span className={`text-lg font-bold ${getQualityColor(safeIntegrity.dataQuality)}`}>
+              {safeIntegrity.dataQuality}%
             </span>
           </div>
           <Progress 
-            value={integrity.dataQuality} 
+            value={safeIntegrity.dataQuality} 
             className="h-2"
           />
         </div>
@@ -128,7 +167,7 @@ export const DataIntegrityReport = ({
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Total de Leads</span>
             </div>
-            <div className="text-xl font-bold">{integrity.totalLeads.toLocaleString()}</div>
+            <div className="text-xl font-bold">{safeIntegrity.totalLeads.toLocaleString()}</div>
           </div>
           
           <div className="text-center space-y-1 p-3 bg-muted/30 rounded-lg">
@@ -136,7 +175,7 @@ export const DataIntegrityReport = ({
               <Clock className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Não Organizados</span>
             </div>
-            <div className="text-xl font-bold">{integrity.totalUnsorted.toLocaleString()}</div>
+            <div className="text-xl font-bold">{safeIntegrity.totalUnsorted.toLocaleString()}</div>
           </div>
 
           <div className="text-center space-y-1 p-3 bg-muted/30 rounded-lg">
@@ -144,7 +183,7 @@ export const DataIntegrityReport = ({
               <Target className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Pipelines</span>
             </div>
-            <div className="text-xl font-bold">{integrity.pipelineCounts.length}</div>
+            <div className="text-xl font-bold">{safeIntegrity.pipelineCounts.length}</div>
           </div>
 
           <div className="text-center space-y-1 p-3 bg-muted/30 rounded-lg">
@@ -152,7 +191,7 @@ export const DataIntegrityReport = ({
               <Database className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Total Geral</span>
             </div>
-            <div className="text-xl font-bold">{(integrity.totalLeads + integrity.totalUnsorted).toLocaleString()}</div>
+            <div className="text-xl font-bold">{(safeIntegrity.totalLeads + safeIntegrity.totalUnsorted).toLocaleString()}</div>
           </div>
         </div>
 
@@ -167,10 +206,10 @@ export const DataIntegrityReport = ({
                   <div>
                     <span className="font-medium">Leads Organizados</span>
                     <div className="text-sm text-muted-foreground">
-                      {leadsIntegrity.errors.length} erros
+                      {leadsIntegrity.errors?.length || 0} erros
                     </div>
                   </div>
-                  {getStatusBadge(leadsIntegrity.completedFully, leadsIntegrity.errors.length > 0)}
+                  {getStatusBadge(leadsIntegrity.completedFully, (leadsIntegrity.errors?.length || 0) > 0)}
                 </div>
               )}
 
@@ -179,10 +218,10 @@ export const DataIntegrityReport = ({
                   <div>
                     <span className="font-medium">Leads Não Organizados</span>
                     <div className="text-sm text-muted-foreground">
-                      {unsortedIntegrity.errors.length} erros
+                      {unsortedIntegrity.errors?.length || 0} erros
                     </div>
                   </div>
-                  {getStatusBadge(unsortedIntegrity.completedFully, unsortedIntegrity.errors.length > 0)}
+                  {getStatusBadge(unsortedIntegrity.completedFully, (unsortedIntegrity.errors?.length || 0) > 0)}
                 </div>
               )}
 
@@ -194,23 +233,29 @@ export const DataIntegrityReport = ({
         <div className="space-y-3">
           <h4 className="font-medium text-sm">Distribuição por Pipeline</h4>
           <div className="space-y-2">
-            {integrity.pipelineCounts.map((pipeline) => (
-              <div key={pipeline.id} className="flex items-center justify-between py-2 px-3 bg-muted/20 rounded-lg">
-                <span className="font-medium truncate">{pipeline.name}</span>
-                <Badge variant="outline">{pipeline.count.toLocaleString()}</Badge>
+            {safeIntegrity.pipelineCounts.length > 0 ? (
+              safeIntegrity.pipelineCounts.map((pipeline) => (
+                <div key={pipeline.id} className="flex items-center justify-between py-2 px-3 bg-muted/20 rounded-lg">
+                  <span className="font-medium truncate">{pipeline.name}</span>
+                  <Badge variant="outline">{pipeline.count.toLocaleString()}</Badge>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4 text-muted-foreground">
+                <p>Nenhum pipeline encontrado</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
         {/* Alertas de Problemas */}
-        {integrity.missingData.length > 0 && (
+        {safeIntegrity.missingData.length > 0 && (
           <div className="space-y-2">
             <h4 className="font-medium text-sm flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-warning" />
               Problemas Detectados
             </h4>
-            {integrity.missingData.map((issue, index) => (
+            {safeIntegrity.missingData.map((issue, index) => (
               <Alert key={index} className="border-warning/20 bg-warning/5">
                 <AlertDescription className="text-sm">
                   {issue}
@@ -221,20 +266,20 @@ export const DataIntegrityReport = ({
         )}
 
         {/* Recomendações */}
-        {integrity.dataQuality < 90 && (
+        {safeIntegrity.dataQuality < 90 && (
           <div className="space-y-2">
             <h4 className="font-medium text-sm">Recomendações</h4>
             <div className="text-sm text-muted-foreground space-y-1">
-              {integrity.dataQuality < 70 && (
+              {safeIntegrity.dataQuality < 70 && (
                 <div>• Verificar configuração da API da Kommo</div>
               )}
               {leadsIntegrity && !leadsIntegrity.completedFully && (
                 <div>• Aumentar timeout para contas com muitos leads</div>
               )}
-              {integrity.missingData.some(issue => issue.includes('valor')) && (
+              {safeIntegrity.missingData.some(issue => issue.includes('valor')) && (
                 <div>• Revisar preenchimento de valores nos leads</div>
               )}
-              {integrity.missingData.some(issue => issue.includes('pipeline')) && (
+              {safeIntegrity.missingData.some(issue => issue.includes('pipeline')) && (
                 <div>• Verificar configuração de pipelines na Kommo</div>
               )}
             </div>

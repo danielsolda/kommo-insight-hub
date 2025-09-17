@@ -40,6 +40,15 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
   const { toast } = useToast();
   const kommoApi = useKommoApi();
 
+  // Log de debug no Dashboard
+  useEffect(() => {
+    console.log('🔍 Dashboard Debug - Dados recebidos:', {
+      dataIntegrity: kommoApi.dataIntegrity,
+      hasDataIntegrity: !!kommoApi.dataIntegrity,
+      loadingStats: kommoApi.loadingStates.stats
+    });
+  }, [kommoApi.dataIntegrity, kommoApi.loadingStates.stats]);
+
   const handleRefresh = async () => {
     setLoading(true);
     try {
@@ -339,13 +348,40 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
           </TabsContent>
 
           <TabsContent value="integrity" className="space-y-6">
-            <DataIntegrityReport 
-              integrity={kommoApi.dataIntegrity}
-              leadsIntegrity={kommoApi.leadsIntegrity}
-              unsortedIntegrity={kommoApi.unsortedIntegrity}
-              progress={kommoApi.dataIntegrityProgress}
-              isLoading={kommoApi.loadingStates.stats}
-            />
+            {kommoApi.dataIntegrity ? (
+              <DataIntegrityReport 
+                integrity={kommoApi.dataIntegrity}
+                leadsIntegrity={kommoApi.leadsIntegrity}
+                unsortedIntegrity={kommoApi.unsortedIntegrity}
+                progress={kommoApi.dataIntegrityProgress}
+                isLoading={kommoApi.loadingStates.stats}
+              />
+            ) : (
+              <Card className="bg-gradient-card border-border/50 shadow-card">
+                <CardHeader>
+                  <CardTitle>Análise de Integridade de Dados</CardTitle>
+                  <CardDescription>
+                    Carregando análise de integridade dos dados...
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="py-8">
+                  <div className="flex items-center justify-center space-y-4 flex-col">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <p className="text-muted-foreground">
+                      {kommoApi.loadingStates.stats 
+                        ? "Analisando dados..." 
+                        : "Dados de integridade não disponíveis. Clique em 'Atualizar' para carregar."}
+                    </p>
+                    {kommoApi.dataIntegrityProgress && (
+                      <div className="w-full max-w-md space-y-2">
+                        <div className="text-sm text-center">{kommoApi.dataIntegrityProgress.status}</div>
+                        <Progress value={kommoApi.dataIntegrityProgress.progress} />
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>
