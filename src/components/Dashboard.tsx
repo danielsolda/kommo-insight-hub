@@ -25,6 +25,7 @@ import { NomenclaturesModal } from "@/components/NomenclaturesModal";
 import { useToast } from "@/hooks/use-toast";
 import { useKommoApi } from "@/hooks/useKommoApi";
 import { KommoAuthService } from "@/services/kommoAuth";
+import { updateKommoAccountIfChanged } from "@/utils/environment";
 import { APP_VERSION } from "@/version";
 
 interface DashboardProps {
@@ -38,6 +39,12 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [nomenclaturesOpen, setNomenclaturesOpen] = useState(false);
   const { toast } = useToast();
+  
+  // Detectar mudança de conta ao montar o componente
+  useEffect(() => {
+    updateKommoAccountIfChanged();
+  }, []);
+  
   const kommoApi = useKommoApi();
 
   const handleRefresh = async () => {

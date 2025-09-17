@@ -185,6 +185,32 @@ export class KommoAuthService {
     return this.getAccountNamespace();
   }
 
+  // Limpar dados de uma conta específica (método estático para uso global)
+  static clearSpecificAccountData(accountUrl: string): void {
+    try {
+      const url = new URL(accountUrl);
+      const subdomain = url.hostname.split('.')[0];
+      const namespace = subdomain || 'default';
+      
+      console.log('🗑️ Limpando dados da conta:', namespace);
+      
+      // Remover tokens
+      localStorage.removeItem(`kommoTokens_${namespace}`);
+      
+      // Remover cache específico da conta
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes(`kommo-api_${namespace}-`) || key.includes(`kommo_${namespace}-`)) {
+          localStorage.removeItem(key);
+          console.log('🗑️ Cache removido:', key);
+        }
+      });
+      
+      console.log('✅ Dados da conta limpos:', namespace);
+    } catch (error) {
+      console.error('Erro ao limpar dados da conta:', error);
+    }
+  }
+
   // Obter tokens válidos (atualiza se necessário)
   async getValidTokens(): Promise<KommoTokens | null> {
     const tokens = this.loadTokens();
