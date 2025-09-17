@@ -45,8 +45,8 @@ export const SalesChart = ({ salesData = [], loading = false, selectedPipeline }
         <CardTitle>Evolução de Vendas</CardTitle>
         <CardDescription>
           {selectedPipeline 
-            ? `Desempenho de vendas do pipeline: ${selectedPipeline}`
-            : "Acompanhe o desempenho de vendas ao longo do ano"
+            ? `Pipeline selecionada: ${selectedPipeline} - Vendas fechadas com status "Venda Ganha" específicos desta pipeline`
+            : "Acompanhe o desempenho de vendas ao longo do ano - Todas as pipelines"
           }
         </CardDescription>
       </CardHeader>
