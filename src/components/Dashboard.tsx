@@ -316,22 +316,13 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
           </TabsContent>
 
           <TabsContent value="integrity" className="space-y-6">
-            {kommoApi.dataIntegrity ? (
-              <DataIntegrityReport 
-                integrity={kommoApi.dataIntegrity}
-                leadsIntegrity={kommoApi.leadsIntegrity}
-                unsortedIntegrity={kommoApi.unsortedIntegrity}
-              />
-            ) : (
-              <Card className="bg-gradient-card border-border/50 shadow-card">
-                <CardContent className="pt-6">
-                  <div className="text-center space-y-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                    <p className="text-muted-foreground">Analisando integridade dos dados...</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <DataIntegrityReport 
+              integrity={kommoApi.dataIntegrity}
+              leadsIntegrity={kommoApi.leadsIntegrity}
+              unsortedIntegrity={kommoApi.unsortedIntegrity}
+              progress={kommoApi.dataIntegrityProgress}
+              isLoading={kommoApi.loadingStates.stats}
+            />
           </TabsContent>
         </Tabs>
       </div>

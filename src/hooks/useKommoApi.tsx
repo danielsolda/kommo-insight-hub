@@ -75,7 +75,13 @@ interface LoadingProgress {
   unsorted: { current: number; total: number; phase: string };
 }
 
-export const useKommoApi = () => {
+  // Novo estado para progresso da análise de integridade
+  const [dataIntegrityProgress, setDataIntegrityProgress] = useState<{
+    status: string;
+    progress: number;
+  }>({ status: '', progress: 0 });
+
+  // Estados existentes
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [pipelineStats, setPipelineStats] = useState<PipelineStats[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
@@ -394,8 +400,10 @@ export const useKommoApi = () => {
 
   const fetchGeneralStats = useCallback(async () => {
     updateLoadingState('stats', true);
+    setDataIntegrityProgress({ status: 'Iniciando...', progress: 0 });
     
     try {
+      // Verificar cache primeiro (válido por 5 minutos)
       const cachedStats = cache.getCache('generalStats') as GeneralStats | null;
       const cachedIntegrity = cache.getCache('dataIntegrity') as any | null;
       
@@ -403,17 +411,24 @@ export const useKommoApi = () => {
         console.log('📦 Loading general stats and integrity from cache');
         setGeneralStats(cachedStats);
         setDataIntegrity(cachedIntegrity);
+        setDataIntegrityProgress({ status: 'Carregado do cache', progress: 100 });
         updateLoadingState('stats', false);
         return;
       }
 
-      console.log('🔄 Fetching comprehensive stats with integrity analysis...');
+      console.log('🔄 Fetching quick stats with integrity analysis...');
       const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
       const authService = new KommoAuthService(kommoConfig);
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
 
-      // Usar novo método que inclui análise de integridade
-      const statsResult = await apiService.getStatsWithIntegrity();
+      // Análise rápida com timeout de 2 minutos e progress callback
+      const statsResult = await apiService.getStatsWithIntegrity({
+        maxTimeMinutes: 2,
+        onProgress: (status, progress) => {
+          setDataIntegrityProgress({ status, progress });
+        }
+      });
+      
       const allLeads = statsResult.stats.leads || [];
       const allPipelines = statsResult.stats.pipelines || [];
       const integrity = statsResult.integrity;
@@ -816,5 +831,10 @@ export const useKommoApi = () => {
     dataIntegrity,
     leadsIntegrity,
     unsortedIntegrity,
+    dataIntegrityProgress,
+    refreshData,
+    closedWonStatusIds,
+    memoizedGeneralStats,
+    memoizedSalesRanking
   };
 };

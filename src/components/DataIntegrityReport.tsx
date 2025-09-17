@@ -11,27 +11,32 @@ interface DataIntegrityReportProps {
     pipelineCounts: Array<{ id: number; name: string; count: number }>;
     missingData: string[];
     dataQuality: number;
+    completedFully?: boolean;
+    analysisTime?: number;
   };
   leadsIntegrity?: {
-    totalLoaded: number;
-    pagesProcessed: number;
-    errors: string[];
-    timedOut: boolean;
+    isLoading: boolean;
     completedFully: boolean;
+    errors: string[];
   };
   unsortedIntegrity?: {
-    totalLoaded: number;
-    pagesProcessed: number;
-    errors: string[];
-    timedOut: boolean;
+    isLoading: boolean;
     completedFully: boolean;
+    errors: string[];
   };
+  progress?: {
+    status: string;
+    progress: number;
+  };
+  isLoading?: boolean;
 }
 
 export const DataIntegrityReport = ({ 
   integrity, 
   leadsIntegrity,
-  unsortedIntegrity 
+  unsortedIntegrity,
+  progress,
+  isLoading = false
 }: DataIntegrityReportProps) => {
   const getQualityColor = (score: number) => {
     if (score >= 90) return "text-success";
@@ -45,22 +50,57 @@ export const DataIntegrityReport = ({
     return <XCircle className="h-4 w-4 text-destructive" />;
   };
 
-  const getStatusBadge = (completed: boolean, timedOut: boolean) => {
+  const getStatusBadge = (completed?: boolean, hasErrors?: boolean) => {
     if (completed) return <Badge variant="default" className="bg-success/10 text-success border-success/20">Completo</Badge>;
-    if (timedOut) return <Badge variant="destructive">Timeout</Badge>;
+    if (hasErrors) return <Badge variant="destructive">Com Erros</Badge>;
     return <Badge variant="secondary">Parcial</Badge>;
   };
 
+  // Mostrar progresso se estiver carregando
+  if (isLoading && progress) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Análise de Integridade</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="text-center space-y-4">
+            <div className="flex items-center justify-center space-x-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              <span className="text-lg">{progress.status}</span>
+            </div>
+            <Progress value={progress.progress} className="w-full" />
+            <p className="text-muted-foreground text-sm">
+              {progress.progress}% - Análise otimizada (máximo 2 minutos)
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="bg-gradient-card border-border/50 shadow-card">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Database className="h-5 w-5" />
-          Relatório de Integridade dos Dados
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <CardTitle className="text-2xl font-bold">
+          Relatório de Integridade de Dados
+          {integrity.analysisTime && (
+            <span className="text-sm font-normal text-muted-foreground ml-2">
+              (análise em {integrity.analysisTime.toFixed(1)}s)
+            </span>
+          )}
         </CardTitle>
-        <CardDescription>
-          Análise da completude e qualidade dos dados carregados da Kommo
-        </CardDescription>
+        <div className="flex items-center space-x-2">
+          {getQualityIcon(integrity.dataQuality)}
+          <span className="text-sm font-medium">
+            Qualidade: {integrity.dataQuality}%
+          </span>
+          {!integrity.completedFully && (
+            <Badge variant="outline" className="text-orange-600">
+              Parcial
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         
@@ -127,10 +167,10 @@ export const DataIntegrityReport = ({
                   <div>
                     <span className="font-medium">Leads Organizados</span>
                     <div className="text-sm text-muted-foreground">
-                      {leadsIntegrity.pagesProcessed} páginas • {leadsIntegrity.errors.length} erros
+                      {leadsIntegrity.errors.length} erros
                     </div>
                   </div>
-                  {getStatusBadge(leadsIntegrity.completedFully, leadsIntegrity.timedOut)}
+                  {getStatusBadge(leadsIntegrity.completedFully, leadsIntegrity.errors.length > 0)}
                 </div>
               )}
 
@@ -139,10 +179,10 @@ export const DataIntegrityReport = ({
                   <div>
                     <span className="font-medium">Leads Não Organizados</span>
                     <div className="text-sm text-muted-foreground">
-                      {unsortedIntegrity.pagesProcessed} páginas • {unsortedIntegrity.errors.length} erros
+                      {unsortedIntegrity.errors.length} erros
                     </div>
                   </div>
-                  {getStatusBadge(unsortedIntegrity.completedFully, unsortedIntegrity.timedOut)}
+                  {getStatusBadge(unsortedIntegrity.completedFully, unsortedIntegrity.errors.length > 0)}
                 </div>
               )}
 
