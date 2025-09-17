@@ -70,8 +70,8 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
   // Handle debug mode toggle
   const handleDebugToggle = () => {
     setDebugMode(!debugMode);
-    // Recalculate ranking with or without zero sales
-    calculateSalesRanking(!debugMode);
+    // Recalculate ranking without arguments - let the hook handle the logic
+    calculateSalesRanking();
   };
 
   const handleDateFilterChange = (value: string) => {
