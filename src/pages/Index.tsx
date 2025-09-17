@@ -6,7 +6,6 @@ import { KommoConfig } from "@/components/KommoConfig";
 import { Dashboard } from "@/components/Dashboard";
 import { useToast } from "@/hooks/use-toast";
 import { KommoAuthService } from "@/services/kommoAuth";
-import { updateKommoAccountIfChanged } from "@/utils/environment";
 
 const Index = () => {
   const [isConfigured, setIsConfigured] = useState(false);
@@ -14,9 +13,6 @@ const Index = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Detectar e atualizar conta Kommo atual
-    const detectedAccount = updateKommoAccountIfChanged();
-    
     // Verificar se já existe configuração e tokens válidos
     const savedConfig = localStorage.getItem('kommoConfig');
     if (savedConfig) {
@@ -29,17 +25,10 @@ const Index = () => {
       
       if (tokens && authService.isTokenValid(tokens)) {
         setIsConfigured(true);
-        if (detectedAccount && detectedAccount.source !== 'saved_config') {
-          toast({
-            title: `Bem-vindo à conta ${detectedAccount.subdomain}!`,
-            description: "Dashboard carregado para sua conta atual.",
-          });
-        } else {
-          toast({
-            title: "Bem-vindo de volta!",
-            description: "Sua sessão da Kommo ainda está ativa.",
-          });
-        }
+        toast({
+          title: "Bem-vindo de volta!",
+          description: "Sua sessão da Kommo ainda está ativa.",
+        });
       }
     }
   }, [toast]);

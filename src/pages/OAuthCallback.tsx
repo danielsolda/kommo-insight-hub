@@ -37,7 +37,7 @@ const OAuthCallback = () => {
 
         let config = JSON.parse(savedConfig);
 
-        // Definir/atualizar account URL com base em referer param ou document.referrer
+        // Se temos o referer da Kommo, atualizar/definir a account URL
         if (referer) {
           const normalizedAccountUrl = referer.startsWith('http') 
             ? referer 
@@ -46,40 +46,10 @@ const OAuthCallback = () => {
           config.accountUrl = normalizedAccountUrl;
           localStorage.setItem('kommoConfig', JSON.stringify(config));
           
-          console.log('🔄 Account URL atualizada do referer (param):', normalizedAccountUrl);
-        } else if (document.referrer && document.referrer.includes('.kommo.com')) {
-          try {
-            const refUrl = new URL(document.referrer);
-            const normalizedAccountUrl = `https://${refUrl.hostname}`;
-            
-            config.accountUrl = normalizedAccountUrl;
-            localStorage.setItem('kommoConfig', JSON.stringify(config));
-            
-            console.log('🔄 Account URL inferida do document.referrer:', normalizedAccountUrl);
-          } catch (e) {
-            console.warn('Não foi possível parsear document.referrer:', document.referrer);
-          }
+          console.log('Updated account URL from referer:', normalizedAccountUrl);
         }
 
-        // Criar o serviço de auth para detectar a conta
         const authService = new KommoAuthService(config);
-        const currentAccount = authService.getCurrentAccountNamespace();
-        
-        // Se mudou de conta, limpar dados da conta anterior
-        const lastAccount = localStorage.getItem('lastKommoAccount');
-        if (lastAccount && lastAccount !== currentAccount) {
-          console.log('🔄 Detectada mudança de conta de', lastAccount, 'para', currentAccount);
-          
-          // Limpar cache da conta anterior
-          Object.keys(localStorage).forEach(key => {
-            if (key.includes(`kommo-api_${lastAccount}-`) || key.includes(`kommo_${lastAccount}-`)) {
-              localStorage.removeItem(key);
-            }
-          });
-        }
-        
-        // Salvar conta atual
-        localStorage.setItem('lastKommoAccount', currentAccount);
 
         setMessage('Trocando código por tokens...');
 
