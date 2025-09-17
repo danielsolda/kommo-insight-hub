@@ -559,11 +559,19 @@ export default function useKommoApi() {
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
 
       // Análise rápida com timeout de 2 minutos e progress callback
+      console.log('🔍 Iniciando getStatsWithIntegrity...');
       const statsResult = await apiService.getStatsWithIntegrity({
         maxTimeMinutes: 2,
         onProgress: (status, progress) => {
+          console.log(`📊 Progresso: ${status} - ${progress}%`);
           setDataIntegrityProgress({ status, progress });
         }
+      });
+      
+      console.log('📊 Resultado da análise de integridade:', {
+        stats: !!statsResult.stats,
+        integrity: !!statsResult.integrity,
+        integrity_data: statsResult.integrity
       });
       
       const allLeads = statsResult.stats.leads || [];
@@ -665,8 +673,24 @@ export default function useKommoApi() {
       }
 
     } catch (err: any) {
+      console.error('🚨 Erro em fetchGeneralStats:', err);
       const errorMsg = `Erro ao carregar estatísticas: ${err.message}`;
       setError(errorMsg);
+      
+      // Definir dados padrão seguros em caso de erro
+      const defaultIntegrity = {
+        totalLeads: 0,
+        totalUnsorted: 0,
+        pipelineCounts: [],
+        missingData: [`Erro ao carregar dados: ${err.message}. Clique em "Atualizar" para tentar novamente.`],
+        dataQuality: 0,
+        completedFully: false,
+        analysisTime: 0
+      };
+      
+      setDataIntegrity(defaultIntegrity);
+      setDataIntegrityProgress({ status: 'Erro ao carregar', progress: 0 });
+      
       toast({
         title: "Erro ao Carregar Estatísticas",
         description: err.message || 'Não foi possível carregar as estatísticas.',
@@ -674,6 +698,7 @@ export default function useKommoApi() {
       });
     } finally {
       updateLoadingState('stats', false);
+      setDataIntegrityProgress(prev => ({ ...prev, progress: 100 }));
     }
   }, [updateLoadingState, cache, toast]);
 

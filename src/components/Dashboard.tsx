@@ -351,7 +351,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
           </TabsContent>
 
           <TabsContent value="integrity" className="space-y-6">
-            {kommoApi.dataIntegrity ? (
+            <Suspense fallback={<div className="p-8"><DataIntegrityReport integrity={null} isLoading={true} /></div>}>
               <DataIntegrityReport 
                 integrity={kommoApi.dataIntegrity}
                 leadsIntegrity={kommoApi.leadsIntegrity}
@@ -359,32 +359,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 progress={kommoApi.dataIntegrityProgress}
                 isLoading={kommoApi.loadingStates.stats}
               />
-            ) : (
-              <Card className="bg-gradient-card border-border/50 shadow-card">
-                <CardHeader>
-                  <CardTitle>Análise de Integridade de Dados</CardTitle>
-                  <CardDescription>
-                    Carregando análise de integridade dos dados...
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="py-8">
-                  <div className="flex items-center justify-center space-y-4 flex-col">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    <p className="text-muted-foreground">
-                      {kommoApi.loadingStates.stats 
-                        ? "Analisando dados..." 
-                        : "Dados de integridade não disponíveis. Clique em 'Atualizar' para carregar."}
-                    </p>
-                    {kommoApi.dataIntegrityProgress && (
-                      <div className="w-full max-w-md space-y-2">
-                        <div className="text-sm text-center">{kommoApi.dataIntegrityProgress.status}</div>
-                        <Progress value={kommoApi.dataIntegrityProgress.progress} />
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            </Suspense>
           </TabsContent>
         </Tabs>
       </div>

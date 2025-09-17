@@ -49,6 +49,17 @@ export const DataIntegrityReport = ({
     analysisTime: 0
   };
 
+  // Validação robusta dos dados de entrada
+  const safeIntegrity = integrity ? {
+    totalLeads: integrity.totalLeads || 0,
+    totalUnsorted: integrity.totalUnsorted || 0,
+    pipelineCounts: Array.isArray(integrity.pipelineCounts) ? integrity.pipelineCounts : [],
+    missingData: Array.isArray(integrity.missingData) ? integrity.missingData : ['Dados não disponíveis'],
+    dataQuality: typeof integrity.dataQuality === 'number' ? integrity.dataQuality : 0,
+    completedFully: integrity.completedFully || false,
+    analysisTime: integrity.analysisTime || 0
+  } : defaultIntegrity;
+
   // Se não há dados de integridade e não está carregando, mostrar estado vazio
   if (!integrity && !isLoading) {
     return (
@@ -75,7 +86,7 @@ export const DataIntegrityReport = ({
   }
 
   // Verificar se integrity existe antes de usar suas propriedades
-  const safeIntegrity = integrity || defaultIntegrity;
+  // Usar os dados validados
 
   const getQualityColor = (score: number) => {
     if (score >= 90) return "text-success";

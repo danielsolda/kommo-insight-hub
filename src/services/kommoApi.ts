@@ -443,9 +443,9 @@ export class KommoApiService {
       pipelineCounts: Array<{ id: number; name: string; count: number }>;
       missingData: string[];
       dataQuality: number;
-      completedFully?: boolean;
-      analysisTime?: number;
-    };
+      completedFully: boolean;
+      analysisTime: number;
+    }
   }> {
     const { maxTimeMinutes = 2, onProgress } = options;
     console.log(`🔄 Iniciando análise rápida de integridade (máximo ${maxTimeMinutes} min)`);
@@ -453,141 +453,178 @@ export class KommoApiService {
     const startTime = Date.now();
     const maxTime = maxTimeMinutes * 60 * 1000; // Converter para ms
     
-    onProgress?.('Carregando pipelines...', 10);
-    
-    // Buscar pipelines primeiro
-    const pipelinesResponse = await this.getPipelines();
-    const pipelines = pipelinesResponse._embedded?.pipelines || [];
-    
-    onProgress?.('Analisando leads organizados...', 30);
-    
-    // Análise mais leve com timeout menor
-    const leadsResult = await this.getAllLeads({
-      with: ['contacts'],
-      onProgress: (loaded, page, total) => {
-        const elapsed = Date.now() - startTime;
-        const progress = 30 + Math.min(40, (elapsed / maxTime) * 40);
-        onProgress?.(`Carregados ${loaded} leads (página ${page})`, progress);
-      },
-      maxTimeMinutes: maxTimeMinutes * 0.7 // 70% do tempo para leads organizados
-    });
-    
-    const leads = leadsResult._embedded?.leads || [];
-    const totalLeads = leads.length;
-    const totalValue = leads.reduce((sum, lead) => sum + (lead.price || 0), 0);
-    
-    // Verificar se ainda temos tempo
-    const elapsed = Date.now() - startTime;
-    let unsorted: any[] = [];
-    let unsortedResult = { _embedded: { unsorted: [] }, integrity: { completedFully: false, errors: [] } };
-    
-    if (elapsed < maxTime * 0.8) { // Se ainda temos 20% do tempo
-      onProgress?.('Analisando leads não organizados...', 80);
+    try {
+      onProgress?.('Carregando pipelines...', 10);
       
-      const remainingTime = (maxTime - elapsed) / (60 * 1000); // Tempo restante em minutos
-      unsortedResult = await this.getAllUnsortedLeads({
-        onProgress: (loaded, page) => {
-          const currentProgress = 80 + Math.min(15, (loaded / 1000) * 15);
-          onProgress?.(`${loaded} leads não organizados`, currentProgress);
+      // Buscar pipelines primeiro com validação robusta
+      const pipelinesResponse = await this.getPipelines();
+      if (!pipelinesResponse || typeof pipelinesResponse !== 'object') {
+        throw new Error('Resposta inválida da API de pipelines');
+      }
+      
+      const pipelines = pipelinesResponse._embedded?.pipelines || [];
+      if (!Array.isArray(pipelines)) {
+        console.warn('⚠️ Pipelines não é um array, usando array vazio');
+      }
+      
+      console.log(`📋 ${pipelines.length} pipelines encontrados`);
+      
+      onProgress?.('Analisando leads organizados...', 30);
+      
+      // Análise mais leve com timeout menor
+      const leadsResult = await this.getAllLeads({
+        with: ['contacts'],
+        onProgress: (loaded, page, total) => {
+          const elapsed = Date.now() - startTime;
+          const progress = 30 + Math.min(40, (elapsed / maxTime) * 40);
+          onProgress?.(`Carregados ${loaded} leads (página ${page})`, progress);
         },
-        maxTimeMinutes: Math.max(0.2, remainingTime) // Mínimo 0.2 min
+        maxTimeMinutes: maxTimeMinutes * 0.7 // 70% do tempo para leads organizados
       });
-      unsorted = unsortedResult._embedded?.unsorted || [];
-    } else {
-      console.log('⏰ Tempo insuficiente para análise completa de leads não organizados');
-    }
-    
-    // Validação de integridade por pipeline
-    const pipelineCounts = pipelines.map(pipeline => {
-      const pipelineLeads = leads.filter(lead => lead.pipeline_id === pipeline.id);
-      return {
-        id: pipeline.id,
-        name: pipeline.name,
-        count: pipelineLeads.length
-      };
-    });
-
-    // Detectar possíveis problemas de dados
-    const missingData: string[] = [];
-    
-    // Verificar leads sem pipeline
-    const leadsWithoutPipeline = leads.filter(lead => !lead.pipeline_id);
-    if (leadsWithoutPipeline.length > 0) {
-      missingData.push(`${leadsWithoutPipeline.length} leads sem pipeline definido`);
-    }
-
-    // Verificar leads sem valor
-    const leadsWithoutValue = leads.filter(lead => !lead.price || lead.price === 0);
-    if (leadsWithoutValue.length > totalLeads * 0.3) { // Mais de 30% sem valor
-      missingData.push(`${leadsWithoutValue.length} leads sem valor (${Math.round(leadsWithoutValue.length/totalLeads*100)}%)`);
-    }
-
-    // Verificar integridade temporal
-    if (!leadsResult.integrity.completedFully) {
-      missingData.push('Busca de leads não foi completada totalmente');
-    }
-
-    if (!unsortedResult.integrity.completedFully) {
-      missingData.push('Busca de leads não organizados incompleta');
-    }
-
-    // Calcular score de qualidade de dados
-    let qualityScore = 100;
-    qualityScore -= leadsResult.integrity.errors.length * 5; // -5 por erro
-    qualityScore -= unsortedResult.integrity.errors.length * 3;
-    qualityScore -= missingData.length * 10;
-    if (!leadsResult.integrity.completedFully) qualityScore -= 20;
-    if (!unsortedResult.integrity.completedFully) qualityScore -= 10;
-    qualityScore = Math.max(0, qualityScore);
-
-    // Agrupar estatísticas por pipeline
-    const pipelineStats = pipelines.map(pipeline => {
-      const pipelineLeads = leads.filter(lead => lead.pipeline_id === pipeline.id);
-      const statusStats = pipeline.statuses.map(status => {
-        const statusLeads = pipelineLeads.filter(lead => lead.status_id === status.id);
+      
+      const leads = leadsResult._embedded?.leads || [];
+      const totalLeads = leads.length;
+      const totalValue = leads.reduce((sum, lead) => sum + (lead.price || 0), 0);
+      
+      // Verificar se ainda temos tempo
+      const elapsed = Date.now() - startTime;
+      let unsorted: any[] = [];
+      let unsortedResult = { _embedded: { unsorted: [] }, integrity: { completedFully: false, errors: [] } };
+      
+      if (elapsed < maxTime * 0.8) { // Se ainda temos 20% do tempo
+        onProgress?.('Analisando leads não organizados...', 80);
+        
+        const remainingTime = (maxTime - elapsed) / (60 * 1000); // Tempo restante em minutos
+        unsortedResult = await this.getAllUnsortedLeads({
+          onProgress: (loaded, page) => {
+            const currentProgress = 80 + Math.min(15, (loaded / 1000) * 15);
+            onProgress?.(`${loaded} leads não organizados`, currentProgress);
+          },
+          maxTimeMinutes: Math.max(0.2, remainingTime) // Mínimo 0.2 min
+        });
+        unsorted = unsortedResult._embedded?.unsorted || [];
+      } else {
+        console.log('⏰ Tempo insuficiente para análise completa de leads não organizados');
+      }
+      
+      // Validação de integridade por pipeline
+      const pipelineCounts = pipelines.map(pipeline => {
+        const pipelineLeads = leads.filter(lead => lead.pipeline_id === pipeline.id);
         return {
-          ...status,
-          count: statusLeads.length,
-          value: statusLeads.reduce((sum, lead) => sum + (lead.price || 0), 0)
+          id: pipeline.id,
+          name: pipeline.name,
+          count: pipelineLeads.length
         };
       });
+
+      // Detectar possíveis problemas de dados
+      const missingData: string[] = [];
       
-      return {
-        ...pipeline,
-        totalLeads: pipelineLeads.length,
-        totalValue: pipelineLeads.reduce((sum, lead) => sum + (lead.price || 0), 0),
-        statuses: statusStats
-      };
-    });
-
-    onProgress?.('Finalizando análise...', 95);
-    
-    const totalTime = (Date.now() - startTime) / 1000;
-    console.log(`✅ Análise concluída em ${totalTime.toFixed(1)}s: ${totalLeads} leads + ${unsorted.length} não organizados`);
-    console.log(`📊 Qualidade dos dados: ${qualityScore}%`);
-
-    onProgress?.('Análise concluída!', 100);
-
-    return {
-      stats: {
-        totalLeads,
-        totalValue,
-        pipelines: pipelineStats,
-        leads: leads.slice(0, 100), // Primeiros 100 leads para análise
-        unsorted: unsorted.slice(0, 50), // Primeiros 50 não organizados
-        analysisTime: totalTime,
-        partial: elapsed >= maxTime * 0.9 // Indica se foi análise parcial
-      },
-      integrity: {
-        totalLeads,
-        totalUnsorted: unsorted.length,
-        pipelineCounts,
-        missingData,
-        dataQuality: qualityScore,
-        completedFully: elapsed < maxTime * 0.9,
-        analysisTime: totalTime
+      // Verificar leads sem pipeline
+      const leadsWithoutPipeline = leads.filter(lead => !lead.pipeline_id);
+      if (leadsWithoutPipeline.length > 0) {
+        missingData.push(`${leadsWithoutPipeline.length} leads sem pipeline definido`);
       }
-    };
+
+      // Verificar leads sem valor
+      const leadsWithoutValue = leads.filter(lead => !lead.price || lead.price === 0);
+      if (leadsWithoutValue.length > totalLeads * 0.3) { // Mais de 30% sem valor
+        missingData.push(`${leadsWithoutValue.length} leads sem valor (${Math.round(leadsWithoutValue.length/totalLeads*100)}%)`);
+      }
+
+      // Verificar integridade temporal
+      if (!leadsResult.integrity.completedFully) {
+        missingData.push('Busca de leads não foi completada totalmente');
+      }
+
+      if (!unsortedResult.integrity.completedFully) {
+        missingData.push('Busca de leads não organizados incompleta');
+      }
+
+      // Calcular score de qualidade de dados
+      let qualityScore = 100;
+      qualityScore -= leadsResult.integrity.errors.length * 5; // -5 por erro
+      qualityScore -= unsortedResult.integrity.errors.length * 3;
+      qualityScore -= missingData.length * 10;
+      if (!leadsResult.integrity.completedFully) qualityScore -= 20;
+      if (!unsortedResult.integrity.completedFully) qualityScore -= 10;
+      qualityScore = Math.max(0, qualityScore);
+
+      // Agrupar estatísticas por pipeline
+      const pipelineStats = pipelines.map(pipeline => {
+        const pipelineLeads = leads.filter(lead => lead.pipeline_id === pipeline.id);
+        const statusStats = pipeline.statuses.map(status => {
+          const statusLeads = pipelineLeads.filter(lead => lead.status_id === status.id);
+          return {
+            ...status,
+            count: statusLeads.length,
+            value: statusLeads.reduce((sum, lead) => sum + (lead.price || 0), 0)
+          };
+        });
+        
+        return {
+          ...pipeline,
+          totalLeads: pipelineLeads.length,
+          totalValue: pipelineLeads.reduce((sum, lead) => sum + (lead.price || 0), 0),
+          statuses: statusStats
+        };
+      });
+
+      onProgress?.('Finalizando análise...', 95);
+      
+      const totalTime = (Date.now() - startTime) / 1000;
+      console.log(`✅ Análise concluída em ${totalTime.toFixed(1)}s: ${totalLeads} leads + ${unsorted.length} não organizados`);
+      console.log(`📊 Qualidade dos dados: ${qualityScore}%`);
+
+      onProgress?.('Análise concluída!', 100);
+
+      return {
+        stats: {
+          totalLeads,
+          totalValue,
+          pipelines: pipelineStats,
+          leads: leads.slice(0, 100), // Primeiros 100 leads para análise
+          unsorted: unsorted.slice(0, 50), // Primeiros 50 não organizados
+          analysisTime: totalTime,
+          partial: elapsed >= maxTime * 0.9 // Indica se foi análise parcial
+        },
+        integrity: {
+          totalLeads,
+          totalUnsorted: unsorted.length,
+          pipelineCounts,
+          missingData,
+          dataQuality: qualityScore,
+          completedFully: elapsed < maxTime * 0.9,
+          analysisTime: totalTime
+        }
+      };
+    } catch (error: any) {
+      console.error('🚨 Erro em getStatsWithIntegrity:', error);
+      onProgress?.('Erro na análise', 0);
+      
+      // Retornar dados seguros em caso de erro
+      const errorTime = (Date.now() - startTime) / 1000;
+      return {
+        stats: {
+          totalLeads: 0,
+          totalValue: 0,
+          pipelines: [],
+          leads: [],
+          unsorted: [],
+          analysisTime: errorTime,
+          partial: true
+        },
+        integrity: {
+          totalLeads: 0,
+          totalUnsorted: 0,
+          pipelineCounts: [],
+          missingData: [`Erro na análise: ${error.message}`],
+          dataQuality: 0,
+          completedFully: false,
+          analysisTime: errorTime
+        }
+      };
+    }
   }
 
   // Manter método getStats original para compatibilidade
