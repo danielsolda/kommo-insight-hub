@@ -114,7 +114,25 @@ export const useKommoApi = () => {
     return { startDate: startOfMonth, endDate: endOfMonth };
   });
   const { toast } = useToast();
-  const cache = useLocalCache({ ttl: 5 * 60 * 1000, key: 'kommo-api' }); // 5 minutes cache
+  
+  // Obter namespace da conta atual para cache específico
+  const getAccountNamespace = useCallback(() => {
+    try {
+      const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
+      if (!kommoConfig.accountUrl) return 'default';
+      
+      const url = new URL(kommoConfig.accountUrl);
+      const subdomain = url.hostname.split('.')[0];
+      return subdomain || 'default';
+    } catch {
+      return 'default';
+    }
+  }, []);
+  
+  const cache = useLocalCache({ 
+    ttl: 5 * 60 * 1000, 
+    key: `kommo-api_${getAccountNamespace()}` // Cache específico da conta
+  });
 
   // Helper to update specific loading state
   const updateLoadingState = useCallback((key: keyof LoadingStates, value: boolean) => {

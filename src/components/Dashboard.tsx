@@ -24,6 +24,7 @@ import {
 import { NomenclaturesModal } from "@/components/NomenclaturesModal";
 import { useToast } from "@/hooks/use-toast";
 import { useKommoApi } from "@/hooks/useKommoApi";
+import { KommoAuthService } from "@/services/kommoAuth";
 import { APP_VERSION } from "@/version";
 
 interface DashboardProps {
@@ -56,6 +57,32 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSwitchAccount = () => {
+    try {
+      const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
+      const authService = new KommoAuthService(kommoConfig);
+      
+      // Limpar dados da conta atual
+      authService.clearAccountData();
+      
+      toast({
+        title: "Conta limpa!",
+        description: "Faça login novamente com a conta desejada.",
+      });
+      
+      // Redirecionar para o início para nova autenticação
+      setTimeout(() => {
+        onReset();
+      }, 1500);
+    } catch (error) {
+      toast({
+        title: "Erro ao trocar conta",
+        description: "Não foi possível limpar os dados da conta.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -106,6 +133,15 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
               >
                 <BookOpen className="h-4 w-4" />
                 Nomenclaturas
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSwitchAccount}
+                className="flex items-center gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                Trocar Conta
               </Button>
               <Button
                 variant="outline"
