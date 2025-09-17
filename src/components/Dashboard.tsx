@@ -168,10 +168,29 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
+            {/* Pipeline Selection Info */}
+            {kommoApi.selectedPipeline && (
+              <Card className="bg-gradient-card border-border/50 shadow-card">
+                <CardContent className="pt-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Target className="h-4 w-4" />
+                    <span>
+                      Exibindo dados do pipeline: <span className="font-medium text-foreground">
+                        {kommoApi.pipelines.find(p => p.id === kommoApi.selectedPipeline)?.name || 'Pipeline selecionado'}
+                      </span>
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {kommoApi.loadingStates.stats ? (
               <MetricsSkeleton />
             ) : (
-              <MetricsCards generalStats={kommoApi.generalStats} loading={kommoApi.loadingStates.stats} />
+              <MetricsCards 
+                generalStats={kommoApi.selectedPipeline ? kommoApi.filteredGeneralStats : kommoApi.generalStats} 
+                loading={kommoApi.loadingStates.stats} 
+              />
             )}
             
             <div className="grid lg:grid-cols-2 gap-6">
@@ -184,7 +203,11 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
               {kommoApi.loadingStates.leads ? (
                 <ChartSkeleton title="Vendas" />
               ) : (
-                <SalesChart salesData={kommoApi.salesData} loading={kommoApi.loadingStates.leads} />
+                <SalesChart 
+                  salesData={kommoApi.selectedPipeline ? kommoApi.filteredSalesData : kommoApi.salesData} 
+                  loading={kommoApi.loadingStates.leads}
+                  selectedPipeline={kommoApi.selectedPipeline ? kommoApi.pipelines.find(p => p.id === kommoApi.selectedPipeline)?.name : null}
+                />
               )}
             </div>
             

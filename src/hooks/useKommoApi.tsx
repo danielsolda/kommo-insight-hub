@@ -276,6 +276,63 @@ export default function useKommoApi() {
     };
   }, [generalStats]);
 
+  // Filtered general stats by selected pipeline
+  const filteredGeneralStats = useMemo(() => {
+    if (!selectedPipeline || !allLeads.length || !memoizedGeneralStats) {
+      return memoizedGeneralStats;
+    }
+
+    const pipelineLeads = allLeads.filter(lead => lead.pipeline_id === selectedPipeline);
+    const activePipelineLeads = pipelineLeads.filter(lead => !closedWonStatusIds.has(lead.status_id));
+    const closedWonPipelineLeads = pipelineLeads.filter(lead => closedWonStatusIds.has(lead.status_id));
+    
+    const totalRevenue = closedWonPipelineLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+    const activeLeads = activePipelineLeads.length;
+    const conversions = closedWonPipelineLeads.length;
+    const totalLeads = pipelineLeads.length;
+    const conversionRate = totalLeads > 0 ? (conversions / totalLeads) * 100 : 0;
+
+    return {
+      ...memoizedGeneralStats,
+      totalRevenue,
+      activeLeads,
+      conversions,
+      conversionRate,
+      averageLeadValue: activeLeads > 0 ? Math.round(totalRevenue / activeLeads) : 0,
+      performanceScore: Math.min(100, Math.round(conversionRate * 2))
+    };
+  }, [memoizedGeneralStats, selectedPipeline, allLeads, closedWonStatusIds]);
+
+  // Filtered sales data by selected pipeline
+  const filteredSalesData = useMemo(() => {
+    if (!selectedPipeline || !allLeads.length || !salesData.length) {
+      return salesData;
+    }
+
+    const pipelineLeads = allLeads.filter(lead => 
+      lead.pipeline_id === selectedPipeline && closedWonStatusIds.has(lead.status_id)
+    );
+
+    // Recalculate monthly data for the selected pipeline
+    const monthlyData = salesData.map(monthData => {
+      const monthLeads = pipelineLeads.filter(lead => {
+        if (!lead.closed_at) return false;
+        const leadDate = new Date(lead.closed_at * 1000);
+        return leadDate.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) === monthData.month;
+      });
+
+      const monthRevenue = monthLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+      
+      return {
+        ...monthData,
+        vendas: monthRevenue,
+        leads: monthLeads.length
+      };
+    });
+
+    return monthlyData;
+  }, [salesData, selectedPipeline, allLeads, closedWonStatusIds]);
+
   // Debounced functions for performance
   const debouncedSetRankingPipeline = useDebouncedCallback((pipelineId: number | null) => {
     setRankingPipelineFilter(pipelineId);
@@ -828,8 +885,10 @@ export default function useKommoApi() {
     error,
     refreshData,
     generalStats: memoizedGeneralStats,
+    filteredGeneralStats,
     allLeads,
     salesData,
+    filteredSalesData,
     users,
     salesRanking: memoizedSalesRanking,
     setRankingPipeline: debouncedSetRankingPipeline,

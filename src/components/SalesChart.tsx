@@ -12,9 +12,10 @@ interface SalesData {
 interface SalesChartProps {
   salesData?: SalesData[];
   loading?: boolean;
+  selectedPipeline?: string | null;
 }
 
-export const SalesChart = ({ salesData = [], loading = false }: SalesChartProps) => {
+export const SalesChart = ({ salesData = [], loading = false, selectedPipeline }: SalesChartProps) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -35,7 +36,10 @@ export const SalesChart = ({ salesData = [], loading = false }: SalesChartProps)
       <CardHeader>
         <CardTitle>Evolução de Vendas</CardTitle>
         <CardDescription>
-          Acompanhe o desempenho de vendas ao longo do ano
+          {selectedPipeline 
+            ? `Desempenho de vendas do pipeline: ${selectedPipeline}`
+            : "Acompanhe o desempenho de vendas ao longo do ano"
+          }
         </CardDescription>
       </CardHeader>
       <CardContent>
