@@ -3,8 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { BarChart3, Settings, Users, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen } from "lucide-react";
 import { MetricsCards } from "@/components/MetricsCards";
+import { MetricsSkeleton } from "@/components/ui/MetricsSkeleton";
+import { ChartSkeleton } from "@/components/ui/ChartSkeleton";
+import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { PipelineChart } from "@/components/PipelineChart";
 import { LeadsTable } from "@/components/LeadsTable";
 import { SalesChart } from "@/components/SalesChart";
@@ -48,6 +52,16 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
     }
   };
 
+  // Calculate overall progress for display
+  const calculateProgress = () => {
+    const states = kommoApi.loadingStates;
+    const total = Object.keys(states).length;
+    const completed = Object.values(states).filter(state => !state).length;
+    return Math.round((completed / total) * 100);
+  };
+
+  const isAnyLoading = kommoApi.loading;
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -71,10 +85,10 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 variant="outline"
                 size="sm"
                 onClick={handleRefresh}
-                disabled={loading || kommoApi.loading}
+                disabled={loading || isAnyLoading}
                 className="flex items-center gap-2"
               >
-                <RefreshCw className={`h-4 w-4 ${(loading || kommoApi.loading) ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 ${(loading || isAnyLoading) ? 'animate-spin' : ''}`} />
                 Atualizar
               </Button>
               <Button
@@ -101,6 +115,26 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
       </div>
 
       <div className="container mx-auto px-4 py-8">
+        {/* Progress bar for initial loading */}
+        {isAnyLoading && (
+          <div className="mb-6">
+            <Card className="bg-gradient-card border-border/50">
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Carregando dados...</span>
+                    <span>{calculateProgress()}%</span>
+                  </div>
+                  <Progress value={calculateProgress()} className="h-2" />
+                  <div className="text-xs text-muted-foreground">
+                    {kommoApi.progress.leads.phase}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 bg-muted/30">
             <TabsTrigger value="overview" className="flex items-center gap-2">
@@ -122,25 +156,49 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <MetricsCards generalStats={kommoApi.generalStats} loading={kommoApi.loading} />
+            {kommoApi.loadingStates.stats ? (
+              <MetricsSkeleton />
+            ) : (
+              <MetricsCards generalStats={kommoApi.generalStats} loading={kommoApi.loadingStates.stats} />
+            )}
+            
             <div className="grid lg:grid-cols-2 gap-6">
-              <PipelineChart pipelineStats={kommoApi.pipelineStats} loading={kommoApi.loading} />
-              <SalesChart salesData={kommoApi.salesData} loading={kommoApi.loading} />
+              {kommoApi.loadingStates.pipelineStats ? (
+                <ChartSkeleton title="Pipeline" />
+              ) : (
+                <PipelineChart pipelineStats={kommoApi.pipelineStats} loading={kommoApi.loadingStates.pipelineStats} />
+              )}
+              
+              {kommoApi.loadingStates.leads ? (
+                <ChartSkeleton title="Vendas" />
+              ) : (
+                <SalesChart salesData={kommoApi.salesData} loading={kommoApi.loadingStates.leads} />
+              )}
             </div>
-            <CustomFieldAnalysis 
-              customFields={kommoApi.customFields}
-              allLeads={kommoApi.allLeads}
-              pipelines={kommoApi.pipelines}
-              loading={kommoApi.loading}
-            />
-            <SalesRanking 
-              salesRanking={kommoApi.salesRanking} 
-              loading={kommoApi.loading}
-              pipelines={kommoApi.pipelines}
-              onPipelineChange={kommoApi.setRankingPipeline}
-              dateRange={kommoApi.rankingDateRange}
-              onDateRangeChange={kommoApi.setRankingDateRange}
-            />
+            
+            {kommoApi.loadingStates.customFields ? (
+              <ChartSkeleton title="Análise de Campos Personalizados" height="h-64" />
+            ) : (
+              <CustomFieldAnalysis 
+                customFields={kommoApi.customFields}
+                allLeads={kommoApi.allLeads}
+                pipelines={kommoApi.pipelines}
+                loading={kommoApi.loadingStates.customFields}
+              />
+            )}
+            
+            {kommoApi.loadingStates.users || kommoApi.loadingStates.leads ? (
+              <TableSkeleton title="Ranking de Vendas" rows={8} columns={5} />
+            ) : (
+              <SalesRanking 
+                salesRanking={kommoApi.salesRanking} 
+                loading={kommoApi.loadingStates.users || kommoApi.loadingStates.leads}
+                pipelines={kommoApi.pipelines}
+                onPipelineChange={kommoApi.setRankingPipeline}
+                dateRange={kommoApi.rankingDateRange}
+                onDateRangeChange={kommoApi.setRankingDateRange}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="pipelines" className="space-y-6">
@@ -155,7 +213,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 <Select 
                   value={kommoApi.selectedPipeline?.toString()} 
                   onValueChange={(value) => kommoApi.setSelectedPipeline(Number(value))}
-                  disabled={kommoApi.loading}
+                  disabled={kommoApi.loadingStates.pipelines}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Selecione um pipeline" />
@@ -172,17 +230,30 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
             </Card>
             
             {kommoApi.selectedPipeline && (
-              <PipelineChart pipelineStats={kommoApi.pipelineStats} loading={kommoApi.loading} />
+              kommoApi.loadingStates.pipelineStats ? (
+                <ChartSkeleton title="Estatísticas do Pipeline" />
+              ) : (
+                <PipelineChart pipelineStats={kommoApi.pipelineStats} loading={kommoApi.loadingStates.pipelineStats} />
+              )
             )}
           </TabsContent>
 
           <TabsContent value="leads" className="space-y-6">
-            <LeadsTable leads={kommoApi.allLeads} loading={kommoApi.loading} />
+            {kommoApi.loadingStates.leads ? (
+              <TableSkeleton title="Tabela de Leads" rows={10} columns={8} />
+            ) : (
+              <LeadsTable leads={kommoApi.allLeads} loading={kommoApi.loadingStates.leads} />
+            )}
           </TabsContent>
 
           <TabsContent value="sales" className="space-y-6">
             <div className="grid lg:grid-cols-2 gap-6">
-              <SalesChart salesData={kommoApi.salesData} loading={kommoApi.loading} />
+              {kommoApi.loadingStates.leads ? (
+                <ChartSkeleton title="Vendas Mensais" />
+              ) : (
+                <SalesChart salesData={kommoApi.salesData} loading={kommoApi.loadingStates.leads} />
+              )}
+              
               <Card className="bg-gradient-card border-border/50 shadow-card">
                 <CardHeader>
                   <CardTitle>Métricas de Vendas</CardTitle>
@@ -195,13 +266,13 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                     <div className="flex justify-between items-center py-2 border-b border-border/30">
                       <span>Taxa de Fechamento</span>
                       <span className="font-semibold text-success">
-                        {kommoApi.loading ? "..." : kommoApi.generalStats ? `${kommoApi.generalStats.conversionRate.toFixed(1)}%` : "0%"}
+                        {kommoApi.loadingStates.stats ? "..." : kommoApi.generalStats ? `${kommoApi.generalStats.conversionRate.toFixed(1)}%` : "0%"}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border/30">
                       <span>Ticket Médio</span>
                       <span className="font-semibold">
-                        {kommoApi.loading ? "..." : kommoApi.generalStats && kommoApi.generalStats.activeLeads > 0 
+                        {kommoApi.loadingStates.stats ? "..." : kommoApi.generalStats && kommoApi.generalStats.activeLeads > 0 
                           ? `R$ ${Math.floor(kommoApi.generalStats.totalRevenue / kommoApi.generalStats.activeLeads).toLocaleString()}` 
                           : "R$ 0"}
                       </span>
@@ -213,7 +284,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                     <div className="flex justify-between items-center py-2">
                       <span>ROI</span>
                       <span className="font-semibold text-success">
-                        {kommoApi.loading ? "..." : kommoApi.generalStats && kommoApi.generalStats.totalRevenue > 0 ? "312%" : "0%"}
+                        {kommoApi.loadingStates.stats ? "..." : kommoApi.generalStats && kommoApi.generalStats.totalRevenue > 0 ? "312%" : "0%"}
                       </span>
                     </div>
                   </div>

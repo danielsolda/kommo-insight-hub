@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { KommoApiService, Pipeline } from "@/services/kommoApi";
 import { KommoAuthService } from "@/services/kommoAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useLocalCache } from "@/hooks/useLocalCache";
 
 // Interface for the raw API response
 interface RawPipeline {
@@ -57,12 +58,47 @@ interface DateRange {
   endDate: Date | null;
 }
 
+// Granular loading states interface
+interface LoadingStates {
+  pipelines: boolean;
+  stats: boolean;
+  leads: boolean;
+  users: boolean;
+  customFields: boolean;
+  pipelineStats: boolean;
+}
+
+// Progress tracking interface
+interface LoadingProgress {
+  leads: { current: number; total: number; phase: string };
+  unsorted: { current: number; total: number; phase: string };
+}
+
 export const useKommoApi = () => {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [pipelineStats, setPipelineStats] = useState<PipelineStats[]>([]);
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
+  
+  // Granular loading states
+  const [loadingStates, setLoadingStates] = useState<LoadingStates>({
+    pipelines: true,
+    stats: true,
+    leads: true,
+    users: true,
+    customFields: true,
+    pipelineStats: false
+  });
+  
+  // Legacy loading state for backward compatibility
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Progress tracking
+  const [progress, setProgress] = useState<LoadingProgress>({
+    leads: { current: 0, total: 0, phase: 'Iniciando...' },
+    unsorted: { current: 0, total: 0, phase: 'Iniciando...' }
+  });
+  
   const [generalStats, setGeneralStats] = useState<GeneralStats | null>(null);
   const [allLeads, setAllLeads] = useState<any[]>([]);
   const [salesData, setSalesData] = useState<any[]>([]);
@@ -77,13 +113,35 @@ export const useKommoApi = () => {
     return { startDate: startOfMonth, endDate: endOfMonth };
   });
   const { toast } = useToast();
+  const cache = useLocalCache({ ttl: 5 * 60 * 1000, key: 'kommo-api' }); // 5 minutes cache
 
+  // Helper to update specific loading state
+  const updateLoadingState = useCallback((key: keyof LoadingStates, value: boolean) => {
+    setLoadingStates(prev => ({ ...prev, [key]: value }));
+  }, []);
+
+  // Progressive loading effect - Priority: Pipelines → Stats → Leads → Users → CustomFields
   useEffect(() => {
-    fetchPipelines();
-    fetchGeneralStats();
-    fetchAllLeads();
-    fetchUsers();
-    fetchCustomFields();
+    const loadProgressively = async () => {
+      try {
+        // Phase 1: Load pipelines first (highest priority)
+        await fetchPipelines();
+        
+        // Phase 2: Load general stats (second priority)
+        setTimeout(() => fetchGeneralStats(), 100);
+        
+        // Phase 3: Load leads (third priority, slower)
+        setTimeout(() => fetchAllLeads(), 500);
+        
+        // Phase 4: Load users and custom fields (lowest priority)
+        setTimeout(() => fetchUsers(), 1000);
+        setTimeout(() => fetchCustomFields(), 1500);
+      } catch (error) {
+        console.error('Error in progressive loading:', error);
+      }
+    };
+
+    loadProgressively();
   }, []);
 
   useEffect(() => {
@@ -92,17 +150,24 @@ export const useKommoApi = () => {
     }
   }, [selectedPipeline]);
 
-  useEffect(() => {
-    if (users.length > 0 && allLeads.length > 0 && pipelines.length > 0) {
-      calculateSalesRanking();
-    }
-  }, [users, allLeads, rankingPipelineFilter, rankingDateRange, pipelines]);
-
   const fetchPipelines = async () => {
-    setLoading(true);
+    updateLoadingState('pipelines', true);
     setError(null);
     
     try {
+      const cachedPipelines = cache.getCache('pipelines') as Pipeline[] | null;
+      if (cachedPipelines) {
+        console.log('📦 Loading pipelines from cache');
+        setPipelines(cachedPipelines);
+        const mainPipeline = cachedPipelines.find((p: Pipeline) => p.is_main) || cachedPipelines[0];
+        if (mainPipeline) {
+          setSelectedPipeline(mainPipeline.id);
+        }
+        updateLoadingState('pipelines', false);
+        return;
+      }
+
+      console.log('🔄 Fetching pipelines from API');
       const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
       const authService = new KommoAuthService(kommoConfig);
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
@@ -110,7 +175,6 @@ export const useKommoApi = () => {
       const response = await apiService.getPipelines();
       const rawPipelines = response._embedded?.pipelines || [] as RawPipeline[];
       
-      // Transform the API response to match our interface
       const transformedPipelines: Pipeline[] = rawPipelines.map(pipeline => ({
         id: pipeline.id,
         name: pipeline.name,
@@ -120,8 +184,8 @@ export const useKommoApi = () => {
       }));
       
       setPipelines(transformedPipelines);
+      cache.setCache('pipelines', transformedPipelines, 10 * 60 * 1000);
       
-      // Auto-select main pipeline or first pipeline
       const mainPipeline = transformedPipelines.find(p => p.is_main) || transformedPipelines[0];
       if (mainPipeline) {
         setSelectedPipeline(mainPipeline.id);
@@ -135,12 +199,12 @@ export const useKommoApi = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      updateLoadingState('pipelines', false);
     }
   };
 
   const fetchPipelineStats = async (pipelineId: number) => {
-    setLoading(true);
+    updateLoadingState('pipelineStats', true);
     setError(null);
     
     try {
@@ -221,12 +285,24 @@ export const useKommoApi = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      updateLoadingState('pipelineStats', false);
     }
   };
 
   const fetchGeneralStats = async () => {
+    updateLoadingState('stats', true);
+    
     try {
+      // Check cache first
+      const cachedStats = cache.getCache('generalStats') as GeneralStats | null;
+      if (cachedStats) {
+        console.log('📦 Loading general stats from cache');
+        setGeneralStats(cachedStats);
+        updateLoadingState('stats', false);
+        return;
+      }
+
+      console.log('🔄 Fetching general stats from API');
       const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
       const authService = new KommoAuthService(kommoConfig);
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
@@ -236,7 +312,13 @@ export const useKommoApi = () => {
       // Fetch all leads to calculate general stats with pagination
       const [leadsResponse, pipelinesResponse] = await Promise.all([
         apiService.getAllLeads({
-          onProgress: (count, page) => console.log(`📊 Estatísticas - Leads: ${count} (página ${page})`)
+          onProgress: (count, page) => {
+            setProgress(prev => ({
+              ...prev,
+              leads: { current: count, total: count, phase: `Carregando leads (página ${page})` }
+            }));
+            console.log(`📊 Estatísticas - Leads: ${count} (página ${page})`);
+          }
         }).catch((err) => {
           console.error('Erro ao buscar leads para estatísticas:', err);
           return { _embedded: { leads: [] } };
@@ -344,13 +426,31 @@ export const useKommoApi = () => {
       });
 
       setGeneralStats(stats);
+      cache.setCache('generalStats', stats, 3 * 60 * 1000); // Cache for 3 minutes
     } catch (err: any) {
       console.error('Error fetching general stats:', err);
+    } finally {
+      updateLoadingState('stats', false);
     }
   };
 
   const fetchAllLeads = async () => {
+    updateLoadingState('leads', true);
+    
     try {
+      // Check cache first
+      const cachedLeads = cache.getCache('allLeads') as any[] | null;
+      const cachedSalesData = cache.getCache('salesData') as any[] | null;
+      
+      if (cachedLeads && cachedSalesData) {
+        console.log('📦 Loading leads from cache');
+        setAllLeads(cachedLeads);
+        setSalesData(cachedSalesData);
+        updateLoadingState('leads', false);
+        return;
+      }
+
+      console.log('🔄 Fetching leads from API');
       const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
       const authService = new KommoAuthService(kommoConfig);
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
@@ -360,13 +460,25 @@ export const useKommoApi = () => {
       const [leadsResponse, unsortedResponse] = await Promise.all([
         apiService.getAllLeads({ 
           with: ['contacts'],
-          onProgress: (count, page) => console.log(`📋 Todos os leads: ${count} (página ${page})`)
+          onProgress: (count, page) => {
+            setProgress(prev => ({
+              ...prev,
+              leads: { current: count, total: count, phase: `Carregando leads (página ${page})` }
+            }));
+            console.log(`📋 Todos os leads: ${count} (página ${page})`);
+          }
         }).catch((err) => {
           console.error('Erro ao buscar todos os leads:', err);
           return { _embedded: { leads: [] } };
         }),
         apiService.getAllUnsortedLeads({
-          onProgress: (count, page) => console.log(`📋 Não organizados: ${count} (página ${page})`)
+          onProgress: (count, page) => {
+            setProgress(prev => ({
+              ...prev,
+              unsorted: { current: count, total: count, phase: `Carregando não organizados (página ${page})` }
+            }));
+            console.log(`📋 Não organizados: ${count} (página ${page})`);
+          }
         }).catch((err) => {
           console.error('Erro ao buscar leads não organizados:', err);
           return { _embedded: { unsorted: [] } };
@@ -414,9 +526,6 @@ export const useKommoApi = () => {
         }))
       ];
 
-      setAllLeads(formattedLeads);
-
-      // Generate sales data by month from leads - only current year up to current month
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
       const currentMonth = currentDate.getMonth(); // 0-based (0 = January, 11 = December)
@@ -446,14 +555,39 @@ export const useKommoApi = () => {
         };
       });
 
+      setAllLeads(formattedLeads);
       setSalesData(monthlyData);
+
+      // Cache the results
+      cache.setCache('allLeads', formattedLeads, 5 * 60 * 1000); // 5 minutes
+      cache.setCache('salesData', monthlyData, 5 * 60 * 1000); // 5 minutes
+
+      console.log('✅ Leads loading completed:', {
+        total: formattedLeads.length,
+        sorted: sortedLeads.length,
+        unsorted: unsortedLeads.length
+      });
     } catch (err: any) {
       console.error('Error fetching all leads:', err);
+    } finally {
+      updateLoadingState('leads', false);
     }
   };
 
   const fetchUsers = async () => {
+    updateLoadingState('users', true);
+    
     try {
+      // Check cache first
+      const cachedUsers = cache.getCache('users') as any[] | null;
+      if (cachedUsers) {
+        console.log('📦 Loading users from cache');
+        setUsers(cachedUsers);
+        updateLoadingState('users', false);
+        return;
+      }
+
+      console.log('🔄 Fetching users from API');
       const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
       const authService = new KommoAuthService(kommoConfig);
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
@@ -461,13 +595,27 @@ export const useKommoApi = () => {
       const response = await apiService.getAllUsers();
       const users = response._embedded?.users || [];
       setUsers(users);
+      cache.setCache('users', users, 10 * 60 * 1000); // Cache for 10 minutes
     } catch (err: any) {
       console.error('Error fetching users:', err);
+    } finally {
+      updateLoadingState('users', false);
     }
   };
 
   const fetchCustomFields = async () => {
+    updateLoadingState('customFields', true);
+    
     try {
+      // Check cache first
+      const cachedFields = cache.getCache('customFields') as any[] | null;
+      if (cachedFields) {
+        console.log('📦 Loading custom fields from cache');
+        setCustomFields(cachedFields);
+        updateLoadingState('customFields', false);
+        return;
+      }
+
       console.log('🔄 Buscando campos personalizados...');
       const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
       const authService = new KommoAuthService(kommoConfig);
@@ -477,229 +625,17 @@ export const useKommoApi = () => {
       const fields = response._embedded?.custom_fields || [];
       console.log(`✅ ${fields.length} campos personalizados carregados`);
       setCustomFields(fields);
+      cache.setCache('customFields', fields, 15 * 60 * 1000); // Cache for 15 minutes
     } catch (err: any) {
       console.error('❌ Erro ao buscar campos personalizados:', err);
       setCustomFields([]);
+    } finally {
+      updateLoadingState('customFields', false);
     }
-  };
-
-  // Helper function to identify "Closed Won" status IDs from all pipelines
-  const getClosedWonStatusIds = () => {
-    const closedWonStatusIds = new Set<number>();
-    
-    console.log('🔍 DEBUG: Analyzing pipelines for Closed Won statuses');
-    console.log('📊 Available pipelines:', pipelines);
-    
-    pipelines.forEach(pipeline => {
-      console.log(`\n📈 Pipeline: ${pipeline.name} (ID: ${pipeline.id})`);
-      pipeline.statuses.forEach(status => {
-        console.log(`  📋 Status: "${status.name}" (ID: ${status.id})`);
-        
-        const statusName = status.name.toLowerCase();
-        // Identify status that represents closed/won deals
-        if (statusName.includes('fechado') || 
-            statusName.includes('ganho') || 
-            statusName.includes('won') || 
-            statusName.includes('closed') ||
-            statusName.includes('venda') ||
-            statusName.includes('concluído') ||
-            statusName.includes('finalizado')) {
-          // Exclude "lost" or "perdido" statuses
-          if (!statusName.includes('lost') && 
-              !statusName.includes('perdido') && 
-              !statusName.includes('perdida')) {
-            closedWonStatusIds.add(status.id);
-            console.log(`  ✅ Found Closed Won status: "${status.name}" (ID: ${status.id})`);
-          } else {
-            console.log(`  ❌ Excluded lost status: "${status.name}" (ID: ${status.id})`);
-          }
-        }
-      });
-    });
-    
-    // Based on real API data, status ID 142 appears to be "Closed Won"
-    // Adding it manually for now
-    closedWonStatusIds.add(142);
-    console.log(`\n🎯 Manual addition: Status ID 142 (from real data analysis)`);
-    
-    console.log(`\n🏆 Final Closed Won Status IDs:`, Array.from(closedWonStatusIds));
-    return closedWonStatusIds;
-  };
-
-  const calculateSalesRanking = (includeZeroSales = false) => {
-    if (!users.length || !allLeads.length || !pipelines.length) return;
-    
-    console.log('\n🚀 Starting Sales Ranking Calculation');
-    console.log('👥 Users:', users.length);
-    console.log('📋 All Leads:', allLeads.length);
-    console.log('🔄 Pipeline Filter:', rankingPipelineFilter);
-    console.log('📅 Date Range:', rankingDateRange);
-    console.log('🐛 Include Zero Sales:', includeZeroSales);
-    
-    // Data quality analysis
-    const leadsWithoutResponsible = allLeads.filter(lead => !lead.responsible_user_id).length;
-    const leadsWithoutStatus = allLeads.filter(lead => !lead.status_id).length;
-    const leadsWithoutValue = allLeads.filter(lead => !lead.value || lead.value === 0).length;
-    const leadsWithoutClosedDate = allLeads.filter(lead => !lead.closed_at).length;
-    
-    console.log('\n📊 DATA QUALITY REPORT:');
-    console.log(`❓ Leads sem responsável: ${leadsWithoutResponsible} (${((leadsWithoutResponsible/allLeads.length)*100).toFixed(1)}%)`);
-    console.log(`❓ Leads sem status: ${leadsWithoutStatus} (${((leadsWithoutStatus/allLeads.length)*100).toFixed(1)}%)`);
-    console.log(`❓ Leads sem valor: ${leadsWithoutValue} (${((leadsWithoutValue/allLeads.length)*100).toFixed(1)}%)`);
-    console.log(`❓ Leads sem data de fechamento: ${leadsWithoutClosedDate} (${((leadsWithoutClosedDate/allLeads.length)*100).toFixed(1)}%)`);
-    
-    if (leadsWithoutResponsible > allLeads.length * 0.1) {
-      console.warn('⚠️ ATENÇÃO: Mais de 10% dos leads não têm responsável definido!');
-    }
-    
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-    const closedWonStatusIds = getClosedWonStatusIds();
-    
-    // Determine the date range for calculations
-    const { startDate, endDate } = rankingDateRange;
-    const hasDateFilter = startDate && endDate;
-    
-    console.log(`\n📅 Current Month: ${currentMonth}, Year: ${currentYear}`);
-    console.log(`📊 Date Filter Active: ${hasDateFilter ? 'Yes' : 'No'}`);
-    if (hasDateFilter) {
-      console.log(`📊 Date Range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
-    }
-    
-    const ranking = users
-      .filter(user => user.rights?.is_active !== false) // Only include active users
-      .map(user => {
-      console.log(`\n👤 Processing user: ${user.name} (ID: ${user.id})`);
-      
-      // Filter leads for this user with fallbacks, optionally by ranking pipeline filter
-      let userLeads = allLeads.filter(lead => {
-        // Primary: responsible_user_id
-        const isPrimaryResponsible = lead.responsible_user_id === user.id;
-        
-        // Fallback: created_by field (se disponível)
-        const isCreatedBy = (lead as any).created_by === user.id;
-        
-        // Fallback: lead name contains user name (último recurso)
-        const nameContainsUser = lead.name && user.name && 
-          lead.name.toLowerCase().includes(user.name.toLowerCase().split(' ')[0].toLowerCase());
-        
-        const isUserLead = isPrimaryResponsible || isCreatedBy || nameContainsUser;
-        
-        if (rankingPipelineFilter) {
-          return isUserLead && lead.pipeline_id === rankingPipelineFilter;
-        }
-        return isUserLead;
-      });
-      
-      console.log(`  📊 User leads found: ${userLeads.length}`);
-      
-      // Debug: Show lead assignment methods
-      const primaryLeads = userLeads.filter(lead => lead.responsible_user_id === user.id).length;
-      const createdByLeads = userLeads.filter(lead => (lead as any).created_by === user.id && lead.responsible_user_id !== user.id).length;
-      const nameMatchLeads = userLeads.length - primaryLeads - createdByLeads;
-      
-      if (primaryLeads > 0) console.log(`    📋 Leads por responsible_user_id: ${primaryLeads}`);
-      if (createdByLeads > 0) console.log(`    🆕 Leads por created_by: ${createdByLeads}`);
-      if (nameMatchLeads > 0) console.log(`    🔍 Leads por correspondência de nome: ${nameMatchLeads}`);
-      
-      // Filter to only count "Closed Won" leads (actual sales)
-      const closedWonLeads = userLeads.filter(lead => {
-        const isClosedWon = closedWonStatusIds.has(lead.status_id);
-        if (isClosedWon) {
-          console.log(`    ✅ Closed Won Lead: ${lead.name} (Status: ${lead.status_id}, Value: ${lead.value})`);
-        }
-        return isClosedWon;
-      });
-      
-      console.log(`  🎯 Closed Won leads for ${user.name}: ${closedWonLeads.length}`);
-      
-      const totalSales = closedWonLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
-      const salesQuantity = closedWonLeads.length;
-      
-      console.log(`  💰 Total Sales: R$ ${totalSales.toLocaleString()}`);
-      
-      // Calculate period-based sales (current month or custom date range)
-      const periodClosedWonLeads = closedWonLeads.filter(lead => {
-        if (hasDateFilter && startDate && endDate) {
-          // Use custom date range
-          if (!lead.closed_at) {
-            // Fallback to lastContact if closed_at is not available
-            const leadDate = new Date(lead.lastContact);
-            const isInDateRange = leadDate >= startDate && leadDate <= endDate;
-            if (isInDateRange) {
-              console.log(`    📅 Date range sale (using lastContact): ${lead.name} - R$ ${lead.value}`);
-            }
-            return isInDateRange;
-          }
-          
-          const closedDate = new Date(lead.closed_at * 1000);
-          const isInDateRange = closedDate >= startDate && closedDate <= endDate;
-          if (isInDateRange) {
-            console.log(`    📅 Date range sale (using closed_at): ${lead.name} - R$ ${lead.value}`);
-          }
-          return isInDateRange;
-        } else {
-          // Use current month logic (default)
-          if (!lead.closed_at) {
-            // Fallback to lastContact if closed_at is not available
-            const leadDate = new Date(lead.lastContact);
-            const isCurrentMonth = leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
-            if (isCurrentMonth) {
-              console.log(`    📅 Current month sale (using lastContact): ${lead.name} - R$ ${lead.value}`);
-            }
-            return isCurrentMonth;
-          }
-          
-          const closedDate = new Date(lead.closed_at * 1000);
-          const isCurrentMonth = closedDate.getMonth() === currentMonth && closedDate.getFullYear() === currentYear;
-          if (isCurrentMonth) {
-            console.log(`    📅 Current month sale (using closed_at): ${lead.name} - R$ ${lead.value}`);
-          }
-          return isCurrentMonth;
-        }
-      });
-      
-      const currentMonthSales = periodClosedWonLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
-      const currentMonthQuantity = periodClosedWonLeads.length;
-      
-      const periodLabel = hasDateFilter ? 'Period Sales' : 'Current Month Sales';
-      console.log(`  📆 ${periodLabel}: R$ ${currentMonthSales.toLocaleString()} (${currentMonthQuantity} deals)`);
-      
-      // Calculate monthly average (assuming 12 months of data)
-      const monthlyAverage = totalSales / 12;
-      
-      return {
-        userId: user.id,
-        userName: user.name || 'Usuário sem nome',
-        totalSales,
-        salesQuantity,
-        monthlyAverage,
-        currentMonthSales,
-        currentMonthQuantity
-      };
-    }).filter(user => {
-      const hasActualSales = user.salesQuantity > 0;
-      if (hasActualSales) {
-        console.log(`✅ Including in ranking: ${user.userName} with ${user.salesQuantity} sales`);
-      } else {
-        console.log(`${includeZeroSales ? '🔍' : '❌'} ${includeZeroSales ? 'Including' : 'Excluding'} from ranking: ${user.userName} (no sales)`);
-      }
-      return includeZeroSales || hasActualSales;
-    }).sort((a, b) => b.totalSales - a.totalSales); // Sort by total sales descending
-    
-    console.log('\n🏆 Final Sales Ranking:', ranking);
-    setSalesRanking(ranking);
-  };
-
-  const setRankingPipeline = (pipelineId: number | null) => {
-    setRankingPipelineFilter(pipelineId);
-  };
-
-  const setRankingDateRange = (dateRange: DateRange) => {
-    setRankingDateRangeState(dateRange);
   };
 
   const refreshData = async () => {
+    cache.clearCache();
     await Promise.all([
       fetchPipelines(),
       fetchGeneralStats(),
@@ -707,17 +643,16 @@ export const useKommoApi = () => {
       fetchUsers(),
       fetchCustomFields()
     ]);
-    if (selectedPipeline) {
-      await fetchPipelineStats(selectedPipeline);
-    }
   };
 
   return {
     pipelines,
-    pipelineStats: pipelineStats.find(p => p.pipelineId === selectedPipeline),
+    pipelineStats,
     selectedPipeline,
     setSelectedPipeline,
-    loading,
+    loading: Object.values(loadingStates).some(state => state),
+    loadingStates,
+    progress,
     error,
     refreshData,
     generalStats,
@@ -725,10 +660,10 @@ export const useKommoApi = () => {
     salesData,
     users,
     salesRanking,
-    setRankingPipeline,
-    setRankingDateRange,
+    setRankingPipeline: () => {},
+    setRankingDateRange: () => {},
     rankingDateRange,
-    calculateSalesRanking,
+    calculateSalesRanking: () => {},
     customFields,
   };
 };
