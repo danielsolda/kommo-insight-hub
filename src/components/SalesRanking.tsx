@@ -43,8 +43,14 @@ interface SalesRankingProps {
 }
 
 export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChange, dateRange, onDateRangeChange }: SalesRankingProps) => {
+  console.log('🔍 SalesRanking component received:', { 
+    salesRankingLength: salesRanking.length, 
+    loading, 
+    pipelinesLength: pipelines.length 
+  });
+  
   const [selectedPipeline, setSelectedPipeline] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState<string>("current-month");
+  const [dateFilter, setDateFilter] = useState<string>("all-time");
   const [debugMode, setDebugMode] = useState<boolean>(false);
   
   const { calculateSalesRanking, users, allLeads } = useKommoApi();

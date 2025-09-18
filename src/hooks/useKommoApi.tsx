@@ -143,6 +143,8 @@ export const useKommoApi = () => {
     console.log('🏆 Ranking: Using closed won status ID:', closedWonStatusId);
     console.log('👥 Ranking: Total users available:', users.length);
     console.log('📋 Ranking: Total leads available:', allLeads.length);
+    console.log('📋 Ranking: Sample user IDs:', users.slice(0, 3).map(u => `${u.name} (ID: ${u.id})`));
+    console.log('📋 Ranking: Sample lead responsible_user_ids:', allLeads.slice(0, 5).map(l => l.responsible_user_id));
 
     const filterByPipeline = rankingPipelineFilter ? 
       (lead: any) => lead.pipeline_id === rankingPipelineFilter : 
@@ -150,18 +152,34 @@ export const useKommoApi = () => {
 
     const filterByDateRange = (lead: any) => {
       if (!rankingDateRange.startDate || !rankingDateRange.endDate) return true;
-      const leadDate = lead.closed_at ? new Date(lead.closed_at) : new Date(lead.lastContact);
+      
+      // Use closed_at if available, otherwise use updated_at as fallback
+      const leadDate = lead.closed_at ? new Date(lead.closed_at) : 
+                      lead.updated_at ? new Date(lead.updated_at) : null;
+      
+      if (!leadDate) {
+        console.log(`⚠️  Lead ${lead.id} has no valid date (closed_at or updated_at)`);
+        return false;
+      }
+      
       return leadDate >= rankingDateRange.startDate && leadDate <= rankingDateRange.endDate;
     };
 
     console.log('🎯 Ranking: Pipeline filter:', rankingPipelineFilter);
     console.log('📅 Ranking: Date range:', rankingDateRange);
 
+    // First, check how many leads have status 142
+    const status142Leads = allLeads.filter(lead => lead.status_id === closedWonStatusId);
+    console.log(`🔍 Debug: ${status142Leads.length} leads found with status 142`);
+    
+    // Check how many have responsible_user_id
+    const status142LeadsWithUser = status142Leads.filter(lead => lead.responsible_user_id);
+    console.log(`👤 Debug: ${status142LeadsWithUser.length} status 142 leads have responsible_user_id`);
+
     const ranking = users.map(user => {
       const userLeads = allLeads.filter(lead => 
         lead.responsible_user_id === user.id && 
         lead.status_id === closedWonStatusId &&
-        lead.closed_at && // Ensure lead has a valid closed date
         filterByPipeline(lead) &&
         filterByDateRange(lead)
       );
@@ -170,6 +188,7 @@ export const useKommoApi = () => {
       
       if (userLeads.length > 0) {
         console.log(`   💰 Sample lead prices: ${userLeads.slice(0, 3).map(l => l.price || 0).join(', ')}`);
+        console.log(`   📅 Sample lead dates: ${userLeads.slice(0, 3).map(l => l.closed_at || l.updated_at || 'no date').join(', ')}`);
       }
 
       const totalSales = userLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
@@ -189,6 +208,15 @@ export const useKommoApi = () => {
       .sort((a, b) => b.totalSales - a.totalSales);
 
     console.log('📊 Ranking final:', ranking.length, 'vendedores com vendas');
+    
+    if (ranking.length === 0) {
+      console.log('⚠️  No ranking data - debugging info:');
+      console.log('   - Total users:', users.length);
+      console.log('   - Total leads:', allLeads.length);
+      console.log('   - Leads with status 142:', allLeads.filter(l => l.status_id === 142).length);
+      console.log('   - Leads with responsible_user_id:', allLeads.filter(l => l.responsible_user_id).length);
+    }
+    
     return ranking;
   }, [users, allLeads, pipelines, rankingPipelineFilter, rankingDateRange]);
 
