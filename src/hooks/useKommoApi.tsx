@@ -180,8 +180,14 @@ export const useKommoApi = () => {
 
   // Memoized filtered sales data calculation
   const filteredSalesData = useMemo(() => {
+    console.log(`🔄 Recalculando dados de vendas filtrados...`);
+    console.log(`   📋 Pipeline filter: ${salesChartPipelineFilter}`);
+    console.log(`   📊 Pipelines disponíveis: ${pipelines.length}`);
+    console.log(`   📈 All leads disponíveis: ${allLeads.length}`);
+    console.log(`   💰 Sales data base: ${salesData.length} meses`);
+    
     if (!salesChartPipelineFilter || !pipelines.length || !allLeads.length) {
-      console.log('📊 Gráfico de vendas: Sem filtro de pipeline ou dados insuficientes');
+      console.log('📊 Gráfico de vendas: Sem filtro de pipeline ou dados insuficientes - retornando salesData original');
       return salesData;
     }
 
@@ -204,9 +210,20 @@ export const useKommoApi = () => {
     );
 
     console.log(`📈 Resultado do filtro:`);
-    console.log(`   📊 Total de leads: ${allLeads.length}`);
+    console.log(`   📊 Total de leads formatados: ${allLeads.length}`);
     console.log(`   🎯 Leads da pipeline ${salesChartPipelineFilter}: ${allLeads.filter(lead => lead.pipeline_id === salesChartPipelineFilter).length}`);
-    console.log(`   🏆 Leads com status 142 na pipeline: ${pipelineLeads.length}`);
+    console.log(`   🏆 Leads com status 142: ${allLeads.filter(lead => lead.status_id === 142).length}`);
+    console.log(`   ⏰ Leads com closed_at válido: ${allLeads.filter(lead => lead.closed_at).length}`);
+    console.log(`   ✅ Leads filtrados finais: ${pipelineLeads.length}`);
+    
+    // Debug: Show detailed info about leads in the selected pipeline
+    const pipelineAllLeads = allLeads.filter(lead => lead.pipeline_id === salesChartPipelineFilter);
+    console.log(`   📋 Todos os leads da pipeline ${salesChartPipelineFilter}:`, pipelineAllLeads.map(lead => ({
+      id: lead.id,
+      status_id: lead.status_id,
+      price: lead.price,
+      closed_at: lead.closed_at ? new Date(lead.closed_at * 1000).toLocaleDateString('pt-BR') : null
+    })).slice(0, 5));
     
     // Debug: Show some sample leads
     if (pipelineLeads.length > 0) {
@@ -233,6 +250,14 @@ export const useKommoApi = () => {
       });
       
       const monthRevenue = monthLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
+      console.log(`     💰 Mês ${i + 1} (${monthName}): ${monthLeads.length} leads, receita: R$ ${monthRevenue.toLocaleString('pt-BR')}`);
+      if (monthLeads.length > 0) {
+        console.log(`        🔍 Amostra de leads do mês:`, monthLeads.slice(0, 2).map(lead => ({
+          id: lead.id,
+          price: lead.price,
+          closed_at: lead.closed_at ? new Date(lead.closed_at * 1000).toLocaleDateString('pt-BR') : null
+        })));
+      }
       const monthTarget = monthRevenue * 1.1;
       
       return {
@@ -242,6 +267,12 @@ export const useKommoApi = () => {
         leads: monthLeads.length
       };
     });
+
+    console.log(`📊 Dados mensais calculados para pipeline ${salesChartPipelineFilter}:`, monthlyData.map(m => ({
+      month: m.month,
+      vendas: m.vendas,
+      leads: m.leads
+    })));
 
     return monthlyData;
   }, [salesData, salesChartPipelineFilter, pipelines, allLeads]);
@@ -580,8 +611,9 @@ export const useKommoApi = () => {
           phone: lead._embedded?.contacts?.[0]?.custom_fields?.find((field: any) => field.field_name === 'PHONE')?.values?.[0]?.value || 'Telefone não informado',
           stage: pipelines.find(p => p.id === lead.pipeline_id)?.statuses?.find(s => s.id === lead.status_id)?.name || 'Estágio não definido',
           value: lead.price || 0,
+          price: lead.price || 0, // Add price field for consistency
           lastContact: lead.updated_at ? new Date(lead.updated_at * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-          closed_at: lead.closed_at,
+          closed_at: lead.closed_at, // Preserve closed_at timestamp
           priority: lead.price > 30000 ? 'high' : lead.price > 15000 ? 'medium' : 'low',
           source: 'Kommo CRM',
           responsible_user_id: lead.responsible_user_id,
@@ -598,11 +630,14 @@ export const useKommoApi = () => {
           phone: 'Telefone não informado', 
           stage: 'Etapa de entrada',
           value: lead._embedded?.leads?.[0]?.price || 0,
+          price: lead._embedded?.leads?.[0]?.price || 0, // Add price field for consistency
           lastContact: lead.created_at ? new Date(lead.created_at * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          closed_at: null, // Unsorted leads don't have closed_at
           priority: 'medium',
           source: lead.metadata?.source_name || 'Kommo CRM',
           responsible_user_id: lead._embedded?.leads?.[0]?.responsible_user_id || null,
           pipeline_id: lead.pipeline_id || null,
+          status_id: null, // Unsorted leads don't have status_id yet
           custom_fields_values: lead._embedded?.leads?.[0]?.custom_fields_values || [],
           status_name: 'Etapa de entrada',
         }))
@@ -641,7 +676,16 @@ export const useKommoApi = () => {
       console.log('✅ Leads loading completed:', {
         total: formattedLeads.length,
         sorted: sortedLeads.length,
-        unsorted: unsortedLeads.length
+        unsorted: unsortedLeads.length,
+        sampleFormattedLead: formattedLeads[0] ? {
+          id: formattedLeads[0].id,
+          pipeline_id: formattedLeads[0].pipeline_id,
+          status_id: formattedLeads[0].status_id,
+          price: formattedLeads[0].price,
+          value: formattedLeads[0].value,
+          closed_at: formattedLeads[0].closed_at
+        } : null,
+        closedWonLeads: formattedLeads.filter(lead => lead.status_id === 142 && lead.closed_at).length
       });
     } catch (err: any) {
       console.error('Error fetching leads:', err);
