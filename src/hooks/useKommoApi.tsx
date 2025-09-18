@@ -42,6 +42,13 @@ interface GeneralStats {
   leadsChange: string;
   conversionChange: string;
   callsChange: string;
+  roi?: number;
+  roiChange?: string;
+}
+
+interface InvestmentConfig {
+  monthlyInvestment: number;
+  roiGoal: number;
 }
 
 interface SalesRankingData {
@@ -111,6 +118,10 @@ export const useKommoApi = () => {
   const [rankingDateRange, setRankingDateRangeState] = useState<DateRange>({
     startDate: null,
     endDate: null
+  });
+  const [investmentConfig, setInvestmentConfig] = useState<InvestmentConfig>(() => {
+    const saved = localStorage.getItem('kommo-investment-config');
+    return saved ? JSON.parse(saved) : { monthlyInvestment: 10000, roiGoal: 300 };
   });
   const { toast } = useToast();
   const cache = useLocalCache({ ttl: 5 * 60 * 1000, key: 'kommo-api' }); // 5 minutes cache
@@ -322,19 +333,38 @@ export const useKommoApi = () => {
     return monthlyData;
   }, [salesData, salesChartPipelineFilter, pipelines, allLeads]);
 
-  // Memoized general stats calculation
+  // Memoized general stats with ROI calculation
   const memoizedGeneralStats = useMemo(() => {
     if (!generalStats) return null;
     
-    // Add any heavy calculations here if needed
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    // Calculate monthly revenue (simplified - could be more sophisticated)
+    const monthlyRevenue = generalStats.totalRevenue; // Assuming this is monthly data
+    const monthlyInvestment = investmentConfig.monthlyInvestment;
+    
+    let roi = 0;
+    let roiChange = "+0%";
+    
+    if (monthlyInvestment > 0 && monthlyRevenue > 0) {
+      roi = ((monthlyRevenue - monthlyInvestment) / monthlyInvestment) * 100;
+      
+      // Compare with goal for change indicator
+      const goalDifference = roi - investmentConfig.roiGoal;
+      roiChange = goalDifference >= 0 ? `+${goalDifference.toFixed(1)}%` : `${goalDifference.toFixed(1)}%`;
+    }
+    
     return {
       ...generalStats,
-      // Example: Add computed fields that depend on other data
+      roi,
+      roiChange,
+      // Add any heavy calculations here if needed
       averageLeadValue: generalStats.activeLeads > 0 ? 
         Math.round(generalStats.totalRevenue / generalStats.activeLeads) : 0,
       performanceScore: Math.min(100, Math.round(generalStats.conversionRate * 2))
     };
-  }, [generalStats]);
+  }, [generalStats, investmentConfig]);
 
   // Debounced functions for performance
   const debouncedSetRankingPipeline = useDebouncedCallback((pipelineId: number | null) => {
@@ -805,6 +835,12 @@ export const useKommoApi = () => {
     ]);
   }, [cache, fetchPipelines, fetchGeneralStats, fetchAllLeads, fetchUsers, fetchCustomFields]);
 
+  // Investment config handler
+  const updateInvestmentConfig = useCallback((config: InvestmentConfig) => {
+    setInvestmentConfig(config);
+    localStorage.setItem('kommo-investment-config', JSON.stringify(config));
+  }, []);
+
   return {
     pipelines,
     pipelineStats: pipelineStats.find(p => p.pipelineId === selectedPipeline) || null,
@@ -825,6 +861,8 @@ export const useKommoApi = () => {
     setRankingPipeline: debouncedSetRankingPipeline,
     setRankingDateRange: debouncedSetRankingDateRange,
     rankingDateRange,
+    investmentConfig,
+    updateInvestmentConfig,
     calculateSalesRanking: useCallback(() => {
       // Sales ranking is now handled by the memoized calculation above
       console.log('🔄 Sales ranking calculation triggered - using memoized version');

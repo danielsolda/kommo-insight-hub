@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Users, DollarSign, Target, Phone } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, DollarSign, Target } from "lucide-react";
 
 interface GeneralStats {
   totalRevenue: number;
@@ -10,6 +10,8 @@ interface GeneralStats {
   leadsChange: string;
   conversionChange: string;
   callsChange: string;
+  roi?: number;
+  roiChange?: string;
 }
 
 interface MetricsCardsProps {
@@ -56,11 +58,11 @@ export const MetricsCards = ({ generalStats, loading }: MetricsCardsProps) => {
       bgColor: "bg-warning/10"
     },
     {
-      title: "Atividades",
-      value: "N/A",
-      change: "N/A",
-      trend: "neutral",
-      icon: Phone,
+      title: "ROI",
+      value: loading ? "..." : generalStats ? `${generalStats.roi?.toFixed(1) || 0}%` : "0%",
+      change: generalStats?.roiChange || "+0%",
+      trend: generalStats?.roiChange?.startsWith('+') ? "up" : generalStats?.roiChange?.startsWith('-') ? "down" : "neutral",
+      icon: Target,
       color: "text-primary-glow",
       bgColor: "bg-primary/10"
     }

@@ -22,6 +22,7 @@ import {
   LazySalesRanking 
 } from "@/components/LazyComponents";
 import { NomenclaturesModal } from "@/components/NomenclaturesModal";
+import { InvestmentSettingsModal } from "@/components/InvestmentSettingsModal";
 import { useToast } from "@/hooks/use-toast";
 import { useKommoApi } from "@/hooks/useKommoApi";
 import { APP_VERSION } from "@/version";
@@ -98,6 +99,10 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 <RefreshCw className={`h-4 w-4 ${(loading || isAnyLoading) ? 'animate-spin' : ''}`} />
                 Atualizar
               </Button>
+              <InvestmentSettingsModal 
+                config={kommoApi.investmentConfig}
+                onConfigChange={kommoApi.updateInvestmentConfig}
+              />
               <Button
                 variant="outline"
                 size="sm"
@@ -334,8 +339,8 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                     </div>
                     <div className="flex justify-between items-center py-2">
                       <span>ROI</span>
-                      <span className="font-semibold text-success">
-                        {kommoApi.loadingStates.stats ? "..." : kommoApi.generalStats && kommoApi.generalStats.totalRevenue > 0 ? "312%" : "0%"}
+                      <span className={`font-semibold ${kommoApi.generalStats?.roi && kommoApi.generalStats.roi >= kommoApi.investmentConfig.roiGoal ? 'text-success' : 'text-warning'}`}>
+                        {kommoApi.loadingStates.stats ? "..." : kommoApi.generalStats?.roi ? `${kommoApi.generalStats.roi.toFixed(1)}%` : "0%"}
                       </span>
                     </div>
                   </div>
