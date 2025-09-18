@@ -614,10 +614,10 @@ export const useKommoApi = () => {
       
       const monthlyData = Array.from({ length: currentMonth + 1 }, (_, i) => {
         const monthName = new Date(currentYear, i, 1).toLocaleString('pt-BR', { month: 'short' });
+        // Filter only closed won leads (status 142) with valid closed_at date
         const monthLeads = sortedLeads.filter(lead => {
-          if (!lead.updated_at && !lead.closed_at) return false;
-          const leadTimestamp = lead.closed_at || lead.updated_at;
-          const leadDate = new Date(leadTimestamp * 1000);
+          if (!lead.closed_at || lead.status_id !== 142) return false;
+          const leadDate = new Date(lead.closed_at * 1000);
           return leadDate.getFullYear() === currentYear && leadDate.getMonth() === i;
         });
         
