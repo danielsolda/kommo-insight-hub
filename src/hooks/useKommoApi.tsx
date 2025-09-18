@@ -137,27 +137,12 @@ export const useKommoApi = () => {
       return [];
     }
 
-    // Find closed won status IDs
-    const closedWonStatusIds = new Set<number>();
-    pipelines.forEach(pipeline => {
-      pipeline.statuses?.forEach(status => {
-        const statusName = status.name.toLowerCase();
-        if ((statusName.includes('fechado') || 
-             statusName.includes('ganho') || 
-             statusName.includes('won') || 
-             statusName.includes('closed') ||
-             statusName.includes('venda') ||
-             statusName.includes('concluído') ||
-             statusName.includes('finalizado')) &&
-            !statusName.includes('lost') && 
-            !statusName.includes('perdido') && 
-            !statusName.includes('perdida')) {
-          closedWonStatusIds.add(status.id);
-        }
-      });
-    });
+    // Use status ID 142 for "Venda Ganha" (consistent with sales evolution chart)
+    const closedWonStatusId = 142;
 
-    console.log('🏆 Ranking: Closed won status IDs:', Array.from(closedWonStatusIds));
+    console.log('🏆 Ranking: Using closed won status ID:', closedWonStatusId);
+    console.log('👥 Ranking: Total users available:', users.length);
+    console.log('📋 Ranking: Total leads available:', allLeads.length);
 
     const filterByPipeline = rankingPipelineFilter ? 
       (lead: any) => lead.pipeline_id === rankingPipelineFilter : 
@@ -175,12 +160,17 @@ export const useKommoApi = () => {
     const ranking = users.map(user => {
       const userLeads = allLeads.filter(lead => 
         lead.responsible_user_id === user.id && 
-        closedWonStatusIds.has(lead.status_id) &&
+        lead.status_id === closedWonStatusId &&
+        lead.closed_at && // Ensure lead has a valid closed date
         filterByPipeline(lead) &&
         filterByDateRange(lead)
       );
 
-      console.log(`👤 User ${user.name}: ${userLeads.length} filtered leads`);
+      console.log(`👤 User ${user.name} (ID: ${user.id}): ${userLeads.length} closed won leads`);
+      
+      if (userLeads.length > 0) {
+        console.log(`   💰 Sample lead prices: ${userLeads.slice(0, 3).map(l => l.price || 0).join(', ')}`);
+      }
 
       const totalSales = userLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
       const salesQuantity = userLeads.length;
