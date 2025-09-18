@@ -181,14 +181,20 @@ export const useKommoApi = () => {
   // Memoized filtered sales data calculation
   const filteredSalesData = useMemo(() => {
     if (!salesChartPipelineFilter || !pipelines.length || !allLeads.length) {
+      console.log('📊 Gráfico de vendas: Sem filtro de pipeline ou dados insuficientes');
       return salesData;
     }
 
     // Use universal status ID 142 for "Venda ganha" (closed won)
     const selectedPipeline = pipelines.find(p => p.id === salesChartPipelineFilter);
-    if (!selectedPipeline) return salesData;
+    if (!selectedPipeline) {
+      console.log(`❌ Pipeline com ID ${salesChartPipelineFilter} não encontrada`);
+      return salesData;
+    }
 
-    console.log(`🎯 Filtrando gráfico de vendas por pipeline: ${selectedPipeline.name} usando status ID 142`);
+    console.log(`🎯 Filtrando gráfico de vendas:`);
+    console.log(`   📋 Pipeline selecionada: ${selectedPipeline.name} (ID: ${salesChartPipelineFilter})`);
+    console.log(`   🏆 Status "Venda ganha": ID 142`);
 
     // Filter leads by pipeline and closed won status (ID 142)
     const pipelineLeads = allLeads.filter(lead => 
@@ -197,7 +203,21 @@ export const useKommoApi = () => {
       lead.closed_at // Only leads with valid closed_at date
     );
 
-    console.log(`📈 Leads da pipeline filtrada: ${pipelineLeads.length} de ${allLeads.length} total`);
+    console.log(`📈 Resultado do filtro:`);
+    console.log(`   📊 Total de leads: ${allLeads.length}`);
+    console.log(`   🎯 Leads da pipeline ${salesChartPipelineFilter}: ${allLeads.filter(lead => lead.pipeline_id === salesChartPipelineFilter).length}`);
+    console.log(`   🏆 Leads com status 142 na pipeline: ${pipelineLeads.length}`);
+    
+    // Debug: Show some sample leads
+    if (pipelineLeads.length > 0) {
+      console.log(`   📝 Amostra de leads filtrados:`, pipelineLeads.slice(0, 3).map(lead => ({
+        id: lead.id,
+        pipeline_id: lead.pipeline_id,
+        status_id: lead.status_id,
+        price: lead.price,
+        closed_at: lead.closed_at ? new Date(lead.closed_at * 1000).toLocaleDateString('pt-BR') : null
+      })));
+    }
 
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
