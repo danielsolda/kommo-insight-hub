@@ -6,7 +6,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Crown, TrendingUp, TrendingDown, Users, DollarSign, Filter, Calendar as CalendarIcon, Bug, Eye, EyeOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -52,6 +52,13 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
   const [selectedPipeline, setSelectedPipeline] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all-time");
   const [debugMode, setDebugMode] = useState<boolean>(false);
+  
+  // Sync initial date range to match "all-time" filter
+  useEffect(() => {
+    if (dateFilter === "all-time") {
+      onDateRangeChange({ startDate: null, endDate: null });
+    }
+  }, []);
   
   const { calculateSalesRanking, users, allLeads } = useKommoApi();
   

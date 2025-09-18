@@ -108,11 +108,9 @@ export const useKommoApi = () => {
   const [rankingPipelineFilter, setRankingPipelineFilter] = useState<number | null>(null);
   const [customFields, setCustomFields] = useState<any[]>([]);
   const [salesChartPipelineFilter, setSalesChartPipelineFilter] = useState<number | null>(null);
-  const [rankingDateRange, setRankingDateRangeState] = useState<DateRange>(() => {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return { startDate: startOfMonth, endDate: endOfMonth };
+  const [rankingDateRange, setRankingDateRangeState] = useState<DateRange>({
+    startDate: null,
+    endDate: null
   });
   const { toast } = useToast();
   const cache = useLocalCache({ ttl: 5 * 60 * 1000, key: 'kommo-api' }); // 5 minutes cache
@@ -153,9 +151,9 @@ export const useKommoApi = () => {
     const filterByDateRange = (lead: any) => {
       if (!rankingDateRange.startDate || !rankingDateRange.endDate) return true;
       
-      // Use closed_at if available, otherwise use updated_at as fallback
-      const leadDate = lead.closed_at ? new Date(lead.closed_at) : 
-                      lead.updated_at ? new Date(lead.updated_at) : null;
+      // Convert Unix timestamp (seconds) to milliseconds for Date constructor
+      const leadDate = lead.closed_at ? new Date(lead.closed_at * 1000) : 
+                      lead.updated_at ? new Date(lead.updated_at * 1000) : null;
       
       if (!leadDate) {
         console.log(`⚠️  Lead ${lead.id} has no valid date (closed_at or updated_at)`);
