@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Crown, TrendingUp, TrendingDown, Users, DollarSign, Filter, Calendar as CalendarIcon, Bug, Eye, EyeOff } from "lucide-react";
+import { Crown, TrendingUp, TrendingDown, Users, DollarSign, Filter, Calendar as CalendarIcon, Bug, Eye, EyeOff, RefreshCw, Database, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
@@ -52,6 +52,8 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
   const [selectedPipeline, setSelectedPipeline] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all-time");
   const [debugMode, setDebugMode] = useState<boolean>(false);
+  const [isRecalculating, setIsRecalculating] = useState<boolean>(false);
+  const [lastCalculationTime, setLastCalculationTime] = useState<Date | null>(null);
   
   // Sync initial date range to match "all-time" filter
   useEffect(() => {
@@ -81,10 +83,41 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
   };
 
   // Handle debug mode toggle
-  const handleDebugToggle = () => {
+  const handleDebugToggle = async () => {
     setDebugMode(!debugMode);
-    // Recalculate ranking without arguments - let the hook handle the logic
-    calculateSalesRanking();
+    
+    if (!debugMode) {
+      // Entering debug mode - trigger recalculation with visual feedback
+      setIsRecalculating(true);
+      console.log('🐛 Debug mode activated - forcing data recalculation');
+      
+      try {
+        await calculateSalesRanking();
+        setLastCalculationTime(new Date());
+        
+        // Log detailed debug information
+        console.log('📊 Debug Info - Detailed Analysis:');
+        console.log(`   👥 Total users: ${users?.length || 0}`);
+        console.log(`   📋 Total leads: ${allLeads?.length || 0}`);
+        console.log(`   🏆 Leads with status 142 (Venda ganha): ${allLeads?.filter(l => l.status_id === 142).length || 0}`);
+        console.log(`   👤 Leads with responsible_user_id: ${allLeads?.filter(l => l.responsible_user_id).length || 0}`);
+        console.log(`   🎯 Pipeline filter: ${selectedPipeline === "all" ? "Todas" : selectedPipeline}`);
+        console.log(`   📅 Date filter: ${dateFilter}`);
+        console.log(`   📊 Current ranking results: ${salesRanking?.length || 0} vendedores`);
+        
+        if (salesRanking?.length > 0) {
+          console.log('   🏆 Top 3 vendedores:', salesRanking.slice(0, 3).map(s => ({
+            nome: s.userName,
+            vendas: s.totalSales,
+            quantidade: s.salesQuantity
+          })));
+        }
+      } catch (error) {
+        console.error('❌ Error during debug recalculation:', error);
+      } finally {
+        setIsRecalculating(false);
+      }
+    }
   };
 
   const handleDateFilterChange = (value: string) => {
@@ -330,12 +363,19 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
                 variant="outline"
                 size="sm"
                 onClick={handleDebugToggle}
+                disabled={isRecalculating}
                 className={cn(
-                  "flex items-center gap-2",
-                  debugMode && "bg-orange-100 text-orange-700 border-orange-300"
+                  "flex items-center gap-2 transition-all",
+                  debugMode && "bg-orange-100 text-orange-700 border-orange-300 shadow-sm",
+                  isRecalculating && "opacity-75"
                 )}
+                title="Ativar modo debug para análise detalhada dos dados"
               >
-                <Bug className="h-4 w-4" />
+                {isRecalculating ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Bug className="h-4 w-4" />
+                )}
                 Debug
                 {debugMode ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </Button>
@@ -429,38 +469,100 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
         <CardContent>
           {/* Debug Information */}
           {debugMode && (
-            <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-              <div className="flex items-center gap-2 mb-3">
-                <Bug className="h-4 w-4 text-orange-600" />
-                <h3 className="font-medium text-orange-800">Informações de Debug</h3>
+            <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Bug className="h-4 w-4 text-orange-600" />
+                  <h3 className="font-medium text-orange-800">Análise Detalhada dos Dados</h3>
+                </div>
+                {lastCalculationTime && (
+                  <div className="flex items-center gap-1 text-xs text-orange-600">
+                    <Clock className="h-3 w-3" />
+                    Atualizado: {lastCalculationTime.toLocaleTimeString('pt-BR')}
+                  </div>
+                )}
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div>
-                  <strong className="text-orange-700">Dados Carregados:</strong>
-                  <ul className="mt-1 space-y-1 text-orange-600">
-                    <li>👥 Usuários: {users?.length || 0}</li>
-                    <li>📋 Leads: {allLeads?.length || 0}</li>
-                    <li>🔄 Pipelines: {pipelines?.length || 0}</li>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm mb-4">
+                <div className="bg-white/60 p-3 rounded border border-orange-200/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Database className="h-4 w-4 text-blue-600" />
+                    <strong className="text-orange-700">Dados Base</strong>
+                  </div>
+                  <ul className="space-y-1 text-orange-600">
+                    <li>👥 Usuários: <span className="font-medium">{users?.length || 0}</span></li>
+                    <li>📋 Total Leads: <span className="font-medium">{allLeads?.length || 0}</span></li>
+                    <li>🔄 Pipelines: <span className="font-medium">{pipelines?.length || 0}</span></li>
                   </ul>
                 </div>
-                <div>
-                  <strong className="text-orange-700">Filtros Ativos:</strong>
-                  <ul className="mt-1 space-y-1 text-orange-600">
-                    <li>🔄 Pipeline: {selectedPipeline !== "all" ? `ID ${selectedPipeline}` : 'Todas'}</li>
-                    <li>📅 Período: {dateFilter}</li>
-                    <li>🐛 Mostrar Zero: {debugMode ? 'Sim' : 'Não'}</li>
+                
+                <div className="bg-white/60 p-3 rounded border border-orange-200/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                    <strong className="text-orange-700">Leads Qualificados</strong>
+                  </div>
+                  <ul className="space-y-1 text-orange-600">
+                    <li>🏆 Status "Venda ganha" (142): <span className="font-medium text-green-700">{allLeads?.filter(l => l.status_id === 142).length || 0}</span></li>
+                    <li>👤 Com responsável: <span className="font-medium">{allLeads?.filter(l => l.responsible_user_id).length || 0}</span></li>
+                    <li>💰 Com valor: <span className="font-medium">{allLeads?.filter(l => l.price && l.price > 0).length || 0}</span></li>
                   </ul>
                 </div>
-                <div>
-                  <strong className="text-orange-700">Resultado:</strong>
-                  <ul className="mt-1 space-y-1 text-orange-600">
-                    <li>🏆 Vendedores: {salesRanking?.length || 0}</li>
-                    <li>📊 Status: {loading ? 'Carregando...' : 'Pronto'}</li>
+
+                <div className="bg-white/60 p-3 rounded border border-orange-200/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Filter className="h-4 w-4 text-purple-600" />
+                    <strong className="text-orange-700">Filtros Aplicados</strong>
+                  </div>
+                  <ul className="space-y-1 text-orange-600">
+                    <li>🎯 Pipeline: <span className="font-medium">{selectedPipeline !== "all" ? `ID ${selectedPipeline}` : 'Todas'}</span></li>
+                    <li>📅 Data: <span className="font-medium">{dateFilter}</span></li>
+                    <li>📊 Período: <span className="font-medium text-xs">{getPeriodDescription()}</span></li>
+                  </ul>
+                </div>
+
+                <div className="bg-white/60 p-3 rounded border border-orange-200/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Crown className="h-4 w-4 text-yellow-600" />
+                    <strong className="text-orange-700">Resultado Final</strong>
+                  </div>
+                  <ul className="space-y-1 text-orange-600">
+                    <li>🏆 Vendedores Ativos: <span className="font-medium text-green-700">{salesRanking?.length || 0}</span></li>
+                    <li>💰 Receita Total: <span className="font-medium">{formatCurrency(salesRanking?.reduce((sum, s) => sum + s.totalSales, 0) || 0)}</span></li>
+                    <li>📊 Status: <span className="font-medium">{loading ? 'Carregando...' : isRecalculating ? 'Calculando...' : 'Pronto'}</span></li>
                   </ul>
                 </div>
               </div>
-              <div className="mt-3 p-2 bg-orange-100 rounded text-xs text-orange-700">
-                💡 <strong>Dica:</strong> Abra o console do navegador (F12) para ver logs detalhados do processamento.
+
+              {/* Top Performers Preview */}
+              {salesRanking && salesRanking.length > 0 && (
+                <div className="bg-white/60 p-3 rounded border border-orange-200/50 mb-3">
+                  <strong className="text-orange-700 text-sm">🏆 Top 3 Vendedores:</strong>
+                  <div className="mt-2 space-y-1">
+                    {salesRanking.slice(0, 3).map((seller, idx) => (
+                      <div key={seller.userId} className="flex justify-between text-xs text-orange-600">
+                        <span>{idx + 1}. {seller.userName}</span>
+                        <span className="font-medium">{formatCurrency(seller.totalSales)} ({seller.salesQuantity} vendas)</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 text-xs">
+                <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 rounded text-orange-700">
+                  <span>💡</span>
+                  <strong>Console:</strong> Verifique o console (F12) para logs detalhados
+                </div>
+                <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 rounded text-blue-700">
+                  <span>🔄</span>
+                  <strong>Cache:</strong> Dados atualizados a cada 5 minutos
+                </div>
+                {isRecalculating && (
+                  <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 rounded text-yellow-700">
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                    <strong>Recalculando...</strong>
+                  </div>
+                )}
               </div>
             </div>
           )}

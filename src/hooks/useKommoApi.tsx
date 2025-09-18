@@ -863,10 +863,32 @@ export const useKommoApi = () => {
     rankingDateRange,
     investmentConfig,
     updateInvestmentConfig,
-    calculateSalesRanking: useCallback(() => {
-      // Sales ranking is now handled by the memoized calculation above
-      console.log('🔄 Sales ranking calculation triggered - using memoized version');
-    }, []),
+    calculateSalesRanking: useCallback(async () => {
+      console.log('🔄 Sales ranking calculation triggered - forcing data refresh');
+      
+      // Clear cache to force fresh data
+      cache.clearCache('users');
+      cache.clearCache('leads');
+      
+      console.log('🧹 Cache cleared - forcing fresh data fetch');
+      console.log('📊 Current data state before refresh:');
+      console.log(`   👥 Users: ${users.length}`);
+      console.log(`   📋 Leads: ${allLeads.length}`);
+      console.log(`   🏆 Current ranking: ${salesRanking.length} vendedores`);
+      
+      // Trigger fresh data fetch
+      await Promise.all([
+        fetchUsers(),
+        fetchAllLeads()
+      ]);
+      
+      console.log('✅ Debug calculation completed - check memoized ranking for updates');
+      
+      return new Promise(resolve => {
+        // Give time for memoized calculation to update
+        setTimeout(resolve, 100);
+      });
+    }, [users, allLeads, salesRanking, cache]),
     customFields,
   };
 };
