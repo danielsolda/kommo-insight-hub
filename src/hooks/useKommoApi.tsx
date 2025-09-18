@@ -122,30 +122,13 @@ export const useKommoApi = () => {
     setLoadingStates(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  // Memoized closed won status IDs calculation
+  // All pipelines use status ID 142 for "Venda ganha" (closed won)
   const closedWonStatusIds = useMemo(() => {
     const statusIds = new Set<number>();
-    pipelines.forEach(pipeline => {
-      pipeline.statuses.forEach(status => {
-        const statusName = status.name.toLowerCase();
-        if ((statusName.includes('fechado') || 
-             statusName.includes('ganho') || 
-             statusName.includes('won') || 
-             statusName.includes('closed') ||
-             statusName.includes('venda') ||
-             statusName.includes('concluído') ||
-             statusName.includes('finalizado')) &&
-            !statusName.includes('lost') && 
-            !statusName.includes('perdido') && 
-            !statusName.includes('perdida')) {
-          statusIds.add(status.id);
-          console.log(`🎯 Pipeline "${pipeline.name}" - Status "closed won" detectado: ${status.name} (ID: ${status.id})`);
-        }
-      });
-    });
-    console.log('🔍 Total de status "closed won" encontrados:', statusIds.size);
+    statusIds.add(142); // Universal "Venda ganha" status ID
+    console.log('🎯 Usando status ID 142 para "Venda ganha" (closed won)');
     return statusIds;
-  }, [pipelines]);
+  }, []);
 
   // Memoized sales ranking calculation
   const memoizedSalesRanking = useMemo(() => {
@@ -201,34 +184,17 @@ export const useKommoApi = () => {
       return salesData;
     }
 
-    // Get pipeline-specific closed won status IDs
+    // Use universal status ID 142 for "Venda ganha" (closed won)
     const selectedPipeline = pipelines.find(p => p.id === salesChartPipelineFilter);
     if (!selectedPipeline) return salesData;
 
-    const pipelineClosedWonStatusIds = new Set<number>();
-    selectedPipeline.statuses.forEach(status => {
-      const statusName = status.name.toLowerCase();
-      if ((statusName.includes('fechado') || 
-           statusName.includes('ganho') || 
-           statusName.includes('won') || 
-           statusName.includes('closed') ||
-           statusName.includes('venda') ||
-           statusName.includes('concluído') ||
-           statusName.includes('finalizado')) &&
-          !statusName.includes('lost') && 
-          !statusName.includes('perdido') && 
-          !statusName.includes('perdida')) {
-        pipelineClosedWonStatusIds.add(status.id);
-        console.log(`📊 Pipeline "${selectedPipeline.name}" - Status "closed won": ${status.name} (ID: ${status.id})`);
-      }
-    });
+    console.log(`🎯 Filtrando gráfico de vendas por pipeline: ${selectedPipeline.name} usando status ID 142`);
 
-    console.log(`🎯 Filtrando gráfico de vendas por pipeline: ${selectedPipeline.name} (${pipelineClosedWonStatusIds.size} status "closed won")`);
-
-    // Filter leads by pipeline and closed won status (using status_id, not closed_at)
+    // Filter leads by pipeline and closed won status (ID 142)
     const pipelineLeads = allLeads.filter(lead => 
       lead.pipeline_id === salesChartPipelineFilter && 
-      pipelineClosedWonStatusIds.has(lead.status_id)
+      lead.status_id === 142 &&
+      lead.closed_at // Only leads with valid closed_at date
     );
 
     console.log(`📈 Leads da pipeline filtrada: ${pipelineLeads.length} de ${allLeads.length} total`);
@@ -237,15 +203,16 @@ export const useKommoApi = () => {
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
     
-    // Recalculate monthly data for the selected pipeline using lastContact date
+    // Recalculate monthly data for the selected pipeline using closed_at date
     const monthlyData = Array.from({ length: currentMonth + 1 }, (_, i) => {
       const monthName = new Date(currentYear, i, 1).toLocaleString('pt-BR', { month: 'short' });
       const monthLeads = pipelineLeads.filter(lead => {
-        const leadDate = new Date(lead.lastContact);
+        if (!lead.closed_at) return false;
+        const leadDate = new Date(lead.closed_at * 1000);
         return leadDate.getFullYear() === currentYear && leadDate.getMonth() === i;
       });
       
-      const monthRevenue = monthLeads.reduce((sum, lead) => sum + (lead.value || 0), 0);
+      const monthRevenue = monthLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
       const monthTarget = monthRevenue * 1.1;
       
       return {
@@ -485,24 +452,10 @@ export const useKommoApi = () => {
       const allLeads = leadsResponse._embedded?.leads || [];
       const allPipelines = pipelinesResponse._embedded?.pipelines || [];
       
+      // Use universal status ID 142 for "Venda ganha" (closed won)
       const closedWonStatusIds = new Set<number>();
-      allPipelines.forEach(pipeline => {
-        pipeline.statuses?.forEach((status: any) => {
-          const statusName = status.name.toLowerCase();
-          if ((statusName.includes('fechado') || 
-               statusName.includes('ganho') || 
-               statusName.includes('won') || 
-               statusName.includes('closed') ||
-               statusName.includes('venda') ||
-               statusName.includes('concluído') ||
-               statusName.includes('finalizado')) &&
-              !statusName.includes('lost') && 
-              !statusName.includes('perdido') && 
-              !statusName.includes('perdida')) {
-            closedWonStatusIds.add(status.id);
-          }
-        });
-      });
+      closedWonStatusIds.add(142);
+      console.log('📊 Estatísticas gerais usando status ID 142 para "Venda ganha"');
       
       const now = new Date();
       const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
