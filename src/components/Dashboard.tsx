@@ -190,7 +190,22 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                   <CardContent className="pt-0">
                     <Select 
                       value={kommoApi.salesChartPipelineFilter?.toString() || "all"} 
-                      onValueChange={(value) => kommoApi.setSalesChartPipelineFilter(value === "all" ? null : Number(value))}
+                      onValueChange={(value) => {
+                        const pipelineId = value === "all" ? null : Number(value);
+                        kommoApi.setSalesChartPipelineFilter(pipelineId);
+                        
+                        // Sync with pipeline chart - when "all" is selected, use main pipeline
+                        if (pipelineId === null) {
+                          const mainPipeline = kommoApi.pipelines.find(p => p.is_main);
+                          if (mainPipeline) {
+                            kommoApi.setSelectedPipeline(mainPipeline.id);
+                          } else if (kommoApi.pipelines.length > 0) {
+                            kommoApi.setSelectedPipeline(kommoApi.pipelines[0].id);
+                          }
+                        } else {
+                          kommoApi.setSelectedPipeline(pipelineId);
+                        }
+                      }}
                       disabled={kommoApi.loadingStates.pipelines}
                     >
                       <SelectTrigger className="w-full">
