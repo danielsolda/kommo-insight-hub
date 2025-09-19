@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 export interface InvestmentConfig {
   monthlyInvestment: number;
   roiGoal: number;
+  monthlySalesGoal: number;
 }
 
 interface InvestmentSettingsModalProps {
@@ -21,18 +22,21 @@ export const InvestmentSettingsModal = ({ config, onConfigChange }: InvestmentSe
   const [open, setOpen] = useState(false);
   const [monthlyInvestment, setMonthlyInvestment] = useState(config.monthlyInvestment.toString());
   const [roiGoal, setRoiGoal] = useState(config.roiGoal.toString());
+  const [monthlySalesGoal, setMonthlySalesGoal] = useState(config.monthlySalesGoal.toString());
   const { toast } = useToast();
 
   useEffect(() => {
     setMonthlyInvestment(config.monthlyInvestment.toString());
     setRoiGoal(config.roiGoal.toString());
+    setMonthlySalesGoal(config.monthlySalesGoal.toString());
   }, [config]);
 
   const handleSave = () => {
     const investment = Number(monthlyInvestment) || 0;
     const goal = Number(roiGoal) || 0;
+    const salesGoal = Number(monthlySalesGoal) || 0;
 
-    if (investment < 0 || goal < 0) {
+    if (investment < 0 || goal < 0 || salesGoal < 0) {
       toast({
         title: "Valores inválidos",
         description: "Os valores devem ser positivos.",
@@ -44,6 +48,7 @@ export const InvestmentSettingsModal = ({ config, onConfigChange }: InvestmentSe
     const newConfig: InvestmentConfig = {
       monthlyInvestment: investment,
       roiGoal: goal,
+      monthlySalesGoal: salesGoal,
     };
 
     onConfigChange(newConfig);
@@ -120,6 +125,19 @@ export const InvestmentSettingsModal = ({ config, onConfigChange }: InvestmentSe
                 placeholder="300"
                 min="0"
                 step="10"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="salesGoal">Meta Mensal de Vendas (R$)</Label>
+              <Input
+                id="salesGoal"
+                type="number"
+                value={monthlySalesGoal}
+                onChange={(e) => setMonthlySalesGoal(e.target.value)}
+                placeholder="50000"
+                min="0"
+                step="1000"
               />
             </div>
           </div>

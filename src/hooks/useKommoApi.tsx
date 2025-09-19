@@ -49,6 +49,7 @@ interface GeneralStats {
 interface InvestmentConfig {
   monthlyInvestment: number;
   roiGoal: number;
+  monthlySalesGoal: number;
 }
 
 interface SalesRankingData {
@@ -125,7 +126,7 @@ export const useKommoApi = () => {
   });
   const [investmentConfig, setInvestmentConfig] = useState<InvestmentConfig>(() => {
     const saved = localStorage.getItem('kommo-investment-config');
-    return saved ? JSON.parse(saved) : { monthlyInvestment: 10000, roiGoal: 300 };
+    return saved ? JSON.parse(saved) : { monthlyInvestment: 10000, roiGoal: 300, monthlySalesGoal: 50000 };
   });
   const { toast } = useToast();
   const cache = useLocalCache({ ttl: 5 * 60 * 1000, key: 'kommo-api' }); // 5 minutes cache
@@ -733,7 +734,9 @@ export const useKommoApi = () => {
         });
         
         const monthRevenue = monthLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
-        const monthTarget = monthRevenue * 1.1;
+        // Get the configured monthly sales goal from localStorage
+        const investmentConfig = JSON.parse(localStorage.getItem('kommo-investment-config') || '{"monthlySalesGoal": 0}');
+        const monthTarget = investmentConfig.monthlySalesGoal || 0;
         
         return {
           month: monthName,

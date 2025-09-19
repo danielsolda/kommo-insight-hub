@@ -233,6 +233,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                       kommoApi.pipelines.find(p => p.id === kommoApi.salesChartPipelineFilter)?.name : 
                       undefined
                     }
+                    wonLeadsCount={kommoApi.allLeads.filter(lead => lead.status_id === 142).length}
                   />
                 )}
               </div>
@@ -312,7 +313,11 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 {kommoApi.loadingStates.leads ? (
                   <ChartSkeleton title="Vendas Mensais" />
                 ) : (
-                  <LazySalesChart salesData={kommoApi.salesData} loading={kommoApi.loadingStates.leads} />
+                  <LazySalesChart 
+                    salesData={kommoApi.salesData} 
+                    loading={kommoApi.loadingStates.leads}
+                    wonLeadsCount={kommoApi.allLeads.filter(lead => lead.status_id === 142).length}
+                  />
                 )}
               </Suspense>
               

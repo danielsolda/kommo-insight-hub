@@ -13,9 +13,10 @@ interface SalesChartProps {
   salesData?: SalesData[];
   loading?: boolean;
   pipelineName?: string;
+  wonLeadsCount?: number;
 }
 
-export const SalesChart = ({ salesData = [], loading = false, pipelineName }: SalesChartProps) => {
+export const SalesChart = ({ salesData = [], loading = false, pipelineName, wonLeadsCount = 0 }: SalesChartProps) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -30,7 +31,7 @@ export const SalesChart = ({ salesData = [], loading = false, pipelineName }: Sa
   const totalLeads = salesData.reduce((sum, data) => sum + data.leads, 0);
   const targetAchievement = totalTarget > 0 ? (totalSales / totalTarget) * 100 : 0;
   const remainingTarget = Math.max(0, totalTarget - totalSales);
-  const conversionRate = totalLeads > 0 ? (totalLeads * 0.235) : 0; // Estimated conversion
+  const actualWonLeads = wonLeadsCount || 0;
   return (
     <Card className="bg-gradient-card border-border/50 shadow-card">
       <CardHeader>
@@ -116,8 +117,8 @@ export const SalesChart = ({ salesData = [], loading = false, pipelineName }: Sa
               </div>
               <div className="text-center p-3 bg-muted/30 rounded-lg">
                 <div className="text-sm font-medium text-muted-foreground">Leads Convertidos</div>
-                <div className="text-xl font-bold text-info">{Math.floor(conversionRate)}</div>
-                <div className="text-xs text-muted-foreground">Taxa de fechamento estimada</div>
+                <div className="text-xl font-bold text-info">{actualWonLeads}</div>
+                <div className="text-xs text-muted-foreground">Status 142 - Venda ganha</div>
               </div>
             </div>
           </>
