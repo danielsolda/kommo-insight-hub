@@ -56,6 +56,12 @@ export interface CustomFieldValue {
   enum_code?: string;
 }
 
+export interface Tag {
+  id: number;
+  name: string;
+  color: string | null;
+}
+
 export class KommoApiService {
   private authService: KommoAuthService;
   private accountUrl: string;
@@ -116,6 +122,11 @@ export class KommoApiService {
   // Obter campos personalizados
   async getCustomFields(): Promise<{ _embedded: { custom_fields: any[] } }> {
     return this.makeRequest('/leads/custom_fields');
+  }
+
+  // Obter todas as tags
+  async getTags(): Promise<{ _embedded: { tags: Tag[] } }> {
+    return this.makeRequest('/leads/tags');
   }
 
   // Obter leads

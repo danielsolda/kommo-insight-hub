@@ -20,3 +20,7 @@ export const LazySalesRanking = lazy(() =>
 export const LazyCustomFieldAnalysis = lazy(() => 
   import('./CustomFieldAnalysis').then(module => ({ default: module.CustomFieldAnalysis }))
 );
+
+export const LazyTagsComparator = lazy(() => 
+  import('./TagsComparator').then(module => ({ default: module.TagsComparator }))
+);

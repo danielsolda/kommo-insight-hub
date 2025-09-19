@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { KommoApiService, Pipeline } from "@/services/kommoApi";
+import { KommoApiService, Pipeline, Tag } from "@/services/kommoApi";
 import { KommoAuthService } from "@/services/kommoAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocalCache } from "@/hooks/useLocalCache";
@@ -75,6 +75,7 @@ interface LoadingStates {
   users: boolean;
   customFields: boolean;
   pipelineStats: boolean;
+  tags: boolean;
 }
 
 // Progress tracking interface
@@ -95,7 +96,8 @@ export const useKommoApi = () => {
     leads: true,
     users: true,
     customFields: true,
-    pipelineStats: false
+    pipelineStats: false,
+    tags: true
   });
   
   // Legacy loading state for backward compatibility
@@ -115,6 +117,7 @@ export const useKommoApi = () => {
   const [salesRanking, setSalesRanking] = useState<SalesRankingData[]>([]);
   const [rankingPipelineFilter, setRankingPipelineFilter] = useState<number | null>(null);
   const [customFields, setCustomFields] = useState<any[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [salesChartPipelineFilter, setSalesChartPipelineFilter] = useState<number | null>(null);
   const [rankingDateRange, setRankingDateRangeState] = useState<DateRange>({
     startDate: null,
@@ -392,6 +395,7 @@ export const useKommoApi = () => {
         // Phase 4: Load users and custom fields (lowest priority)
         setTimeout(() => fetchUsers(), 1000);
         setTimeout(() => fetchCustomFields(), 1500);
+        setTimeout(() => fetchTags(), 2000);
       } catch (error) {
         console.error('Error in progressive loading:', error);
       }
@@ -823,6 +827,35 @@ export const useKommoApi = () => {
     }
   }, [updateLoadingState, cache]);
 
+  const fetchTags = useCallback(async () => {
+    updateLoadingState('tags', true);
+    
+    try {
+      const cachedTags = cache.getCache('tags') as Tag[] | null;
+      if (cachedTags) {
+        console.log('📦 Loading tags from cache');
+        setTags(cachedTags);
+        updateLoadingState('tags', false);
+        return;
+      }
+
+      console.log('🔄 Buscando tags...');
+      const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
+      const authService = new KommoAuthService(kommoConfig);
+      const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
+
+      const response = await apiService.getTags();
+      const tags = response._embedded?.tags || [];
+      setTags(tags);
+      cache.setCache('tags', tags, 15 * 60 * 1000);
+    } catch (err: any) {
+      console.error('❌ Erro ao buscar tags:', err);
+      setTags([]);
+    } finally {
+      updateLoadingState('tags', false);
+    }
+  }, [updateLoadingState, cache]);
+
   // Sales ranking calculation is now handled by memoized version above
 
   const refreshData = useCallback(async () => {
@@ -834,7 +867,7 @@ export const useKommoApi = () => {
       fetchUsers(),
       fetchCustomFields()
     ]);
-  }, [cache, fetchPipelines, fetchGeneralStats, fetchAllLeads, fetchUsers, fetchCustomFields]);
+  }, [cache, fetchPipelines, fetchGeneralStats, fetchAllLeads, fetchUsers, fetchCustomFields, fetchTags]);
 
   // Investment config handler
   const updateInvestmentConfig = useCallback((config: InvestmentConfig) => {
@@ -891,5 +924,6 @@ export const useKommoApi = () => {
       });
     }, [users, allLeads, salesRanking, cache]),
     customFields,
+    tags,
   };
 };

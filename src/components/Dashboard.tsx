@@ -19,6 +19,7 @@ import {
   LazyLeadsTable, 
   LazySalesChart, 
   LazyCustomFieldAnalysis,
+  LazyTagsComparator,
   LazySalesRanking 
 } from "@/components/LazyComponents";
 import { NomenclaturesModal } from "@/components/NomenclaturesModal";
@@ -231,6 +232,19 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                   allLeads={kommoApi.allLeads}
                   pipelines={kommoApi.pipelines}
                   loading={kommoApi.loadingStates.customFields}
+                />
+              )}
+            </Suspense>
+            
+            <Suspense fallback={<ChartSkeleton title="Comparador de Tags" height="h-64" />}>
+              {kommoApi.loadingStates.tags ? (
+                <ChartSkeleton title="Comparador de Tags" height="h-64" />
+              ) : (
+                <LazyTagsComparator 
+                  tags={kommoApi.tags}
+                  allLeads={kommoApi.allLeads}
+                  pipelines={kommoApi.pipelines}
+                  loading={kommoApi.loadingStates.tags}
                 />
               )}
             </Suspense>
