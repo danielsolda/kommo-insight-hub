@@ -301,7 +301,7 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
                       cy="50%"
                       labelLine={false}
                       label={({ total }) => total}
-                      outerRadius={80}
+                      outerRadius={92}
                       fill="#8884d8"
                       dataKey="total"
                     >

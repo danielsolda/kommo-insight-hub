@@ -222,7 +222,7 @@ export const TagsComparator = ({ tags, allLeads, pipelines, loading }: TagsCompa
                       cy="50%"
                       labelLine={false}
                       label={({count}) => count}
-                      outerRadius={100}
+                      outerRadius={115}
                       fill="#8884d8"
                       dataKey="count"
                     >
