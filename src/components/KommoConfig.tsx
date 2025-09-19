@@ -203,18 +203,9 @@ export const KommoConfig = ({ onSave }: KommoConfigProps) => {
           </Button>
         </form>
 
-        <div className="p-4 bg-muted/30 rounded-lg">
-          <h4 className="font-semibold mb-2">Como obter suas credenciais:</h4>
-          <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-            <li>Acesse sua conta Kommo como administrador</li>
-            <li>Vá em Configurações → Integrações → Criar Integração</li>
-            <li>Preencha as informações da sua integração</li>
-            <li>Copie o Integration ID e Secret Key gerados</li>
-            <li>Configure o Redirect URI em sua integração</li>
-          </ol>
-          
-          {isGitHubPages() && (
-            <div className="mt-4 p-3 bg-info/10 border border-info/20 rounded-lg">
+        {isGitHubPages() && (
+          <div className="p-4 bg-muted/30 rounded-lg">
+            <div className="p-3 bg-info/10 border border-info/20 rounded-lg">
               <h5 className="font-medium text-info mb-2">🚀 GitHub Pages Detectado</h5>
               <p className="text-sm text-muted-foreground">
                 Detectamos que você está usando GitHub Pages. Use este Redirect URI em sua integração Kommo:
@@ -223,8 +214,8 @@ export const KommoConfig = ({ onSave }: KommoConfigProps) => {
                 {getRedirectUri()}
               </code>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
