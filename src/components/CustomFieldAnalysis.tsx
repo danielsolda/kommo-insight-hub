@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { TrendingUp, BarChart3, PieChart as PieChartIcon } from "lucide-react";
 
 interface CustomFieldAnalysisProps {
   customFields: any[];
@@ -16,6 +17,26 @@ interface CustomFieldAnalysisProps {
 export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading }: CustomFieldAnalysisProps) => {
   const [selectedField, setSelectedField] = useState<string>("");
   const [selectedPipeline, setSelectedPipeline] = useState<string>("all");
+  const [chartType, setChartType] = useState<"bar" | "pie">("bar");
+
+  // Color palette for field values
+  const getFieldColor = (value: string, index: number) => {
+    const colors = [
+      "hsl(var(--chart-1))",
+      "hsl(var(--chart-2))",
+      "hsl(var(--chart-3))",
+      "hsl(var(--chart-4))",
+      "hsl(var(--chart-5))",
+      "hsl(210, 100%, 50%)",
+      "hsl(120, 100%, 40%)",
+      "hsl(30, 100%, 50%)",
+      "hsl(300, 100%, 45%)",
+      "hsl(180, 100%, 40%)",
+      "hsl(0, 100%, 50%)",
+      "hsl(270, 100%, 50%)"
+    ];
+    return colors[index % colors.length];
+  };
 
   // Filter custom fields to show only useful ones (non-tracking, non-predefined)
   const usefulFields = customFields.filter(field => 
@@ -80,7 +101,7 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
     });
 
     // Convert to chart data
-    return Object.entries(groupedData).map(([fieldValue, statuses]) => {
+    const chartData = Object.entries(groupedData).map(([fieldValue, statuses]) => {
       const total = Object.values(statuses).reduce((sum, count) => sum + count, 0);
       return {
         fieldValue: fieldValue.length > 20 ? fieldValue.substring(0, 20) + "..." : fieldValue,
@@ -89,6 +110,14 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
         ...statuses
       };
     }).sort((a, b) => b.total - a.total);
+
+    // Add colors and percentages for pie chart
+    const totalLeads = chartData.reduce((sum, item) => sum + item.total, 0);
+    return chartData.map((item, index) => ({
+      ...item,
+      fillColor: getFieldColor(item.fullValue, index),
+      percentage: totalLeads > 0 ? ((item.total / totalLeads) * 100).toFixed(1) : "0"
+    }));
   };
 
   const analysisData = getAnalysisData();
@@ -163,43 +192,119 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
           </div>
         </div>
 
+        {/* Chart Type Toggle */}
+        {selectedField && analysisData.length > 0 && (
+          <div className="flex justify-end gap-2">
+            <Button
+              variant={chartType === "bar" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setChartType("bar")}
+              className="gap-2"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Barras
+            </Button>
+            <Button
+              variant={chartType === "pie" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setChartType("pie")}
+              className="gap-2"
+            >
+              <PieChartIcon className="h-4 w-4" />
+              Pizza
+            </Button>
+          </div>
+        )}
+
         {/* Analysis Results */}
         {selectedField && analysisData.length > 0 ? (
           <div className="space-y-6">
             {/* Chart */}
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analysisData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="fieldValue" 
-                    stroke="hsl(var(--foreground))"
-                    fontSize={12}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis stroke="hsl(var(--foreground))" fontSize={12} />
-                  <Tooltip 
-                    content={({ active, payload, label }) => {
-                      if (active && payload && payload.length > 0) {
-                        const data = payload[0].payload;
-                        return (
-                          <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-                            <p className="font-medium">{data.fullValue}</p>
-                            <p className="text-sm text-muted-foreground">Total: {data.total} leads</p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Bar 
-                    dataKey="total" 
-                    fill="hsl(var(--primary))" 
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
+                {chartType === "bar" ? (
+                  <BarChart data={analysisData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis 
+                      dataKey="fieldValue" 
+                      stroke="hsl(var(--foreground))"
+                      fontSize={12}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis stroke="hsl(var(--foreground))" fontSize={12} />
+                    <Tooltip 
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length > 0) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+                              <p className="font-medium">{data.fullValue}</p>
+                              <p className="text-sm text-muted-foreground">Total: {data.total} leads</p>
+                              <p className="text-sm text-muted-foreground">{data.percentage}% do total</p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar 
+                      dataKey="total" 
+                      fill="hsl(var(--primary))" 
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                ) : (
+                  <PieChart>
+                    <Pie
+                      data={analysisData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ total }) => total}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="total"
+                    >
+                      {analysisData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fillColor} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length > 0) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+                              <p className="font-medium">{data.fullValue}</p>
+                              <p className="text-sm text-muted-foreground">Total: {data.total} leads</p>
+                              <p className="text-sm text-muted-foreground">{data.percentage}% do total</p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Legend 
+                      content={() => (
+                        <div className="flex flex-wrap gap-2 justify-center mt-4">
+                          {analysisData.slice(0, 8).map((entry, index) => (
+                            <div key={index} className="flex items-center gap-1 text-xs">
+                              <div 
+                                className="w-3 h-3 rounded" 
+                                style={{ backgroundColor: entry.fillColor }}
+                              />
+                              <span className="text-muted-foreground">
+                                {entry.fieldValue}: {entry.percentage}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    />
+                  </PieChart>
+                )}
               </ResponsiveContainer>
             </div>
 
