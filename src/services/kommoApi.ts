@@ -150,11 +150,16 @@ export class KommoApiService {
     const allLeads: Lead[] = [];
     let currentPage = 1;
     let hasMore = true;
-    const limit = 250; // Máximo por página
+    const limit = 250;
+    let consecutiveFailures = 0;
+    const maxConsecutiveFailures = 3;
+    let retryDelay = 1000; // Start with 1 second
 
     console.log('🔄 Iniciando busca paginada de leads...');
 
     while (hasMore) {
+      const startTime = Date.now();
+      
       try {
         const response = await this.getLeads({
           ...params,
@@ -163,39 +168,87 @@ export class KommoApiService {
         });
 
         const pageLeads = response._embedded?.leads || [];
+        const requestTime = Date.now() - startTime;
+        
+        console.log(`📄 Página ${currentPage}: ${pageLeads.length} leads (${requestTime}ms)`);
+
+        // Reset failure counter on success
+        consecutiveFailures = 0;
+        retryDelay = 1000;
+
+        // Multiple checks for end of pagination
+        const isEmptyPage = pageLeads.length === 0;
+        const isPartialPage = pageLeads.length < limit;
+        const hasPageInfo = response._page;
+        
+        if (isEmptyPage) {
+          console.log('📭 Página vazia encontrada - fim da paginação');
+          hasMore = false;
+          break;
+        }
+
         allLeads.push(...pageLeads);
 
-        console.log(`📄 Página ${currentPage}: ${pageLeads.length} leads carregados`);
-
-        // Callback de progresso
         if (params.onProgress) {
           params.onProgress(allLeads.length, currentPage);
         }
 
-        // Verificar se há mais páginas
-        hasMore = pageLeads.length === limit;
+        // Enhanced pagination detection
+        if (isPartialPage) {
+          console.log(`📄 Página parcial (${pageLeads.length}/${limit}) - provavelmente última página`);
+          hasMore = false;
+        } else if (hasPageInfo && hasPageInfo.count && hasPageInfo.count < limit) {
+          console.log('📄 Metadados indicam fim da paginação');
+          hasMore = false;
+        }
+
         currentPage++;
 
-        // Segurança: evitar loops infinitos - aumentado para contas grandes
-        if (currentPage > 500) {
-          console.warn('⚠️ Limite de páginas atingido (500) - conta muito grande');
+        // Safety limits with better messaging
+        if (currentPage > 1000) {
+          console.warn('⚠️ Limite de segurança atingido (1000 páginas) - parando carregamento');
           break;
         }
-        
-        // Timeout para evitar requests muito longos
-        if (currentPage % 50 === 0) {
-          console.log(`🔄 Processando página ${currentPage}, aguardando 1s para evitar rate limiting...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Smart rate limiting based on response time
+        let delayTime = 500; // Base delay
+        if (requestTime > 3000) {
+          delayTime = 2000; // Slow responses need more delay
+        } else if (requestTime < 500) {
+          delayTime = 200; // Fast responses can go faster
         }
-      } catch (error) {
-        console.error(`❌ Erro na página ${currentPage}:`, error);
-        // Continuar mesmo se uma página falhar
-        hasMore = false;
+
+        // Extra delay every 100 pages
+        if (currentPage % 100 === 0) {
+          delayTime += 3000;
+          console.log(`🔄 Checkpoint página ${currentPage}, delay extra: ${delayTime}ms`);
+        }
+
+        if (hasMore && delayTime > 0) {
+          await new Promise(resolve => setTimeout(resolve, delayTime));
+        }
+
+      } catch (error: any) {
+        consecutiveFailures++;
+        const errorMessage = error.message || error.toString();
+        
+        console.error(`❌ Erro na página ${currentPage} (tentativa ${consecutiveFailures}):`, errorMessage);
+
+        // Retry logic with exponential backoff
+        if (consecutiveFailures <= maxConsecutiveFailures) {
+          console.log(`🔄 Tentando novamente em ${retryDelay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          retryDelay *= 2; // Exponential backoff
+          continue; // Retry the same page
+        } else {
+          console.error(`💀 Muitas falhas consecutivas (${consecutiveFailures}) - parando carregamento`);
+          hasMore = false;
+        }
       }
     }
 
-    console.log(`✅ Busca concluída: ${allLeads.length} leads carregados em ${currentPage - 1} páginas`);
-
+    console.log(`✅ Busca concluída: ${allLeads.length} leads em ${currentPage - 1} páginas`);
+    
     return { _embedded: { leads: allLeads } };
   }
 
@@ -300,10 +353,15 @@ export class KommoApiService {
     let currentPage = 1;
     let hasMore = true;
     const limit = 250;
+    let consecutiveFailures = 0;
+    const maxConsecutiveFailures = 3;
+    let retryDelay = 1000;
 
     console.log('🔄 Iniciando busca paginada de leads não organizados...');
 
     while (hasMore) {
+      const startTime = Date.now();
+      
       try {
         const response = await this.getUnsortedLeads({
           ...params,
@@ -312,35 +370,75 @@ export class KommoApiService {
         });
 
         const pageUnsorted = response._embedded?.unsorted || [];
-        allUnsorted.push(...pageUnsorted);
+        const requestTime = Date.now() - startTime;
+        
+        console.log(`📄 Página ${currentPage}: ${pageUnsorted.length} não organizados (${requestTime}ms)`);
 
-        console.log(`📄 Página ${currentPage}: ${pageUnsorted.length} leads não organizados carregados`);
+        consecutiveFailures = 0;
+        retryDelay = 1000;
+
+        const isEmptyPage = pageUnsorted.length === 0;
+        const isPartialPage = pageUnsorted.length < limit;
+        
+        if (isEmptyPage) {
+          console.log('📭 Página vazia encontrada - fim da paginação');
+          hasMore = false;
+          break;
+        }
+
+        allUnsorted.push(...pageUnsorted);
 
         if (params.onProgress) {
           params.onProgress(allUnsorted.length, currentPage);
         }
 
-        hasMore = pageUnsorted.length === limit;
+        if (isPartialPage) {
+          console.log(`📄 Página parcial (${pageUnsorted.length}/${limit}) - última página`);
+          hasMore = false;
+        }
+
         currentPage++;
 
-        if (currentPage > 500) {
-          console.warn('⚠️ Limite de páginas atingido (500) - conta muito grande');
+        if (currentPage > 1000) {
+          console.warn('⚠️ Limite de segurança atingido (1000 páginas) - parando carregamento');
           break;
         }
-        
-        // Timeout para evitar requests muito longos
-        if (currentPage % 50 === 0) {
-          console.log(`🔄 Processando página ${currentPage}, aguardando 1s para evitar rate limiting...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Smart delay based on response time
+        let delayTime = 500;
+        if (requestTime > 3000) {
+          delayTime = 2000;
+        } else if (requestTime < 500) {
+          delayTime = 200;
         }
-      } catch (error) {
-        console.error(`❌ Erro na página ${currentPage}:`, error);
-        hasMore = false;
+
+        if (currentPage % 100 === 0) {
+          delayTime += 3000;
+          console.log(`🔄 Checkpoint página ${currentPage}, delay extra: ${delayTime}ms`);
+        }
+
+        if (hasMore && delayTime > 0) {
+          await new Promise(resolve => setTimeout(resolve, delayTime));
+        }
+
+      } catch (error: any) {
+        consecutiveFailures++;
+        console.error(`❌ Erro na página ${currentPage} (tentativa ${consecutiveFailures}):`, error.message || error);
+
+        if (consecutiveFailures <= maxConsecutiveFailures) {
+          console.log(`🔄 Tentando novamente em ${retryDelay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          retryDelay *= 2;
+          continue;
+        } else {
+          console.error(`💀 Muitas falhas consecutivas - parando carregamento`);
+          hasMore = false;
+        }
       }
     }
 
     console.log(`✅ Busca de não organizados concluída: ${allUnsorted.length} leads em ${currentPage - 1} páginas`);
-
+    
     return { _embedded: { unsorted: allUnsorted } };
   }
 

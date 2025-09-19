@@ -54,21 +54,28 @@ serve(async (req) => {
       hasBody: !!body 
     });
 
-    // Make request to Kommo API
-    const kommoResponse = await fetch(kommoApiUrl, {
-      method,
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'User-Agent': 'KommoInsightHub/1.0'
-      },
-      ...(body && { body: JSON.stringify(body) })
-    });
+    // Make request to Kommo API with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-    console.log('Kommo API Response Status:', kommoResponse.status);
+    try {
+      const kommoResponse = await fetch(kommoApiUrl, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'KommoInsightHub/1.0'
+        },
+        signal: controller.signal,
+        ...(body && { body: JSON.stringify(body) })
+      });
+      
+      clearTimeout(timeoutId);
 
-    if (!kommoResponse.ok) {
+      console.log('Kommo API Response Status:', kommoResponse.status);
+
+      if (!kommoResponse.ok) {
       const errorText = await kommoResponse.text();
       let errorData;
       try {
@@ -97,32 +104,53 @@ serve(async (req) => {
       );
     }
 
-    // Handle empty responses (204 No Content)
-    let responseData;
-    if (kommoResponse.status === 204 || kommoResponse.headers.get('content-length') === '0') {
-      responseData = { _embedded: {} };
-    } else {
-      const responseText = await kommoResponse.text();
-      if (!responseText.trim()) {
+      // Handle empty responses (204 No Content)
+      let responseData;
+      if (kommoResponse.status === 204 || kommoResponse.headers.get('content-length') === '0') {
         responseData = { _embedded: {} };
       } else {
-        try {
-          responseData = JSON.parse(responseText);
-        } catch (error) {
-          console.error('Failed to parse response as JSON:', responseText);
+        const responseText = await kommoResponse.text();
+        if (!responseText.trim()) {
           responseData = { _embedded: {} };
+        } else {
+          try {
+            responseData = JSON.parse(responseText);
+          } catch (error) {
+            console.error('Failed to parse response as JSON:', responseText);
+            responseData = { _embedded: {} };
+          }
         }
       }
-    }
-    
-    console.log('Kommo API success for endpoint:', endpoint);
+      
+      console.log('Kommo API success for endpoint:', endpoint);
 
-    return new Response(
-      JSON.stringify(responseData),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      return new Response(
+        JSON.stringify(responseData),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      
+      if (fetchError.name === 'AbortError') {
+        console.error('Kommo API request timeout for:', kommoApiUrl);
+        return new Response(
+          JSON.stringify({ 
+            error: 'Request timeout', 
+            details: 'A requisição demorou mais que 30 segundos',
+            hint: 'Tente novamente ou reduza o tamanho da requisição'
+          }),
+          { 
+            status: 408, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
-    );
+      
+      throw fetchError; // Re-throw other fetch errors
+    }
 
   } catch (error) {
     console.error('Edge Function Error:', error);
