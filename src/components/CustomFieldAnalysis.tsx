@@ -19,21 +19,19 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
   const [selectedPipeline, setSelectedPipeline] = useState<string>("all");
   const [chartType, setChartType] = useState<"bar" | "pie">("bar");
 
-  // Color palette for field values
+  // Color palette for field values - Purple and Blue tones
   const getFieldColor = (value: string, index: number) => {
     const colors = [
-      "hsl(var(--chart-1))",
-      "hsl(var(--chart-2))",
-      "hsl(var(--chart-3))",
-      "hsl(var(--chart-4))",
-      "hsl(var(--chart-5))",
-      "hsl(210, 100%, 50%)",
-      "hsl(120, 100%, 40%)",
-      "hsl(30, 100%, 50%)",
-      "hsl(300, 100%, 45%)",
-      "hsl(180, 100%, 40%)",
-      "hsl(0, 100%, 50%)",
-      "hsl(270, 100%, 50%)"
+      "hsl(270, 70%, 60%)",  // Roxo claro
+      "hsl(250, 80%, 65%)",  // Azul violeta
+      "hsl(280, 75%, 55%)",  // Roxo médio
+      "hsl(240, 85%, 60%)",  // Azul royal
+      "hsl(290, 70%, 50%)",  // Roxo escuro
+      "hsl(220, 90%, 55%)",  // Azul profundo
+      "hsl(260, 80%, 65%)",  // Violeta
+      "hsl(210, 75%, 60%)",  // Azul acinzentado
+      "hsl(300, 70%, 60%)",  // Roxo rosado
+      "hsl(200, 80%, 55%)"   // Azul ciano
     ];
     return colors[index % colors.length];
   };
