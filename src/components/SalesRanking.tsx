@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useKommoApi } from "@/hooks/useKommoApi";
+import { SellerAvatar } from "@/components/SellerAvatar";
 
 interface SalesRankingData {
   userId: number;
@@ -20,6 +21,7 @@ interface SalesRankingData {
   monthlyAverage: number;
   currentMonthSales: number;
   currentMonthQuantity: number;
+  avatarUrl?: string;
 }
 
 interface Pipeline {
@@ -570,23 +572,33 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
         <div className="space-y-4">
           {salesRanking.slice(0, 10).map((seller, index) => {
             const isCurrentMonthBetter = seller.currentMonthSales >= seller.monthlyAverage;
-            const positionIcon = index === 0 ? (
-              <Crown className="h-5 w-5 text-yellow-500" />
-            ) : (
-              <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
-                {index + 1}
-              </div>
-            );
+            const rank = index + 1;
 
             return (
               <div key={seller.userId} className="flex items-center gap-4 p-4 rounded-lg border border-border/30 hover:bg-muted/20 transition-colors">
                 <div className="flex items-center gap-3">
-                  {positionIcon}
-                  <div>
-                    <h4 className="font-semibold">{seller.userName}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {seller.salesQuantity} vendas totais
-                    </p>
+                  <SellerAvatar 
+                    userName={seller.userName}
+                    avatarUrl={seller.avatarUrl}
+                    rank={rank}
+                    size="md"
+                  />
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      {index === 0 ? (
+                        <Crown className="h-5 w-5 text-yellow-500" />
+                      ) : (
+                        <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
+                          {rank}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">{seller.userName}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {seller.salesQuantity} vendas totais
+                      </p>
+                    </div>
                   </div>
                 </div>
                 

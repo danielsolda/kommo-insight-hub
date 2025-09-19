@@ -59,6 +59,7 @@ interface SalesRankingData {
   monthlyAverage: number;
   currentMonthSales: number;
   currentMonthQuantity: number;
+  avatarUrl?: string;
 }
 
 interface DateRange {
