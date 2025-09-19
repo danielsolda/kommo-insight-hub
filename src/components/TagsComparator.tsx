@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Tag } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { Tag, BarChart3, PieChart as PieChartIcon } from "lucide-react";
 
 interface TagsComparatorProps {
   tags: any[];
@@ -15,6 +16,40 @@ interface TagsComparatorProps {
 
 export const TagsComparator = ({ tags, allLeads, pipelines, loading }: TagsComparatorProps) => {
   const [selectedPipeline, setSelectedPipeline] = useState<string>("all");
+  const [chartType, setChartType] = useState<"bar" | "pie">("pie");
+
+  // Color palette for pie chart
+  const getTagColor = (color: string | null, index: number) => {
+    if (color && color.length === 6) {
+      return `#${color}`;
+    }
+    
+    // Fallback color palette
+    const colors = [
+      "hsl(var(--primary))",
+      "hsl(var(--secondary))", 
+      "hsl(var(--accent))",
+      "#8884d8",
+      "#82ca9d", 
+      "#ffc658",
+      "#ff7300",
+      "#00ff7f",
+      "#dc143c",
+      "#9370db",
+      "#20b2aa",
+      "#ff6347",
+      "#4682b4",
+      "#d2691e",
+      "#ff1493",
+      "#00ced1",
+      "#ff4500",
+      "#32cd32",
+      "#8a2be2",
+      "#ff69b4"
+    ];
+    
+    return colors[index % colors.length];
+  };
 
   // Process data for tag analysis
   const getTagAnalysisData = () => {
@@ -77,17 +112,18 @@ export const TagsComparator = ({ tags, allLeads, pipelines, loading }: TagsCompa
 
     // Convert to array and sort by count
     return Object.values(tagData)
-      .map(data => ({
+      .map((data, index) => ({
         tagName: data.tag.name.length > 20 ? data.tag.name.substring(0, 20) + "..." : data.tag.name,
         fullName: data.tag.name,
         color: data.tag.color,
         count: data.count,
         totalValue: data.totalValue,
         averageValue: data.count > 0 ? data.totalValue / data.count : 0,
-        percentage: filteredLeads.length > 0 ? (data.count / filteredLeads.length) * 100 : 0
+        percentage: filteredLeads.length > 0 ? (data.count / filteredLeads.length) * 100 : 0,
+        fillColor: getTagColor(data.tag.color, index)
       }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 20); // Top 20 tags
+      .slice(0, chartType === "pie" ? 10 : 20); // Limit to 10 for pie chart visibility
   };
 
   const analysisData = getTagAnalysisData();
@@ -127,24 +163,47 @@ export const TagsComparator = ({ tags, allLeads, pipelines, loading }: TagsCompa
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="w-64">
-              <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um pipeline" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Pipelines</SelectItem>
-                  {pipelines.map((pipeline) => (
-                    <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
-                      {pipeline.name} {pipeline.is_main && "(Principal)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-64">
+                <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um pipeline" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os Pipelines</SelectItem>
+                    {pipelines.map((pipeline) => (
+                      <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
+                        {pipeline.name} {pipeline.is_main && "(Principal)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Total de leads: {totalLeads}
+              </div>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Total de leads: {totalLeads}
+            
+            <div className="flex gap-2">
+              <Button
+                variant={chartType === "pie" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setChartType("pie")}
+                className="flex items-center gap-2"
+              >
+                <PieChartIcon className="h-4 w-4" />
+                Pizza
+              </Button>
+              <Button
+                variant={chartType === "bar" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setChartType("bar")}
+                className="flex items-center gap-2"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Barras
+              </Button>
             </div>
           </div>
 
@@ -155,45 +214,103 @@ export const TagsComparator = ({ tags, allLeads, pipelines, loading }: TagsCompa
           ) : (
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analysisData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
-                  <XAxis 
-                    dataKey="tagName" 
-                    className="text-xs fill-muted-foreground"
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis className="text-xs fill-muted-foreground" />
-                  <Tooltip 
-                    content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        return (
-                          <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
-                            <p className="font-medium">{data.fullName}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Leads: {data.count} ({data.percentage.toFixed(1)}%)
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Valor total: R$ {data.totalValue.toLocaleString()}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Ticket médio: R$ {data.averageValue.toLocaleString()}
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Bar 
-                    dataKey="count" 
-                    fill="hsl(var(--primary))" 
-                    className="fill-primary/80 hover:fill-primary"
-                    radius={[2, 2, 0, 0]}
-                  />
-                </BarChart>
+                {chartType === "pie" ? (
+                  <PieChart>
+                    <Pie
+                      data={analysisData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({count}) => count}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="count"
+                    >
+                      {analysisData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fillColor} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+                              <p className="font-medium">{data.fullName}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Leads: {data.count} ({data.percentage.toFixed(1)}%)
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Valor total: R$ {data.totalValue.toLocaleString()}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Ticket médio: R$ {data.averageValue.toLocaleString()}
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Legend
+                      content={() => (
+                        <div className="flex flex-wrap gap-2 justify-center mt-4">
+                          {analysisData.map((entry, index) => (
+                            <div key={index} className="flex items-center gap-1 text-xs">
+                              <div 
+                                className="w-3 h-3 rounded-sm"
+                                style={{ backgroundColor: entry.fillColor }}
+                              />
+                              <span className="text-muted-foreground">
+                                {entry.fullName} ({entry.count})
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    />
+                  </PieChart>
+                ) : (
+                  <BarChart data={analysisData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
+                    <XAxis 
+                      dataKey="tagName" 
+                      className="text-xs fill-muted-foreground"
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis className="text-xs fill-muted-foreground" />
+                    <Tooltip 
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+                              <p className="font-medium">{data.fullName}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Leads: {data.count} ({data.percentage.toFixed(1)}%)
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Valor total: R$ {data.totalValue.toLocaleString()}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Ticket médio: R$ {data.averageValue.toLocaleString()}
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar 
+                      dataKey="count" 
+                      fill="hsl(var(--primary))" 
+                      className="fill-primary/80 hover:fill-primary"
+                      radius={[2, 2, 0, 0]}
+                    />
+                  </BarChart>
+                )}
               </ResponsiveContainer>
             </div>
           )}
