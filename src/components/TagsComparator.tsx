@@ -18,12 +18,22 @@ export const TagsComparator = ({ tags, allLeads, pipelines, loading }: TagsCompa
 
   // Process data for tag analysis
   const getTagAnalysisData = () => {
-    if (!allLeads.length) return [];
+    console.log('TagsComparator DEBUG - allLeads:', allLeads.length);
+    console.log('TagsComparator DEBUG - tags:', tags.length);
+    console.log('TagsComparator DEBUG - selectedPipeline:', selectedPipeline);
+    console.log('TagsComparator DEBUG - sample lead with tags:', allLeads.find(l => l._embedded?.tags?.length)?.[ '_embedded']?.tags);
+    
+    if (!allLeads.length) {
+      console.log('TagsComparator DEBUG - No leads found');
+      return [];
+    }
 
     // Filter leads by pipeline if selected
     const filteredLeads = selectedPipeline === "all" 
       ? allLeads 
       : allLeads.filter(lead => lead.pipeline_id?.toString() === selectedPipeline);
+
+    console.log('TagsComparator DEBUG - filteredLeads:', filteredLeads.length);
 
     // Group leads by tag
     const tagData: { [tagId: string]: { tag: any, leads: any[], totalValue: number, count: number } } = {};

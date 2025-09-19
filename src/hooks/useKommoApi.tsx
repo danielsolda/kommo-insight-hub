@@ -865,7 +865,8 @@ export const useKommoApi = () => {
       fetchGeneralStats(),
       fetchAllLeads(),
       fetchUsers(),
-      fetchCustomFields()
+      fetchCustomFields(),
+      fetchTags()
     ]);
   }, [cache, fetchPipelines, fetchGeneralStats, fetchAllLeads, fetchUsers, fetchCustomFields, fetchTags]);
 
