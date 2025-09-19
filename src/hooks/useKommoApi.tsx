@@ -658,7 +658,7 @@ export const useKommoApi = () => {
 
       const [leadsResponse, unsortedResponse] = await Promise.all([
         apiService.getAllLeads({ 
-          with: ['contacts'],
+          with: ['contacts', 'tags'],
           onProgress: (count, page) => {
             setProgress(prev => ({
               ...prev,
@@ -698,6 +698,10 @@ export const useKommoApi = () => {
           status_id: lead.status_id,
           custom_fields_values: lead.custom_fields_values,
           status_name: pipelines.find(p => p.id === lead.pipeline_id)?.statuses?.find(s => s.id === lead.status_id)?.name || 'Status desconhecido',
+          _embedded: {
+            tags: lead._embedded?.tags || []
+          },
+          tags: lead._embedded?.tags || [] // Also add directly for compatibility
         })),
         ...unsortedLeads.map((lead: any) => ({
           id: `unsorted-${lead.uid}`,
@@ -717,8 +721,16 @@ export const useKommoApi = () => {
           status_id: null, // Unsorted leads don't have status_id yet
           custom_fields_values: lead._embedded?.leads?.[0]?.custom_fields_values || [],
           status_name: 'Etapa de entrada',
+          _embedded: {
+            tags: [] // Unsorted leads typically don't have tags
+          },
+          tags: [] // Also add directly for compatibility
         }))
       ];
+
+      // Debug log to verify tags are being included
+      console.log('🏷️ Leads with tags found:', formattedLeads.filter(lead => lead.tags?.length > 0).length);
+      console.log('🏷️ First lead with tags:', formattedLeads.find(lead => lead.tags?.length > 0));
 
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
