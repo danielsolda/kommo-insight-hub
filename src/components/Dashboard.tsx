@@ -233,7 +233,24 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                       kommoApi.pipelines.find(p => p.id === kommoApi.salesChartPipelineFilter)?.name : 
                       undefined
                     }
-                    wonLeadsCount={kommoApi.allLeads.filter(lead => lead.status_id === 142).length}
+                    wonLeadsCount={(() => {
+                      const currentDate = new Date();
+                      const currentMonth = currentDate.getMonth();
+                      const currentYear = currentDate.getFullYear();
+                      
+                      return kommoApi.allLeads.filter(lead => {
+                        // Filter by status (won leads)
+                        if (lead.status_id !== 142) return false;
+                        
+                        // Filter by pipeline if specific pipeline is selected
+                        if (kommoApi.salesChartPipelineFilter && lead.pipeline_id !== kommoApi.salesChartPipelineFilter) return false;
+                        
+                        // Filter by current month using closed_at
+                        if (!lead.closed_at) return false;
+                        const leadDate = new Date(lead.closed_at * 1000);
+                        return leadDate.getFullYear() === currentYear && leadDate.getMonth() === currentMonth;
+                      }).length;
+                    })()}
                   />
                 )}
               </div>
@@ -316,7 +333,21 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                   <LazySalesChart 
                     salesData={kommoApi.salesData} 
                     loading={kommoApi.loadingStates.leads}
-                    wonLeadsCount={kommoApi.allLeads.filter(lead => lead.status_id === 142).length}
+                    wonLeadsCount={(() => {
+                      const currentDate = new Date();
+                      const currentMonth = currentDate.getMonth();
+                      const currentYear = currentDate.getFullYear();
+                      
+                      return kommoApi.allLeads.filter(lead => {
+                        // Filter by status (won leads)
+                        if (lead.status_id !== 142) return false;
+                        
+                        // Filter by current month using closed_at
+                        if (!lead.closed_at) return false;
+                        const leadDate = new Date(lead.closed_at * 1000);
+                        return leadDate.getFullYear() === currentYear && leadDate.getMonth() === currentMonth;
+                      }).length;
+                    })()}
                   />
                 )}
               </Suspense>

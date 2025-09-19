@@ -319,7 +319,7 @@ export const useKommoApi = () => {
           closed_at: lead.closed_at ? new Date(lead.closed_at * 1000).toLocaleDateString('pt-BR') : null
         })));
       }
-      const monthTarget = monthRevenue * 1.1;
+      const monthTarget = investmentConfig.monthlySalesGoal;
       
       return {
         month: monthName,
