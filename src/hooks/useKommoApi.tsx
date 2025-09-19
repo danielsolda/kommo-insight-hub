@@ -679,7 +679,7 @@ export const useKommoApi = () => {
       const sortedLeads = leadsResponse._embedded?.leads || [];
       const unsortedLeads = unsortedResponse._embedded?.unsorted || [];
       
-      const formattedLeads = [
+      let formattedLeads = [
         ...sortedLeads.map(lead => ({
           id: lead.id,
           name: lead.name || 'Lead sem nome',
@@ -727,6 +727,52 @@ export const useKommoApi = () => {
           tags: [] // Also add directly for compatibility
         }))
       ];
+
+      // Hidratar tags para leads que vieram sem tags do endpoint de listagem
+      try {
+        const leadsMissingTagsIds = sortedLeads
+          .filter((l: any) => !Array.isArray(l._embedded?.tags) || l._embedded?.tags?.length === 0)
+          .map((l: any) => l.id);
+
+        if (leadsMissingTagsIds.length > 0) {
+          const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
+          const authService = new KommoAuthService(kommoConfig);
+          const apiServiceForHydration = new KommoApiService(authService, kommoConfig.accountUrl);
+
+          const batchSize = 50;
+          const hydratedMap = new Map<number, any[]>();
+
+          for (let i = 0; i < leadsMissingTagsIds.length; i += batchSize) {
+            const batch = leadsMissingTagsIds.slice(i, i + batchSize);
+            try {
+              const resp = await apiServiceForHydration.getLeadsByIds(batch, ['tags']);
+              const leadsWithTags = resp._embedded?.leads || [];
+              leadsWithTags.forEach((lead: any) => {
+                hydratedMap.set(lead.id, lead._embedded?.tags || []);
+              });
+            } catch (e) {
+              console.warn('⚠️ Falha ao hidratar tags para lote:', batch, e);
+            }
+          }
+
+          if (hydratedMap.size > 0) {
+            formattedLeads = formattedLeads.map((lead: any) => {
+              if (typeof lead.id === 'number' && hydratedMap.has(lead.id)) {
+                const hydratedTags = hydratedMap.get(lead.id) || [];
+                return {
+                  ...lead,
+                  _embedded: { ...(lead._embedded || {}), tags: hydratedTags },
+                  tags: hydratedTags
+                };
+              }
+              return lead;
+            });
+            console.log('🏷️ Hidratação de tags aplicada a', hydratedMap.size, 'leads');
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ Erro geral na hidratação de tags:', e);
+      }
 
       // Debug log to verify tags are being included
       console.log('🏷️ Leads with tags found:', formattedLeads.filter(lead => lead.tags?.length > 0).length);

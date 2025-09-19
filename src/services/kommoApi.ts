@@ -144,12 +144,27 @@ export class KommoApiService {
     
     if (params.filter) {
       Object.entries(params.filter).forEach(([key, value]) => {
-        queryParams.set(`filter[${key}]`, value as string);
+        if (Array.isArray(value)) {
+          // Support multiple filter values like filter[id]=1&filter[id]=2
+          value.forEach((v) => queryParams.append(`filter[${key}]`, String(v)));
+        } else if (value !== undefined && value !== null) {
+          queryParams.set(`filter[${key}]`, String(value));
+        }
       });
     }
 
     const query = queryParams.toString();
     return this.makeRequest(`/leads${query ? `?${query}` : ''}`);
+  }
+
+  // Obter leads por IDs específicos (útil para hidratar tags)
+  async getLeadsByIds(ids: Array<number | string>, withParams: string[] = ['tags']): Promise<{ _embedded: { leads: Lead[] } }> {
+    const response = await this.getLeads({
+      filter: { id: ids },
+      with: withParams,
+      limit: 250
+    });
+    return { _embedded: { leads: response._embedded?.leads || [] } };
   }
 
   // Obter todos os leads com paginação automática

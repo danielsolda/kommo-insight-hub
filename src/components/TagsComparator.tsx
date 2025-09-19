@@ -63,12 +63,12 @@ export const TagsComparator = ({ tags, allLeads, pipelines, loading }: TagsCompa
       return [];
     }
 
-    // Filter leads by pipeline if selected
-    const filteredLeads = selectedPipeline === "all" 
+    // Filter leads by pipeline if selected and exclude unsorted leads by default
+    const baseLeads = selectedPipeline === "all" 
       ? allLeads 
       : allLeads.filter(lead => lead.pipeline_id?.toString() === selectedPipeline);
 
-    console.log('TagsComparator DEBUG - filteredLeads:', filteredLeads.length);
+    const filteredLeads = baseLeads.filter((lead: any) => !(typeof lead.id === 'string' && lead.id.startsWith('unsorted-')));
 
     // Group leads by tag
     const tagData: { [tagId: string]: { tag: any, leads: any[], totalValue: number, count: number } } = {};
