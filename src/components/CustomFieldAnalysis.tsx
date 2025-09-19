@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,7 +17,21 @@ interface CustomFieldAnalysisProps {
 export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading }: CustomFieldAnalysisProps) => {
   const [selectedField, setSelectedField] = useState<string>("");
   const [selectedPipeline, setSelectedPipeline] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [chartType, setChartType] = useState<"bar" | "pie">("bar");
+
+  // Reset status when pipeline changes
+  useEffect(() => {
+    setSelectedStatus("all");
+  }, [selectedPipeline]);
+
+  // Get available statuses from selected pipeline
+  const getAvailableStatuses = () => {
+    if (selectedPipeline === "all") return [];
+    
+    const pipeline = pipelines.find(p => p.id.toString() === selectedPipeline);
+    return pipeline?.statuses || [];
+  };
 
   // Color palette for field values - Purple and Blue tones
   const getFieldColor = (value: string, index: number) => {
@@ -51,9 +65,14 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
     if (!field) return [];
 
     // Filter leads by pipeline if selected
-    const filteredLeads = selectedPipeline === "all" 
+    let filteredLeads = selectedPipeline === "all" 
       ? allLeads 
       : allLeads.filter(lead => lead.pipeline_id?.toString() === selectedPipeline);
+
+    // Filter leads by status if selected
+    if (selectedStatus !== "all") {
+      filteredLeads = filteredLeads.filter(lead => lead.status_id?.toString() === selectedStatus);
+    }
 
     // Group leads by custom field value and status
     const groupedData: { [key: string]: { [status: string]: number } } = {};
@@ -150,12 +169,12 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
           Análise de Campos Personalizados
         </CardTitle>
         <CardDescription>
-          Analise a distribuição de valores dos campos personalizados por status de pipeline
+          Analise a distribuição de valores dos campos personalizados por pipeline e status específico
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Controls */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="text-sm font-medium mb-2 block">Campo Personalizado</label>
             <Select value={selectedField} onValueChange={setSelectedField}>
@@ -183,6 +202,27 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
                 {pipelines.map(pipeline => (
                   <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
                     {pipeline.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-2 block">Status</label>
+            <Select 
+              value={selectedStatus} 
+              onValueChange={setSelectedStatus}
+              disabled={selectedPipeline === "all"}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={selectedPipeline === "all" ? "Selecione uma pipeline primeiro" : "Todos os status"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Status</SelectItem>
+                {getAvailableStatuses().map(status => (
+                  <SelectItem key={status.id} value={status.id.toString()}>
+                    {status.name}
                   </SelectItem>
                 ))}
               </SelectContent>
