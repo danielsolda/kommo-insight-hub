@@ -172,7 +172,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
             {kommoApi.loadingStates.stats ? (
               <MetricsSkeleton />
             ) : (
-              <MetricsCards generalStats={kommoApi.generalStats} loading={kommoApi.loadingStates.stats} />
+              <MetricsCards generalStats={kommoApi.filteredGeneralStats} loading={kommoApi.loadingStates.stats} />
             )}
             
             <div className="grid lg:grid-cols-2 gap-6">

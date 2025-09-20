@@ -44,6 +44,11 @@ interface GeneralStats {
   callsChange: string;
   roi?: number;
   roiChange?: string;
+  // Comparison data for filtered stats
+  totalRevenueComparison?: number;
+  activeLeadsComparison?: number;
+  conversionRateComparison?: number;
+  roiComparison?: number;
 }
 
 interface InvestmentConfig {
@@ -392,7 +397,128 @@ export const useKommoApi = () => {
     });
   }, [allLeads, pipelines, salesChartPipelineFilter, salesPeriod, salesComparisonMode, salesComparisonPeriod, investmentConfig]);
 
-  // Memoized general stats with ROI calculation
+  // Filtered general stats based on sales chart filters
+  const filteredGeneralStats = useMemo(() => {
+    if (!allLeads.length) return null;
+
+    console.log('🧮 Calculating filtered general stats');
+    console.log(`   📊 Pipeline Filter: ${salesChartPipelineFilter || 'All'}`);
+    console.log(`   📅 Period: ${salesPeriod.start} to ${salesPeriod.end}`);
+    console.log(`   🔄 Comparison Mode: ${salesComparisonMode}`);
+
+    const calculateChange = (current: number, previous: number): string => {
+      if (previous === 0) return current > 0 ? "+100%" : "0%";
+      const change = ((current - previous) / previous) * 100;
+      return change >= 0 ? `+${change.toFixed(1)}%` : `${change.toFixed(1)}%`;
+    };
+
+    // Filter leads based on current period
+    const currentPeriodLeads = allLeads.filter(lead => {
+      // Pipeline filter
+      if (salesChartPipelineFilter && lead.pipeline_id !== salesChartPipelineFilter) {
+        return false;
+      }
+      
+      // Period filter - use closed_at for won leads, updated_at for active leads
+      const leadDate = lead.status_id === 142 && lead.closed_at 
+        ? new Date(lead.closed_at * 1000)
+        : new Date(lead.updated_at * 1000);
+      
+      const periodStart = new Date(salesPeriod.start);
+      const periodEnd = new Date(salesPeriod.end);
+      
+      return leadDate >= periodStart && leadDate <= periodEnd;
+    });
+
+    // Filter comparison period leads if comparison mode is active
+    const comparisonPeriodLeads = salesComparisonMode ? allLeads.filter(lead => {
+      // Pipeline filter
+      if (salesChartPipelineFilter && lead.pipeline_id !== salesChartPipelineFilter) {
+        return false;
+      }
+      
+      // Comparison period filter
+      const leadDate = lead.status_id === 142 && lead.closed_at 
+        ? new Date(lead.closed_at * 1000)
+        : new Date(lead.updated_at * 1000);
+      
+      const periodStart = new Date(salesComparisonPeriod.start);
+      const periodEnd = new Date(salesComparisonPeriod.end);
+      
+      return leadDate >= periodStart && leadDate <= periodEnd;
+    }) : [];
+
+    // Calculate current period stats
+    const currentClosedWonLeads = currentPeriodLeads.filter(lead => lead.status_id === 142);
+    const currentActiveLeads = currentPeriodLeads.filter(lead => lead.status_id !== 142);
+    const currentRevenue = currentClosedWonLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
+    const currentConversionRate = currentPeriodLeads.length > 0 
+      ? (currentClosedWonLeads.length / currentPeriodLeads.length) * 100 
+      : 0;
+
+    // Calculate comparison period stats if comparison mode is active
+    const comparisonClosedWonLeads = salesComparisonMode 
+      ? comparisonPeriodLeads.filter(lead => lead.status_id === 142) 
+      : [];
+    const comparisonActiveLeads = salesComparisonMode 
+      ? comparisonPeriodLeads.filter(lead => lead.status_id !== 142) 
+      : [];
+    const comparisonRevenue = salesComparisonMode 
+      ? comparisonClosedWonLeads.reduce((sum, lead) => sum + (lead.price || 0), 0) 
+      : 0;
+    const comparisonConversionRate = salesComparisonMode && comparisonPeriodLeads.length > 0
+      ? (comparisonClosedWonLeads.length / comparisonPeriodLeads.length) * 100 
+      : 0;
+
+    // Calculate ROI based on investment per month in the period
+    const periodDurationMonths = Math.max(1, Math.ceil((new Date(salesPeriod.end).getTime() - new Date(salesPeriod.start).getTime()) / (1000 * 60 * 60 * 24 * 30)));
+    const periodInvestment = investmentConfig.monthlyInvestment * periodDurationMonths;
+    const currentROI = periodInvestment > 0 ? ((currentRevenue - periodInvestment) / periodInvestment) * 100 : 0;
+
+    const comparisonPeriodDurationMonths = salesComparisonMode 
+      ? Math.max(1, Math.ceil((new Date(salesComparisonPeriod.end).getTime() - new Date(salesComparisonPeriod.start).getTime()) / (1000 * 60 * 60 * 24 * 30)))
+      : 0;
+    const comparisonPeriodInvestment = salesComparisonMode 
+      ? investmentConfig.monthlyInvestment * comparisonPeriodDurationMonths 
+      : 0;
+    const comparisonROI = salesComparisonMode && comparisonPeriodInvestment > 0 
+      ? ((comparisonRevenue - comparisonPeriodInvestment) / comparisonPeriodInvestment) * 100 
+      : 0;
+
+    console.log(`   💰 Current Revenue: R$ ${currentRevenue.toLocaleString()}`);
+    console.log(`   👥 Current Active Leads: ${currentActiveLeads.length}`);
+    console.log(`   📈 Current Conversion Rate: ${currentConversionRate.toFixed(1)}%`);
+    console.log(`   💹 Current ROI: ${currentROI.toFixed(1)}%`);
+
+    if (salesComparisonMode) {
+      console.log(`   💰 Comparison Revenue: R$ ${comparisonRevenue.toLocaleString()}`);
+      console.log(`   👥 Comparison Active Leads: ${comparisonActiveLeads.length}`);
+      console.log(`   📈 Comparison Conversion Rate: ${comparisonConversionRate.toFixed(1)}%`);
+      console.log(`   💹 Comparison ROI: ${comparisonROI.toFixed(1)}%`);
+    }
+
+    const stats: GeneralStats = {
+      totalRevenue: currentRevenue,
+      activeLeads: currentActiveLeads.length,
+      conversionRate: currentConversionRate,
+      totalCalls: 0,
+      revenueChange: salesComparisonMode ? calculateChange(currentRevenue, comparisonRevenue) : "+0%",
+      leadsChange: salesComparisonMode ? calculateChange(currentActiveLeads.length, comparisonActiveLeads.length) : "+0%",
+      conversionChange: salesComparisonMode ? calculateChange(currentConversionRate, comparisonConversionRate) : "+0%",
+      callsChange: "N/A",
+      roi: currentROI,
+      roiChange: salesComparisonMode ? calculateChange(currentROI, comparisonROI) : "+0%",
+      // Comparison data
+      totalRevenueComparison: salesComparisonMode ? comparisonRevenue : undefined,
+      activeLeadsComparison: salesComparisonMode ? comparisonActiveLeads.length : undefined,
+      conversionRateComparison: salesComparisonMode ? comparisonConversionRate : undefined,
+      roiComparison: salesComparisonMode ? comparisonROI : undefined,
+    };
+
+    return stats;
+  }, [allLeads, salesChartPipelineFilter, salesPeriod, salesComparisonMode, salesComparisonPeriod, investmentConfig]);
+
+  // Memoized general stats with ROI calculation (for backward compatibility)
   const memoizedGeneralStats = useMemo(() => {
     if (!generalStats) return null;
     
@@ -1002,6 +1128,7 @@ export const useKommoApi = () => {
     error,
     refreshData,
     generalStats: memoizedGeneralStats,
+    filteredGeneralStats,
     allLeads,
     salesData: filteredSalesData,
     salesChartPipelineFilter,

@@ -97,7 +97,7 @@ export const MetricsCards = ({ generalStats, loading }: MetricsCardsProps) => {
                 }>
                   {metric.change}
                 </span>
-                <span className="text-muted-foreground ml-1">vs mês anterior</span>
+                <span className="text-muted-foreground ml-1">vs período anterior</span>
               </div>
             </CardContent>
           </Card>
