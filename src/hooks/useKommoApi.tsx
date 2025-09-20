@@ -68,6 +68,37 @@ interface DateRange {
   endDate: Date | null;
 }
 
+interface ConversionTimeData {
+  averageConversionTime: number;
+  averageTimePerStatus: { statusName: string; avgDays: number; color: string }[];
+  conversionRate: number;
+  stuckLeads: number;
+  totalLeads: number;
+  fastestConversion: number;
+  slowestConversion: number;
+}
+
+interface TimeAnalysisData {
+  statusTimeData: Array<{
+    name: string;
+    avgDays: number;
+    leadCount: number;
+    color: string;
+  }>;
+  conversionDistribution: Array<{
+    range: string;
+    count: number;
+    percentage: number;
+  }>;
+  criticalLeads: Array<{
+    id: string | number;
+    name: string;
+    statusName: string;
+    daysInStatus: number;
+    value: number;
+  }>;
+}
+
 // Granular loading states interface
 interface LoadingStates {
   pipelines: boolean;
@@ -987,5 +1018,158 @@ export const useKommoApi = () => {
     }, [users, allLeads, salesRanking, cache]),
     customFields,
     tags,
+    
+    // Conversion time analysis
+    calculateConversionTimeData: useCallback((pipelineId?: number | null): ConversionTimeData | null => {
+      if (!allLeads.length || !pipelines.length) return null;
+
+      const currentTime = Date.now();
+      const pipeline = pipelines.find(p => p.id === pipelineId);
+      if (!pipeline && pipelineId !== null) return null;
+
+      // Filter leads by pipeline
+      const filteredLeads = pipelineId === null 
+        ? allLeads.filter((lead: any) => !lead.id.toString().startsWith('unsorted-'))
+        : allLeads.filter((lead: any) => 
+            lead.pipeline_id === pipelineId && 
+            !lead.id.toString().startsWith('unsorted-')
+          );
+
+      if (filteredLeads.length === 0) return null;
+
+      // Calculate conversion times for closed leads
+      const closedLeads = filteredLeads.filter((lead: any) => lead.closed_at);
+      const conversionTimes = closedLeads.map((lead: any) => {
+        const createdAt = lead.created_at ? new Date(lead.created_at * 1000) : new Date(lead.lastContact);
+        const closedAt = new Date(lead.closed_at * 1000);
+        return (closedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24); // days
+      });
+
+      // Calculate average times per status (estimated based on current active leads)
+      const statusStats = pipeline ? pipeline.statuses.map(status => {
+        const statusLeads = filteredLeads.filter((lead: any) => lead.status_id === status.id);
+        const avgDays = statusLeads.length > 0 
+          ? statusLeads.reduce((sum: number, lead: any) => {
+              const createdAt = lead.created_at ? new Date(lead.created_at * 1000) : new Date(lead.lastContact);
+              const daysSinceCreated = (currentTime - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+              return sum + Math.min(daysSinceCreated, 90); // Cap at 90 days to avoid skewing
+            }, 0) / statusLeads.length
+          : 0;
+
+        return {
+          statusName: status.name,
+          avgDays,
+          color: status.color
+        };
+      }) : [];
+
+      // Find stuck leads (more than 30 days in current status)
+      const thirtyDaysAgo = currentTime - (30 * 24 * 60 * 60 * 1000);
+      const stuckLeads = filteredLeads.filter((lead: any) => {
+        const lastUpdate = lead.updated_at ? new Date(lead.updated_at * 1000) : new Date(lead.lastContact);
+        return lastUpdate.getTime() < thirtyDaysAgo && !lead.closed_at;
+      }).length;
+
+      return {
+        averageConversionTime: conversionTimes.length > 0 
+          ? conversionTimes.reduce((sum, time) => sum + time, 0) / conversionTimes.length 
+          : 0,
+        averageTimePerStatus: statusStats,
+        conversionRate: filteredLeads.length > 0 
+          ? (closedLeads.length / filteredLeads.length) * 100 
+          : 0,
+        stuckLeads,
+        totalLeads: filteredLeads.length,
+        fastestConversion: conversionTimes.length > 0 ? Math.min(...conversionTimes) : 0,
+        slowestConversion: conversionTimes.length > 0 ? Math.max(...conversionTimes) : 0,
+      };
+    }, [allLeads, pipelines]),
+
+    calculateTimeAnalysisData: useCallback((pipelineId?: number | null): TimeAnalysisData | null => {
+      if (!allLeads.length || !pipelines.length) return null;
+
+      const currentTime = Date.now();
+      const pipeline = pipelines.find(p => p.id === pipelineId);
+      if (!pipeline && pipelineId !== null) return null;
+
+      // Filter leads by pipeline
+      const filteredLeads = pipelineId === null 
+        ? allLeads.filter((lead: any) => !lead.id.toString().startsWith('unsorted-'))
+        : allLeads.filter((lead: any) => 
+            lead.pipeline_id === pipelineId && 
+            !lead.id.toString().startsWith('unsorted-')
+          );
+
+      // Status time data
+      const statusTimeData = pipeline ? pipeline.statuses.map(status => {
+        const statusLeads = filteredLeads.filter((lead: any) => lead.status_id === status.id);
+        const avgDays = statusLeads.length > 0 
+          ? statusLeads.reduce((sum: number, lead: any) => {
+              const createdAt = lead.created_at ? new Date(lead.created_at * 1000) : new Date(lead.lastContact);
+              const daysSinceCreated = (currentTime - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+              return sum + Math.min(daysSinceCreated, 90);
+            }, 0) / statusLeads.length
+          : 0;
+
+        return {
+          name: status.name,
+          avgDays,
+          leadCount: statusLeads.length,
+          color: status.color
+        };
+      }) : [];
+
+      // Conversion distribution
+      const closedLeads = filteredLeads.filter((lead: any) => lead.closed_at);
+      const conversionTimes = closedLeads.map((lead: any) => {
+        const createdAt = lead.created_at ? new Date(lead.created_at * 1000) : new Date(lead.lastContact);
+        const closedAt = new Date(lead.closed_at * 1000);
+        return (closedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+      });
+
+      const ranges = [
+        { label: '0-7 dias', min: 0, max: 7 },
+        { label: '1-4 semanas', min: 7, max: 28 },
+        { label: '1-3 meses', min: 28, max: 90 },
+        { label: '3+ meses', min: 90, max: Infinity }
+      ];
+
+      const conversionDistribution = ranges.map(range => {
+        const count = conversionTimes.filter(time => time >= range.min && time < range.max).length;
+        const percentage = conversionTimes.length > 0 ? (count / conversionTimes.length) * 100 : 0;
+        return {
+          range: range.label,
+          count,
+          percentage
+        };
+      });
+
+      // Critical leads (stuck for more than 30 days)
+      const thirtyDaysAgo = currentTime - (30 * 24 * 60 * 60 * 1000);
+      const criticalLeads = filteredLeads
+        .filter((lead: any) => {
+          const lastUpdate = lead.updated_at ? new Date(lead.updated_at * 1000) : new Date(lead.lastContact);
+          return lastUpdate.getTime() < thirtyDaysAgo && !lead.closed_at;
+        })
+        .map((lead: any) => {
+          const lastUpdate = lead.updated_at ? new Date(lead.updated_at * 1000) : new Date(lead.lastContact);
+          const daysInStatus = (currentTime - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
+          return {
+            id: lead.id,
+            name: lead.name,
+            statusName: lead.status_name || lead.stage,
+            daysInStatus,
+            value: lead.value || 0
+          };
+        })
+        .sort((a, b) => b.daysInStatus - a.daysInStatus)
+        .slice(0, 10); // Top 10 most critical
+
+      return {
+        statusTimeData,
+        conversionDistribution,
+        criticalLeads
+      };
+    }, [allLeads, pipelines]),
   };
 };

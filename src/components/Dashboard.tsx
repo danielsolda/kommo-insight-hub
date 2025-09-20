@@ -179,7 +179,12 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
               {kommoApi.loadingStates.pipelineStats ? (
                 <ChartSkeleton title="Pipeline" />
               ) : (
-                <PipelineChart pipelineStats={kommoApi.pipelineStats} loading={kommoApi.loadingStates.pipelineStats} />
+                <PipelineChart 
+                  pipelineStats={kommoApi.pipelineStats} 
+                  loading={kommoApi.loadingStates.pipelineStats}
+                  onCalculateConversionTime={kommoApi.calculateConversionTimeData}
+                  onCalculateTimeAnalysis={kommoApi.calculateTimeAnalysisData}
+                />
               )}
               
               <div className="space-y-4">
@@ -317,7 +322,12 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 {kommoApi.loadingStates.pipelineStats ? (
                   <ChartSkeleton title="Estatísticas do Pipeline" />
                 ) : (
-                  <LazyPipelineChart pipelineStats={kommoApi.pipelineStats} loading={kommoApi.loadingStates.pipelineStats} />
+                  <LazyPipelineChart 
+                    pipelineStats={kommoApi.pipelineStats} 
+                    loading={kommoApi.loadingStates.pipelineStats}
+                    onCalculateConversionTime={kommoApi.calculateConversionTimeData}
+                    onCalculateTimeAnalysis={kommoApi.calculateTimeAnalysisData}
+                  />
                 )}
               </Suspense>
             )}
