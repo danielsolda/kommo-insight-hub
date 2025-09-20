@@ -151,6 +151,18 @@ export const useKommoApi = () => {
   const [customFields, setCustomFields] = useState<any[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [salesChartPipelineFilter, setSalesChartPipelineFilter] = useState<number | null>(null);
+  
+  // Sales chart period filtering states
+  const [salesPeriod, setSalesPeriod] = useState<{ start: string; end: string }>({
+    start: new Date(new Date().getFullYear(), new Date().getMonth() - 6, 1).toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
+  });
+  const [salesComparisonMode, setSalesComparisonMode] = useState(false);
+  const [salesComparisonPeriod, setSalesComparisonPeriod] = useState<{ start: string; end: string }>({
+    start: new Date(new Date().getFullYear() - 1, new Date().getMonth() - 6, 1).toISOString().split('T')[0],
+    end: new Date(new Date().getFullYear() - 1, new Date().getMonth(), 0).toISOString().split('T')[0]
+  });
+  
   const [rankingDateRange, setRankingDateRangeState] = useState<DateRange>({
     startDate: null,
     endDate: null
@@ -270,104 +282,115 @@ export const useKommoApi = () => {
     setSalesRanking(memoizedSalesRanking);
   }, [memoizedSalesRanking]);
 
-  // Memoized filtered sales data calculation
+  // Memoized filtered sales data calculation with period filtering and comparison
   const filteredSalesData = useMemo(() => {
-    console.log(`🔄 Recalculando dados de vendas filtrados...`);
+    console.log(`🔄 Recalculando dados de vendas com filtro de período...`);
     console.log(`   📋 Pipeline filter: ${salesChartPipelineFilter}`);
-    console.log(`   📊 Pipelines disponíveis: ${pipelines.length}`);
-    console.log(`   📈 All leads disponíveis: ${allLeads.length}`);
-    console.log(`   💰 Sales data base: ${salesData.length} meses`);
+    console.log(`   📅 Período atual: ${salesPeriod.start} até ${salesPeriod.end}`);
+    console.log(`   🔄 Comparação ativa: ${salesComparisonMode}`);
     
-    if (!salesChartPipelineFilter || !pipelines.length || !allLeads.length) {
-      console.log('📊 Gráfico de vendas: Sem filtro de pipeline ou dados insuficientes - retornando salesData original');
-      return salesData;
+    if (!pipelines.length || !allLeads.length) {
+      console.log('📊 Dados insuficientes - pipelines ou leads');
+      return [];
     }
 
-    // Use universal status ID 142 for "Venda ganha" (closed won)
-    const selectedPipeline = pipelines.find(p => p.id === salesChartPipelineFilter);
-    if (!selectedPipeline) {
-      console.log(`❌ Pipeline com ID ${salesChartPipelineFilter} não encontrada`);
-      return salesData;
-    }
-
-    console.log(`🎯 Filtrando gráfico de vendas:`);
-    console.log(`   📋 Pipeline selecionada: ${selectedPipeline.name} (ID: ${salesChartPipelineFilter})`);
-    console.log(`   🏆 Status "Venda ganha": ID 142`);
-
-    // Filter leads by pipeline and closed won status (ID 142)
-    const pipelineLeads = allLeads.filter(lead => 
-      lead.pipeline_id === salesChartPipelineFilter && 
-      lead.status_id === 142 &&
-      lead.closed_at // Only leads with valid closed_at date
-    );
-
-    console.log(`📈 Resultado do filtro:`);
-    console.log(`   📊 Total de leads formatados: ${allLeads.length}`);
-    console.log(`   🎯 Leads da pipeline ${salesChartPipelineFilter}: ${allLeads.filter(lead => lead.pipeline_id === salesChartPipelineFilter).length}`);
-    console.log(`   🏆 Leads com status 142: ${allLeads.filter(lead => lead.status_id === 142).length}`);
-    console.log(`   ⏰ Leads com closed_at válido: ${allLeads.filter(lead => lead.closed_at).length}`);
-    console.log(`   ✅ Leads filtrados finais: ${pipelineLeads.length}`);
-    
-    // Debug: Show detailed info about leads in the selected pipeline
-    const pipelineAllLeads = allLeads.filter(lead => lead.pipeline_id === salesChartPipelineFilter);
-    console.log(`   📋 Todos os leads da pipeline ${salesChartPipelineFilter}:`, pipelineAllLeads.map(lead => ({
-      id: lead.id,
-      status_id: lead.status_id,
-      price: lead.price,
-      closed_at: lead.closed_at ? new Date(lead.closed_at * 1000).toLocaleDateString('pt-BR') : null
-    })).slice(0, 5));
-    
-    // Debug: Show some sample leads
-    if (pipelineLeads.length > 0) {
-      console.log(`   📝 Amostra de leads filtrados:`, pipelineLeads.slice(0, 3).map(lead => ({
-        id: lead.id,
-        pipeline_id: lead.pipeline_id,
-        status_id: lead.status_id,
-        price: lead.price,
-        closed_at: lead.closed_at ? new Date(lead.closed_at * 1000).toLocaleDateString('pt-BR') : null
-      })));
-    }
-
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth();
-    
-    // Recalculate monthly data for the selected pipeline using closed_at date
-    const monthlyData = Array.from({ length: currentMonth + 1 }, (_, i) => {
-      const monthName = new Date(currentYear, i, 1).toLocaleString('pt-BR', { month: 'short' });
-      const monthLeads = pipelineLeads.filter(lead => {
-        if (!lead.closed_at) return false;
-        const leadDate = new Date(lead.closed_at * 1000);
-        return leadDate.getFullYear() === currentYear && leadDate.getMonth() === i;
-      });
+    // Generate months for the current period
+    const getMonthsInRange = (start: string, end: string) => {
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      const months = [];
       
-      const monthRevenue = monthLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
-      console.log(`     💰 Mês ${i + 1} (${monthName}): ${monthLeads.length} leads, receita: R$ ${monthRevenue.toLocaleString('pt-BR')}`);
-      if (monthLeads.length > 0) {
-        console.log(`        🔍 Amostra de leads do mês:`, monthLeads.slice(0, 2).map(lead => ({
-          id: lead.id,
-          price: lead.price,
-          closed_at: lead.closed_at ? new Date(lead.closed_at * 1000).toLocaleDateString('pt-BR') : null
-        })));
+      const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      while (current <= endDate) {
+        months.push({
+          year: current.getFullYear(),
+          month: current.getMonth(),
+          monthKey: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`,
+          monthName: current.toLocaleDateString('pt-BR', { month: 'short' })
+        });
+        current.setMonth(current.getMonth() + 1);
       }
-      const monthTarget = investmentConfig.monthlySalesGoal;
+      return months;
+    };
+
+    const currentMonths = getMonthsInRange(salesPeriod.start, salesPeriod.end);
+    const comparisonMonths = salesComparisonMode ? getMonthsInRange(salesComparisonPeriod.start, salesComparisonPeriod.end) : [];
+
+    // Filter leads for current period
+    const currentPeriodLeads = allLeads.filter(lead => {
+      const closedAt = lead.closed_at ? new Date(lead.closed_at * 1000) : null;
+      if (!closedAt) return false;
       
-      return {
-        month: monthName,
-        vendas: monthRevenue,
-        meta: monthTarget,
-        leads: monthLeads.length
-      };
+      const periodStart = new Date(salesPeriod.start);
+      const periodEnd = new Date(salesPeriod.end);
+      
+      return closedAt >= periodStart && closedAt <= periodEnd;
     });
 
-    console.log(`📊 Dados mensais calculados para pipeline ${salesChartPipelineFilter}:`, monthlyData.map(m => ({
-      month: m.month,
-      vendas: m.vendas,
-      leads: m.leads
-    })));
+    // Filter leads for comparison period
+    const comparisonPeriodLeads = salesComparisonMode ? allLeads.filter(lead => {
+      const closedAt = lead.closed_at ? new Date(lead.closed_at * 1000) : null;
+      if (!closedAt) return false;
+      
+      const periodStart = new Date(salesComparisonPeriod.start);
+      const periodEnd = new Date(salesComparisonPeriod.end);
+      
+      return closedAt >= periodStart && closedAt <= periodEnd;
+    }) : [];
 
-    return monthlyData;
-  }, [salesData, salesChartPipelineFilter, pipelines, allLeads]);
+    console.log(`📊 Leads filtrados por período:`);
+    console.log(`   📈 Período atual: ${currentPeriodLeads.length} leads`);
+    console.log(`   📉 Período comparação: ${comparisonPeriodLeads.length} leads`);
+
+    // Create data structure
+    const maxLength = Math.max(currentMonths.length, comparisonMonths.length);
+    return Array.from({ length: maxLength }, (_, index) => {
+      const currentMonth = currentMonths[index];
+      const comparisonMonth = comparisonMonths[index];
+      
+      const monthName = currentMonth?.monthName || 
+                       (comparisonMonth?.monthName || 
+                        new Date(new Date().getFullYear(), index).toLocaleDateString('pt-BR', { month: 'short' }));
+
+      // Current period data
+      const currentLeadsInMonth = currentMonth ? currentPeriodLeads.filter(lead => {
+        const closedAt = lead.closed_at ? new Date(lead.closed_at * 1000) : null;
+        return closedAt && closedAt.getFullYear() === currentMonth.year && closedAt.getMonth() === currentMonth.month;
+      }) : [];
+
+      // Comparison period data
+      const comparisonLeadsInMonth = comparisonMonth ? comparisonPeriodLeads.filter(lead => {
+        const closedAt = lead.closed_at ? new Date(lead.closed_at * 1000) : null;
+        return closedAt && closedAt.getFullYear() === comparisonMonth.year && closedAt.getMonth() === comparisonMonth.month;
+      }) : [];
+
+      // Apply pipeline filter if selected
+      const pipelineFilterFn = salesChartPipelineFilter ? 
+        (lead: any) => lead.pipeline_id === salesChartPipelineFilter && lead.status_id === 142 :
+        (lead: any) => lead.status_id === 142;
+
+      const currentSales = currentLeadsInMonth
+        .filter(pipelineFilterFn)
+        .reduce((sum, lead) => sum + (lead.price || 0), 0);
+
+      const comparisonSales = comparisonLeadsInMonth
+        .filter(pipelineFilterFn)
+        .reduce((sum, lead) => sum + (lead.price || 0), 0);
+
+      const currentLeadsCount = currentLeadsInMonth.filter(pipelineFilterFn).length;
+      const comparisonLeadsCount = comparisonLeadsInMonth.filter(pipelineFilterFn).length;
+
+      return {
+        month: monthName,
+        vendas: currentSales,
+        meta: investmentConfig.monthlySalesGoal, // Use configured target
+        leads: currentLeadsCount,
+        vendasComparacao: salesComparisonMode ? comparisonSales : undefined,
+        metaComparacao: salesComparisonMode ? investmentConfig.monthlySalesGoal : undefined,
+        leadsComparacao: salesComparisonMode ? comparisonLeadsCount : undefined,
+      };
+    });
+  }, [allLeads, pipelines, salesChartPipelineFilter, salesPeriod, salesComparisonMode, salesComparisonPeriod, investmentConfig]);
 
   // Memoized general stats with ROI calculation
   const memoizedGeneralStats = useMemo(() => {
@@ -983,6 +1006,15 @@ export const useKommoApi = () => {
     salesData: filteredSalesData,
     salesChartPipelineFilter,
     setSalesChartPipelineFilter,
+    
+    // Sales filtering functions
+    salesPeriod,
+    setSalesPeriod,
+    salesComparisonMode,
+    setSalesComparisonMode,
+    salesComparisonPeriod,
+    setSalesComparisonPeriod,
+    
     users,
     salesRanking,
     setRankingPipeline: debouncedSetRankingPipeline,
