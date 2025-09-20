@@ -192,6 +192,58 @@ export const useKommoApi = () => {
     return statusIds;
   }, []);
 
+  // Function to classify lead status based on pipeline structure
+  const classifyLeadStatus = useCallback((lead: any, pipelinesList: Pipeline[]) => {
+    const pipeline = pipelinesList.find(p => p.id === lead.pipeline_id);
+    
+    // Handle unsorted leads (entry status)
+    if (!lead.status_id || lead.stage === "Etapa de entrada" || lead.id?.toString().startsWith('unsorted-')) {
+      return "entrada";
+    }
+    
+    // Handle "Venda Ganha" (closed won)
+    if (lead.status_id === 142) {
+      return "ganho";
+    }
+    
+    if (pipeline && pipeline.statuses) {
+      const status = pipeline.statuses.find(s => s.id === lead.status_id);
+      if (status) {
+        const statusName = status.name.toLowerCase();
+        
+        // Identify final negative statuses (lost/closed)
+        if (statusName.includes('perdid') || statusName.includes('lost') || 
+            statusName.includes('cancelad') || statusName.includes('rejeitad') ||
+            statusName.includes('recusad') || statusName.includes('abandon')) {
+          return "perdido";
+        }
+        
+        // Check if it's the first status (entry status)
+        const sortedStatuses = [...pipeline.statuses].sort((a, b) => a.sort - b.sort);
+        if (sortedStatuses.length > 0 && status.id === sortedStatuses[0].id) {
+          return "entrada";
+        }
+        
+        // If it's not won, lost, or entry, it's in progress
+        return "andamento";
+      }
+    }
+    
+    // Default: if we can't classify it properly, consider it in progress
+    // unless it's clearly won or looks like a final status
+    return "andamento";
+  }, []);
+
+  // Function to identify leads that have "entered the funnel"
+  const getLeadsInFunnel = useCallback((leads: any[], pipelinesList: Pipeline[]) => {
+    return leads.filter(lead => {
+      const classification = classifyLeadStatus(lead, pipelinesList);
+      // Leads in funnel are those that are not just in entry status
+      // They include: andamento, ganho, perdido (but exclude entrada)
+      return classification !== "entrada";
+    });
+  }, [classifyLeadStatus]);
+
   // Memoized sales ranking calculation
   const memoizedSalesRanking = useMemo(() => {
     if (!users.length || !allLeads.length || !pipelines.length) {
@@ -449,25 +501,33 @@ export const useKommoApi = () => {
     }) : [];
 
     // Calculate current period stats
-    const currentClosedWonLeads = currentPeriodLeads.filter(lead => lead.status_id === 142);
-    const currentActiveLeads = currentPeriodLeads.filter(lead => lead.status_id !== 142);
+    const currentPeriodFunnelLeads = getLeadsInFunnel(currentPeriodLeads, pipelines);
+    const currentClosedWonLeads = currentPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "ganho");
+    const currentActiveLeads = currentPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "andamento");
+    const currentLostLeads = currentPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "perdido");
+    
     const currentRevenue = currentClosedWonLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
-    const currentConversionRate = currentPeriodLeads.length > 0 
-      ? (currentClosedWonLeads.length / currentPeriodLeads.length) * 100 
+    
+    // Conversion rate: won leads / leads that entered the funnel (excluding entry status leads)
+    const currentConversionRate = currentPeriodFunnelLeads.length > 0 
+      ? (currentClosedWonLeads.length / currentPeriodFunnelLeads.length) * 100 
       : 0;
 
     // Calculate comparison period stats if comparison mode is active
+    const comparisonPeriodFunnelLeads = salesComparisonMode 
+      ? getLeadsInFunnel(comparisonPeriodLeads, pipelines) 
+      : [];
     const comparisonClosedWonLeads = salesComparisonMode 
-      ? comparisonPeriodLeads.filter(lead => lead.status_id === 142) 
+      ? comparisonPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "ganho") 
       : [];
     const comparisonActiveLeads = salesComparisonMode 
-      ? comparisonPeriodLeads.filter(lead => lead.status_id !== 142) 
+      ? comparisonPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "andamento") 
       : [];
     const comparisonRevenue = salesComparisonMode 
       ? comparisonClosedWonLeads.reduce((sum, lead) => sum + (lead.price || 0), 0) 
       : 0;
-    const comparisonConversionRate = salesComparisonMode && comparisonPeriodLeads.length > 0
-      ? (comparisonClosedWonLeads.length / comparisonPeriodLeads.length) * 100 
+    const comparisonConversionRate = salesComparisonMode && comparisonPeriodFunnelLeads.length > 0
+      ? (comparisonClosedWonLeads.length / comparisonPeriodFunnelLeads.length) * 100 
       : 0;
 
     // Calculate ROI based on investment per month in the period
@@ -486,14 +546,17 @@ export const useKommoApi = () => {
       : 0;
 
     console.log(`   💰 Current Revenue: R$ ${currentRevenue.toLocaleString()}`);
-    console.log(`   👥 Current Active Leads: ${currentActiveLeads.length}`);
-    console.log(`   📈 Current Conversion Rate: ${currentConversionRate.toFixed(1)}%`);
+    console.log(`   👥 Current Active Leads (em andamento): ${currentActiveLeads.length}`);
+    console.log(`   📈 Current Conversion Rate (ganhos/funil): ${currentConversionRate.toFixed(1)}%`);
+    console.log(`   🔢 Current Funnel Leads (total no funil): ${currentPeriodFunnelLeads.length}`);
+    console.log(`   ✅ Current Won Leads: ${currentClosedWonLeads.length}`);
     console.log(`   💹 Current ROI: ${currentROI.toFixed(1)}%`);
 
     if (salesComparisonMode) {
       console.log(`   💰 Comparison Revenue: R$ ${comparisonRevenue.toLocaleString()}`);
-      console.log(`   👥 Comparison Active Leads: ${comparisonActiveLeads.length}`);
-      console.log(`   📈 Comparison Conversion Rate: ${comparisonConversionRate.toFixed(1)}%`);
+      console.log(`   👥 Comparison Active Leads (em andamento): ${comparisonActiveLeads.length}`);
+      console.log(`   📈 Comparison Conversion Rate (ganhos/funil): ${comparisonConversionRate.toFixed(1)}%`);
+      console.log(`   🔢 Comparison Funnel Leads: ${comparisonPeriodFunnelLeads.length}`);
       console.log(`   💹 Comparison ROI: ${comparisonROI.toFixed(1)}%`);
     }
 
