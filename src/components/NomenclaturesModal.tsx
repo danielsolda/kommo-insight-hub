@@ -12,7 +12,11 @@ import {
   Trophy, 
   Settings, 
   Filter,
-  BookOpen
+  BookOpen,
+  Clock,
+  AlertTriangle,
+  Target,
+  BarChart3
 } from "lucide-react";
 
 interface NomenclaturesModalProps {
@@ -70,6 +74,154 @@ export const NomenclaturesModal = ({ open, onOpenChange }: NomenclaturesModalPro
                     ROI = (Receita - Custo Estimado) ÷ Custo Estimado × 100
                   </code>
                 </div>
+              </div>
+            </section>
+
+            {/* Análise de Tempo de Conversão */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 text-lg font-semibold text-primary">
+                <Clock className="h-5 w-5" />
+                Análise de Tempo de Conversão (Aba Pipelines)
+              </div>
+              <div className="grid gap-3 text-sm">
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Alternância de Visualizações</h4>
+                  <p className="text-muted-foreground mb-2">
+                    Use os botões "Visão Geral" e "Tempo Conversão" para alternar entre:
+                  </p>
+                  <ul className="text-muted-foreground space-y-1 ml-4">
+                    <li>• <strong>Visão Geral:</strong> Distribuição de leads por status</li>
+                    <li>• <strong>Tempo Conversão:</strong> Análise temporal detalhada</li>
+                  </ul>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Tempo Médio de Conversão</h4>
+                  <p className="text-muted-foreground mb-2">
+                    Tempo médio para conversão completa de leads fechados
+                  </p>
+                  <code className="bg-background px-2 py-1 rounded text-xs">
+                    Tempo = (Data Fechamento - Data Criação) ÷ Leads Fechados
+                  </code>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Tempo Médio por Estágio</h4>
+                  <p className="text-muted-foreground mb-2">
+                    Estimativa baseada em leads ativos em cada status
+                  </p>
+                  <code className="bg-background px-2 py-1 rounded text-xs">
+                    Tempo Status = Média (Data Atual - Data Criação) por Status
+                  </code>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    *Limitado a 90 dias para evitar distorções de leads muito antigos
+                  </p>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Taxa de Conversão do Pipeline</h4>
+                  <p className="text-muted-foreground mb-2">
+                    Percentual de leads que foram fechados com sucesso
+                  </p>
+                  <code className="bg-background px-2 py-1 rounded text-xs">
+                    Taxa = (Leads Fechados ÷ Total Leads Pipeline) × 100
+                  </code>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Leads Presos (Críticos)</h4>
+                  <p className="text-muted-foreground mb-2">
+                    Leads que estão há mais de 30 dias sem atualização
+                  </p>
+                  <code className="bg-background px-2 py-1 rounded text-xs">
+                    Crítico = (Data Atual - Última Atualização) &gt; 30 dias
+                  </code>
+                </div>
+              </div>
+            </section>
+
+            {/* Gráficos de Tempo */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 text-lg font-semibold text-primary">
+                <BarChart3 className="h-5 w-5" />
+                Visualizações de Tempo
+              </div>
+              <div className="grid gap-3 text-sm">
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Gráfico de Tempo por Estágio</h4>
+                  <p className="text-muted-foreground">
+                    Gráfico de barras mostrando tempo médio em cada etapa do pipeline.
+                    Cada barra é colorizada conforme a cor do status na Kommo.
+                  </p>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Distribuição de Conversões</h4>
+                  <p className="text-muted-foreground mb-2">
+                    Classificação dos leads fechados por tempo de conversão:
+                  </p>
+                  <ul className="text-muted-foreground space-y-1 ml-4">
+                    <li>• <strong>0-7 dias:</strong> Conversões rápidas</li>
+                    <li>• <strong>1-4 semanas:</strong> Conversões normais</li>
+                    <li>• <strong>1-3 meses:</strong> Conversões lentas</li>
+                    <li>• <strong>3+ meses:</strong> Conversões muito lentas</li>
+                  </ul>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Lista de Leads Críticos</h4>
+                  <p className="text-muted-foreground mb-2">
+                    Top 10 leads com maior tempo no status atual:
+                  </p>
+                  <ul className="text-muted-foreground space-y-1 ml-4">
+                    <li>• Ordenados por tempo decrescente</li>
+                    <li>• Exibe nome do lead, status atual e valor</li>
+                    <li>• Indica tempo em formato otimizado (horas/dias/semanas)</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            {/* Formatos de Tempo */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 text-lg font-semibold text-primary">
+                <Target className="h-5 w-5" />
+                Formatos de Tempo
+              </div>
+              <div className="grid gap-3 text-sm">
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Conversão Automática de Unidades</h4>
+                  <ul className="text-muted-foreground space-y-1">
+                    <li>• <strong>Menos de 1 dia:</strong> Exibido em horas (ex: 18h)</li>
+                    <li>• <strong>1-6 dias:</strong> Exibido em dias (ex: 5d)</li>
+                    <li>• <strong>7+ dias:</strong> Exibido em semanas (ex: 3sem)</li>
+                  </ul>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Interpretação dos Tempos</h4>
+                  <p className="text-muted-foreground">
+                    Tempos mais baixos indicam eficiência no processo de vendas.
+                    Tempos muito altos em um estágio específico podem indicar gargalos.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* Limitações e Considerações */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 text-lg font-semibold text-primary">
+                <AlertTriangle className="h-5 w-5" />
+                Limitações da Análise de Tempo
+              </div>
+              <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
+                <ul className="text-sm space-y-2">
+                  <li>• <strong>Versão Básica:</strong> Cálculos baseados em created_at, updated_at e closed_at</li>
+                  <li>• <strong>Estimativas:</strong> Tempo por status é estimado, não exato</li>
+                  <li>• <strong>Leads Não Organizados:</strong> Excluídos da análise temporal</li>
+                  <li>• <strong>Limite de 90 dias:</strong> Para evitar distorções de leads muito antigos</li>
+                  <li>• <strong>Atualização:</strong> Baseada na última modificação do lead na Kommo</li>
+                </ul>
               </div>
             </section>
 
