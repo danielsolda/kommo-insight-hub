@@ -55,8 +55,20 @@ export const SalesChart = ({
   const totalSales = salesData.reduce((sum, data) => sum + data.vendas, 0);
   const totalTarget = salesData.reduce((sum, data) => sum + data.meta, 0);
   const totalLeads = salesData.reduce((sum, data) => sum + data.leads, 0);
-  const targetAchievement = totalTarget > 0 ? (totalSales / totalTarget) * 100 : 0;
-  const remainingTarget = Math.max(0, totalTarget - totalSales);
+  
+  // Calculate target achievement for current month instead of total period
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const currentMonthData = salesData.find(data => {
+    const dataMonth = new Date(`${data.month} 1, ${currentYear}`).getMonth();
+    return dataMonth === currentMonth;
+  });
+  
+  // Use current month data if available, otherwise use total
+  const monthlyTarget = currentMonthData?.meta || 0;
+  const monthlySales = currentMonthData?.vendas || 0;
+  const targetAchievement = monthlyTarget > 0 ? (monthlySales / monthlyTarget) * 100 : 0;
+  const remainingTarget = Math.max(0, monthlyTarget - monthlySales);
   const actualWonLeads = wonLeadsCount || 0;
 
   // Comparison calculations
@@ -287,11 +299,11 @@ export const SalesChart = ({
                 </div>
               </div>
               
-              <div className="text-center p-3 bg-muted/30 rounded-lg">
-                <div className="text-sm font-medium text-muted-foreground">Meta Atingida</div>
-                <div className="text-xl font-bold text-warning">{targetAchievement.toFixed(1)}%</div>
-                <div className="text-xs text-muted-foreground">{formatCurrency(remainingTarget)} restante</div>
-              </div>
+                <div className="text-center p-3 bg-muted/30 rounded-lg">
+                  <div className="text-sm font-medium text-muted-foreground">Meta Mensal</div>
+                  <div className="text-xl font-bold text-warning">{targetAchievement.toFixed(1)}%</div>
+                  <div className="text-xs text-muted-foreground">{formatCurrency(remainingTarget)} restante</div>
+                </div>
               
               <div className="text-center p-3 bg-muted/30 rounded-lg">
                 <div className="text-sm font-medium text-muted-foreground">Leads Convertidos</div>

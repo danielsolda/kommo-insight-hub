@@ -392,7 +392,14 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border/30">
                       <span>Ciclo de Vendas</span>
-                      <span className="font-semibold">Estimado: 18 dias</span>
+                      <span className="font-semibold">
+                        {kommoApi.loadingStates.stats ? "..." : (() => {
+                          const conversionData = kommoApi.calculateConversionTimeData(kommoApi.salesChartPipelineFilter);
+                          return conversionData && conversionData.averageConversionTime > 0 
+                            ? `${Math.round(conversionData.averageConversionTime)} dias`
+                            : "Não calculado";
+                        })()}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center py-2">
                       <span>ROI</span>

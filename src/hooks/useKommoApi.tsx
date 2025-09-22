@@ -194,7 +194,8 @@ export const useKommoApi = () => {
 
   // Function to classify lead status based on pipeline structure
   const classifyLeadStatus = useCallback((lead: any, pipelinesList: Pipeline[]) => {
-    const pipeline = pipelinesList.find(p => p.id === lead.pipeline_id);
+    // Find the specific pipeline for this lead
+    const leadPipeline = pipelinesList.find(p => p.id === lead.pipeline_id);
     
     // Handle unsorted leads (entry status)
     if (!lead.status_id || lead.stage === "Etapa de entrada" || lead.id?.toString().startsWith('unsorted-')) {
@@ -206,20 +207,21 @@ export const useKommoApi = () => {
       return "ganho";
     }
     
-    if (pipeline && pipeline.statuses) {
-      const status = pipeline.statuses.find(s => s.id === lead.status_id);
+    if (leadPipeline && leadPipeline.statuses) {
+      const status = leadPipeline.statuses.find(s => s.id === lead.status_id);
       if (status) {
         const statusName = status.name.toLowerCase();
         
         // Identify final negative statuses (lost/closed)
         if (statusName.includes('perdid') || statusName.includes('lost') || 
             statusName.includes('cancelad') || statusName.includes('rejeitad') ||
-            statusName.includes('recusad') || statusName.includes('abandon')) {
+            statusName.includes('recusad') || statusName.includes('abandon') ||
+            statusName.includes('negativo') || statusName.includes('fechado negativo')) {
           return "perdido";
         }
         
         // Check if it's the first status (entry status)
-        const sortedStatuses = [...pipeline.statuses].sort((a, b) => a.sort - b.sort);
+        const sortedStatuses = [...leadPipeline.statuses].sort((a, b) => a.sort - b.sort);
         if (sortedStatuses.length > 0 && status.id === sortedStatuses[0].id) {
           return "entrada";
         }
@@ -508,9 +510,11 @@ export const useKommoApi = () => {
     
     const currentRevenue = currentClosedWonLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
     
-    // Conversion rate: won leads / leads that entered the funnel (excluding entry status leads)
-    const currentConversionRate = currentPeriodFunnelLeads.length > 0 
-      ? (currentClosedWonLeads.length / currentPeriodFunnelLeads.length) * 100 
+    // Conversion rate: won leads / (won leads + lost leads + active leads that progressed beyond entry)
+    // This gives a more accurate picture of the conversion funnel
+    const totalProgressedLeads = currentClosedWonLeads.length + currentLostLeads.length + currentActiveLeads.length;
+    const currentConversionRate = totalProgressedLeads > 0 
+      ? (currentClosedWonLeads.length / totalProgressedLeads) * 100 
       : 0;
 
     // Calculate comparison period stats if comparison mode is active
@@ -526,8 +530,14 @@ export const useKommoApi = () => {
     const comparisonRevenue = salesComparisonMode 
       ? comparisonClosedWonLeads.reduce((sum, lead) => sum + (lead.price || 0), 0) 
       : 0;
-    const comparisonConversionRate = salesComparisonMode && comparisonPeriodFunnelLeads.length > 0
-      ? (comparisonClosedWonLeads.length / comparisonPeriodFunnelLeads.length) * 100 
+    const comparisonLostLeads = salesComparisonMode 
+      ? comparisonPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "perdido") 
+      : [];
+    const comparisonTotalProgressedLeads = salesComparisonMode 
+      ? comparisonClosedWonLeads.length + comparisonLostLeads.length + comparisonActiveLeads.length
+      : 0;
+    const comparisonConversionRate = salesComparisonMode && comparisonTotalProgressedLeads > 0
+      ? (comparisonClosedWonLeads.length / comparisonTotalProgressedLeads) * 100 
       : 0;
 
     // Calculate ROI based on investment per month in the period
