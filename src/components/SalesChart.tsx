@@ -11,6 +11,7 @@ interface SalesData {
   vendas: number;
   meta: number;
   leads: number;
+  yearMonth?: string;
   vendasComparacao?: number;
   metaComparacao?: number;
   leadsComparacao?: number;
@@ -59,12 +60,19 @@ export const SalesChart = ({
   // Calculate target achievement for current month instead of total period
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
-  const currentMonthData = salesData.find(data => {
-    const dataMonth = new Date(`${data.month} 1, ${currentYear}`).getMonth();
-    return dataMonth === currentMonth;
-  });
   
-  // Use current month data if available, otherwise use total
+  // Create current month key in format "YYYY-MM" 
+  const currentMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+  
+  // Find current month data by matching the yearMonth key
+  const currentMonthData = salesData.find(data => data.yearMonth === currentMonthKey);
+  
+  console.log('📊 SalesChart Monthly Target Calculation:');
+  console.log(`   📅 Current Month Key: ${currentMonthKey}`);
+  console.log(`   📊 Current Month Data:`, currentMonthData);
+  console.log(`   📈 Available Data:`, salesData.map(d => ({ month: d.month, yearMonth: d.yearMonth, meta: d.meta, vendas: d.vendas })));
+  
+  // Use current month data if available, otherwise use 0
   const monthlyTarget = currentMonthData?.meta || 0;
   const monthlySales = currentMonthData?.vendas || 0;
   const targetAchievement = monthlyTarget > 0 ? (monthlySales / monthlyTarget) * 100 : 0;

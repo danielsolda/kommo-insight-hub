@@ -202,7 +202,7 @@ export const useKommoApi = () => {
       return "entrada";
     }
     
-    // Handle "Venda Ganha" (closed won)
+    // Handle "Venda Ganha" (closed won) - universal status ID 142
     if (lead.status_id === 142) {
       return "ganho";
     }
@@ -216,14 +216,28 @@ export const useKommoApi = () => {
         if (statusName.includes('perdid') || statusName.includes('lost') || 
             statusName.includes('cancelad') || statusName.includes('rejeitad') ||
             statusName.includes('recusad') || statusName.includes('abandon') ||
-            statusName.includes('negativo') || statusName.includes('fechado negativo')) {
+            statusName.includes('negativo') || statusName.includes('fechado negativo') ||
+            statusName.includes('closed') || statusName.includes('não qualific')) {
           return "perdido";
         }
         
-        // Check if it's the first status (entry status)
+        // Check for additional won status names (beyond universal ID 142)
+        if (statusName.includes('ganha') || statusName.includes('fechado positivo') || 
+            statusName.includes('won') || statusName.includes('venda realizada') ||
+            statusName.includes('sucesso') || statusName.includes('convertido')) {
+          return "ganho";
+        }
+        
+        // Check if it's the first status (entry status) by sort order
         const sortedStatuses = [...leadPipeline.statuses].sort((a, b) => a.sort - b.sort);
         if (sortedStatuses.length > 0 && status.id === sortedStatuses[0].id) {
           return "entrada";
+        }
+        
+        // Check if it's the last status and not explicitly won/lost
+        if (sortedStatuses.length > 0 && status.id === sortedStatuses[sortedStatuses.length - 1].id) {
+          // If it's the last status but not identified as won or lost, assume it's won
+          return "ganho";
         }
         
         // If it's not won, lost, or entry, it's in progress
@@ -232,7 +246,6 @@ export const useKommoApi = () => {
     }
     
     // Default: if we can't classify it properly, consider it in progress
-    // unless it's clearly won or looks like a final status
     return "andamento";
   }, []);
 
@@ -466,15 +479,15 @@ export const useKommoApi = () => {
       return change >= 0 ? `+${change.toFixed(1)}%` : `${change.toFixed(1)}%`;
     };
 
-    // Filter leads based on current period
+    // Filter leads based on current period (for revenue and conversion rate)
     const currentPeriodLeads = allLeads.filter(lead => {
       // Pipeline filter
       if (salesChartPipelineFilter && lead.pipeline_id !== salesChartPipelineFilter) {
         return false;
       }
       
-      // Period filter - use closed_at for won leads, updated_at for active leads
-      const leadDate = lead.status_id === 142 && lead.closed_at 
+      // Period filter - use closed_at for won leads, updated_at for others
+      const leadDate = classifyLeadStatus(lead, pipelines) === "ganho" && lead.closed_at 
         ? new Date(lead.closed_at * 1000)
         : new Date(lead.updated_at * 1000);
       
@@ -482,6 +495,16 @@ export const useKommoApi = () => {
       const periodEnd = new Date(salesPeriod.end);
       
       return leadDate >= periodStart && leadDate <= periodEnd;
+    });
+
+    // For "Leads em Andamento" - get ALL current active leads regardless of period
+    const allActiveLeads = allLeads.filter(lead => {
+      // Pipeline filter
+      if (salesChartPipelineFilter && lead.pipeline_id !== salesChartPipelineFilter) {
+        return false;
+      }
+      // Only get leads currently in progress
+      return classifyLeadStatus(lead, pipelines) === "andamento";
     });
 
     // Filter comparison period leads if comparison mode is active
@@ -492,7 +515,7 @@ export const useKommoApi = () => {
       }
       
       // Comparison period filter
-      const leadDate = lead.status_id === 142 && lead.closed_at 
+      const leadDate = classifyLeadStatus(lead, pipelines) === "ganho" && lead.closed_at 
         ? new Date(lead.closed_at * 1000)
         : new Date(lead.updated_at * 1000);
       
@@ -503,42 +526,46 @@ export const useKommoApi = () => {
     }) : [];
 
     // Calculate current period stats
-    const currentPeriodFunnelLeads = getLeadsInFunnel(currentPeriodLeads, pipelines);
     const currentClosedWonLeads = currentPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "ganho");
-    const currentActiveLeads = currentPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "andamento");
     const currentLostLeads = currentPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "perdido");
+    
+    // Get leads that entered the funnel during the period (for conversion rate calculation)
+    const leadsEnteredFunnelInPeriod = currentPeriodLeads.filter(lead => {
+      const classification = classifyLeadStatus(lead, pipelines);
+      return classification !== "entrada"; // Any lead that progressed beyond entry
+    });
     
     const currentRevenue = currentClosedWonLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
     
-    // Conversion rate: won leads / (won leads + lost leads + active leads that progressed beyond entry)
-    // This gives a more accurate picture of the conversion funnel
-    const totalProgressedLeads = currentClosedWonLeads.length + currentLostLeads.length + currentActiveLeads.length;
-    const currentConversionRate = totalProgressedLeads > 0 
-      ? (currentClosedWonLeads.length / totalProgressedLeads) * 100 
+    // Conversion rate: leads won in period / leads that entered funnel in period
+    const currentConversionRate = leadsEnteredFunnelInPeriod.length > 0 
+      ? (currentClosedWonLeads.length / leadsEnteredFunnelInPeriod.length) * 100 
       : 0;
 
     // Calculate comparison period stats if comparison mode is active
-    const comparisonPeriodFunnelLeads = salesComparisonMode 
-      ? getLeadsInFunnel(comparisonPeriodLeads, pipelines) 
-      : [];
     const comparisonClosedWonLeads = salesComparisonMode 
       ? comparisonPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "ganho") 
       : [];
-    const comparisonActiveLeads = salesComparisonMode 
-      ? comparisonPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "andamento") 
+    const comparisonLostLeads = salesComparisonMode 
+      ? comparisonPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "perdido") 
       : [];
     const comparisonRevenue = salesComparisonMode 
       ? comparisonClosedWonLeads.reduce((sum, lead) => sum + (lead.price || 0), 0) 
       : 0;
-    const comparisonLostLeads = salesComparisonMode 
-      ? comparisonPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "perdido") 
+    
+    // Get leads that entered funnel in comparison period
+    const comparisonLeadsEnteredFunnel = salesComparisonMode 
+      ? comparisonPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) !== "entrada")
       : [];
-    const comparisonTotalProgressedLeads = salesComparisonMode 
-      ? comparisonClosedWonLeads.length + comparisonLostLeads.length + comparisonActiveLeads.length
+    
+    const comparisonConversionRate = salesComparisonMode && comparisonLeadsEnteredFunnel.length > 0
+      ? (comparisonClosedWonLeads.length / comparisonLeadsEnteredFunnel.length) * 100 
       : 0;
-    const comparisonConversionRate = salesComparisonMode && comparisonTotalProgressedLeads > 0
-      ? (comparisonClosedWonLeads.length / comparisonTotalProgressedLeads) * 100 
-      : 0;
+    
+    // For comparison active leads, get historical count
+    const comparisonActiveLeads = salesComparisonMode 
+      ? comparisonPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "andamento") 
+      : [];
 
     // Calculate ROI based on investment per month in the period
     const periodDurationMonths = Math.max(1, Math.ceil((new Date(salesPeriod.end).getTime() - new Date(salesPeriod.start).getTime()) / (1000 * 60 * 60 * 24 * 30)));
@@ -556,27 +583,27 @@ export const useKommoApi = () => {
       : 0;
 
     console.log(`   💰 Current Revenue: R$ ${currentRevenue.toLocaleString()}`);
-    console.log(`   👥 Current Active Leads (em andamento): ${currentActiveLeads.length}`);
-    console.log(`   📈 Current Conversion Rate (ganhos/funil): ${currentConversionRate.toFixed(1)}%`);
-    console.log(`   🔢 Current Funnel Leads (total no funil): ${currentPeriodFunnelLeads.length}`);
+    console.log(`   👥 ALL Active Leads (em andamento): ${allActiveLeads.length}`);
+    console.log(`   📈 Current Conversion Rate (ganhos/entradas no funil): ${currentConversionRate.toFixed(1)}%`);
+    console.log(`   🔢 Leads that entered funnel in period: ${leadsEnteredFunnelInPeriod.length}`);
     console.log(`   ✅ Current Won Leads: ${currentClosedWonLeads.length}`);
     console.log(`   💹 Current ROI: ${currentROI.toFixed(1)}%`);
 
     if (salesComparisonMode) {
       console.log(`   💰 Comparison Revenue: R$ ${comparisonRevenue.toLocaleString()}`);
       console.log(`   👥 Comparison Active Leads (em andamento): ${comparisonActiveLeads.length}`);
-      console.log(`   📈 Comparison Conversion Rate (ganhos/funil): ${comparisonConversionRate.toFixed(1)}%`);
-      console.log(`   🔢 Comparison Funnel Leads: ${comparisonPeriodFunnelLeads.length}`);
+      console.log(`   📈 Comparison Conversion Rate (ganhos/entradas no funil): ${comparisonConversionRate.toFixed(1)}%`);
+      console.log(`   🔢 Comparison Leads entered funnel: ${comparisonLeadsEnteredFunnel.length}`);
       console.log(`   💹 Comparison ROI: ${comparisonROI.toFixed(1)}%`);
     }
 
     const stats: GeneralStats = {
       totalRevenue: currentRevenue,
-      activeLeads: currentActiveLeads.length,
+      activeLeads: allActiveLeads.length, // All active leads regardless of period
       conversionRate: currentConversionRate,
       totalCalls: 0,
       revenueChange: salesComparisonMode ? calculateChange(currentRevenue, comparisonRevenue) : "+0%",
-      leadsChange: salesComparisonMode ? calculateChange(currentActiveLeads.length, comparisonActiveLeads.length) : "+0%",
+      leadsChange: salesComparisonMode ? calculateChange(allActiveLeads.length, comparisonActiveLeads.length) : "+0%",
       conversionChange: salesComparisonMode ? calculateChange(currentConversionRate, comparisonConversionRate) : "+0%",
       callsChange: "N/A",
       roi: currentROI,

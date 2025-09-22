@@ -394,10 +394,30 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                       <span>Ciclo de Vendas</span>
                       <span className="font-semibold">
                         {kommoApi.loadingStates.stats ? "..." : (() => {
-                          const conversionData = kommoApi.calculateConversionTimeData(kommoApi.salesChartPipelineFilter);
-                          return conversionData && conversionData.averageConversionTime > 0 
-                            ? `${Math.round(conversionData.averageConversionTime)} dias`
-                            : "Não calculado";
+                          // Calculate sales cycle dynamically based on filtered leads
+                          const filteredLeads = kommoApi.allLeads.filter(lead => {
+                            // Apply pipeline filter if set
+                            if (kommoApi.salesChartPipelineFilter && lead.pipeline_id !== kommoApi.salesChartPipelineFilter) {
+                              return false;
+                            }
+                            // Only include closed won leads with valid dates
+                            return lead.status_id === 142 && lead.closed_at && lead.created_at;
+                          });
+                          
+                          if (filteredLeads.length === 0) return "Não calculado";
+                          
+                          const salesCycles = filteredLeads
+                            .map(lead => {
+                              const createdAt = new Date(lead.created_at * 1000);
+                              const closedAt = new Date(lead.closed_at * 1000);
+                              return (closedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24); // days
+                            })
+                            .filter(days => days > 0 && days < 365); // Filter out unrealistic values
+                            
+                          if (salesCycles.length === 0) return "Não calculado";
+                          
+                          const averageCycle = salesCycles.reduce((sum, days) => sum + days, 0) / salesCycles.length;
+                          return `${Math.round(averageCycle)} dias`;
                         })()}
                       </span>
                     </div>
