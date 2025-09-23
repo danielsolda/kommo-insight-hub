@@ -1,0 +1,416 @@
+import { useMemo } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ScatterChart, Scatter, Cell } from "recharts";
+import { TrendingUp, Clock, Target, Zap } from "lucide-react";
+
+interface Lead {
+  id: number;
+  name: string;
+  status_id: number;
+  pipeline_id: number;
+  responsible_user_id: number;
+  price: number;
+  created_at: number;
+  updated_at: number;
+  closed_at?: number;
+  loss_reason_id?: number;
+}
+
+interface Pipeline {
+  id: number;
+  name: string;
+  is_main: boolean;
+  _embedded: {
+    statuses: Array<{
+      id: number;
+      name: string;
+      sort: number;
+      color: string;
+    }>;
+  };
+}
+
+interface User {
+  id: number;
+  name: string;
+}
+
+interface BehaviorMetricsProps {
+  allLeads: Lead[];
+  pipelines: Pipeline[];
+  users: User[];
+  selectedPipeline: number | null;
+  selectedUser: number | null;
+  timeFrame: string;
+}
+
+export const BehaviorMetrics = ({
+  allLeads,
+  pipelines,
+  users,
+  selectedPipeline,
+  selectedUser,
+  timeFrame
+}: BehaviorMetricsProps) => {
+  
+  // Calculate velocity metrics
+  const velocityData = useMemo(() => {
+    const now = Date.now();
+    const timeFrameMs = parseInt(timeFrame) * 24 * 60 * 60 * 1000;
+    const startTime = now - timeFrameMs;
+
+    const filteredLeads = allLeads.filter(lead => {
+      const leadTime = lead.created_at * 1000;
+      if (leadTime < startTime) return false;
+      if (selectedPipeline && lead.pipeline_id !== selectedPipeline) return false;
+      if (selectedUser && lead.responsible_user_id !== selectedUser) return false;
+      return true;
+    });
+
+    // Group by status and calculate average time
+    const statusMap = new Map();
+    
+    pipelines.forEach(pipeline => {
+      if (selectedPipeline && pipeline.id !== selectedPipeline) return;
+      
+      pipeline._embedded.statuses.forEach(status => {
+        statusMap.set(status.id, {
+          name: status.name,
+          color: status.color,
+          leads: [],
+          totalTime: 0,
+          count: 0
+        });
+      });
+    });
+
+    filteredLeads.forEach(lead => {
+      const status = statusMap.get(lead.status_id);
+      if (status) {
+        const daysSinceCreated = (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000);
+        const daysSinceUpdate = (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
+        
+        status.leads.push(lead);
+        status.totalTime += daysSinceUpdate;
+        status.count++;
+      }
+    });
+
+    return Array.from(statusMap.values())
+      .filter(status => status.count > 0)
+      .map(status => ({
+        name: status.name.length > 15 ? status.name.substring(0, 15) + '...' : status.name,
+        fullName: status.name,
+        avgDays: status.totalTime / status.count,
+        leadCount: status.count,
+        color: status.color || '#8884d8'
+      }))
+      .sort((a, b) => b.avgDays - a.avgDays);
+  }, [allLeads, pipelines, selectedPipeline, selectedUser, timeFrame]);
+
+  // Calculate conversion funnel
+  const conversionFunnelData = useMemo(() => {
+    const pipeline = selectedPipeline ? 
+      pipelines.find(p => p.id === selectedPipeline) : 
+      pipelines.find(p => p.is_main) || pipelines[0];
+    
+    if (!pipeline) return [];
+
+    const statusOrder = pipeline._embedded.statuses.sort((a, b) => a.sort - b.sort);
+    
+    const now = Date.now();
+    const timeFrameMs = parseInt(timeFrame) * 24 * 60 * 60 * 1000;
+    const startTime = now - timeFrameMs;
+
+    const filteredLeads = allLeads.filter(lead => {
+      const leadTime = lead.created_at * 1000;
+      if (leadTime < startTime) return false;
+      if (lead.pipeline_id !== pipeline.id) return false;
+      if (selectedUser && lead.responsible_user_id !== selectedUser) return false;
+      return true;
+    });
+
+    return statusOrder.map((status, index) => {
+      const leadsInStatus = filteredLeads.filter(lead => lead.status_id === status.id);
+      const previousStatusLeads = index === 0 ? filteredLeads.length : 
+        filteredLeads.filter(lead => 
+          statusOrder.slice(0, index + 1).some(s => s.id === lead.status_id)
+        ).length;
+      
+      const conversionRate = previousStatusLeads > 0 ? (leadsInStatus.length / previousStatusLeads) * 100 : 0;
+      
+      return {
+        name: status.name.length > 12 ? status.name.substring(0, 12) + '...' : status.name,
+        fullName: status.name,
+        count: leadsInStatus.length,
+        conversionRate: conversionRate,
+        color: status.color || '#8884d8'
+      };
+    });
+  }, [allLeads, pipelines, selectedPipeline, selectedUser, timeFrame]);
+
+  // Calculate engagement scatter plot data
+  const engagementData = useMemo(() => {
+    const now = Date.now();
+    const timeFrameMs = parseInt(timeFrame) * 24 * 60 * 60 * 1000;
+    const startTime = now - timeFrameMs;
+
+    const filteredLeads = allLeads.filter(lead => {
+      const leadTime = lead.created_at * 1000;
+      if (leadTime < startTime) return false;
+      if (selectedPipeline && lead.pipeline_id !== selectedPipeline) return false;
+      if (selectedUser && lead.responsible_user_id !== selectedUser) return false;
+      return !lead.closed_at; // Only active leads
+    });
+
+    return filteredLeads.map(lead => {
+      const daysSinceCreated = (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000);
+      const daysSinceUpdate = (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
+      const value = lead.price || 0;
+      
+      return {
+        x: daysSinceCreated,
+        y: daysSinceUpdate,
+        z: value,
+        name: lead.name,
+        status: lead.status_id
+      };
+    });
+  }, [allLeads, selectedPipeline, selectedUser, timeFrame]);
+
+  // Calculate time analysis by day of week
+  const weeklyActivityData = useMemo(() => {
+    const now = Date.now();
+    const timeFrameMs = parseInt(timeFrame) * 24 * 60 * 60 * 1000;
+    const startTime = now - timeFrameMs;
+
+    const filteredLeads = allLeads.filter(lead => {
+      const leadTime = lead.created_at * 1000;
+      if (leadTime < startTime) return false;
+      if (selectedPipeline && lead.pipeline_id !== selectedPipeline) return false;
+      if (selectedUser && lead.responsible_user_id !== selectedUser) return false;
+      return true;
+    });
+
+    const weekdays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const activityByDay = new Array(7).fill(0).map((_, index) => ({
+      day: weekdays[index],
+      created: 0,
+      updated: 0,
+      closed: 0
+    }));
+
+    filteredLeads.forEach(lead => {
+      const createdDate = new Date(lead.created_at * 1000);
+      const updatedDate = new Date(lead.updated_at * 1000);
+      
+      activityByDay[createdDate.getDay()].created++;
+      activityByDay[updatedDate.getDay()].updated++;
+      
+      if (lead.closed_at) {
+        const closedDate = new Date(lead.closed_at * 1000);
+        activityByDay[closedDate.getDay()].closed++;
+      }
+    });
+
+    return activityByDay;
+  }, [allLeads, selectedPipeline, selectedUser, timeFrame]);
+
+  const formatTooltip = (value: any, name: string) => {
+    if (name === 'avgDays') {
+      return [`${value.toFixed(1)} dias`, 'Tempo Médio'];
+    }
+    return [value, name];
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Velocity by Status */}
+      <Card className="bg-gradient-card border-border/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Tempo Médio por Status
+          </CardTitle>
+          <CardDescription>
+            Análise do tempo que os leads permanecem em cada etapa
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={velocityData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis 
+                  dataKey="name" 
+                  stroke="hsl(var(--muted-foreground))" 
+                  fontSize={12}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <Tooltip 
+                  formatter={formatTooltip}
+                  labelFormatter={(label) => velocityData.find(d => d.name === label)?.fullName || label}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '6px'
+                  }}
+                />
+                <Bar dataKey="avgDays" name="avgDays" radius={[4, 4, 0, 0]}>
+                  {velocityData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Conversion Funnel */}
+      <Card className="bg-gradient-card border-border/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5" />
+            Funil de Conversão
+          </CardTitle>
+          <CardDescription>
+            Taxa de conversão entre cada etapa do pipeline
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={conversionFunnelData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis 
+                  dataKey="name" 
+                  stroke="hsl(var(--muted-foreground))" 
+                  fontSize={12}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <Tooltip 
+                  formatter={(value, name) => [
+                    name === 'count' ? `${value} leads` : `${value.toFixed(1)}%`,
+                    name === 'count' ? 'Quantidade' : 'Taxa de Conversão'
+                  ]}
+                  labelFormatter={(label) => conversionFunnelData.find(d => d.name === label)?.fullName || label}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '6px'
+                  }}
+                />
+                <Bar dataKey="count" name="count" radius={[4, 4, 0, 0]}>
+                  {conversionFunnelData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Weekly Activity Pattern */}
+      <Card className="bg-gradient-card border-border/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Padrão de Atividade Semanal
+          </CardTitle>
+          <CardDescription>
+            Distribuição de atividades por dia da semana
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={weeklyActivityData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '6px'
+                  }}
+                />
+                <Line type="monotone" dataKey="created" stroke="hsl(var(--primary))" name="Criados" strokeWidth={2} />
+                <Line type="monotone" dataKey="updated" stroke="hsl(var(--success))" name="Atualizados" strokeWidth={2} />
+                <Line type="monotone" dataKey="closed" stroke="hsl(var(--warning))" name="Fechados" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Engagement Analysis */}
+      <Card className="bg-gradient-card border-border/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            Análise de Engajamento
+          </CardTitle>
+          <CardDescription>
+            Relação entre idade do lead, última atividade e valor (tamanho da bolha)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis 
+                  type="number" 
+                  dataKey="x" 
+                  name="Dias desde criação" 
+                  stroke="hsl(var(--muted-foreground))" 
+                  fontSize={12}
+                />
+                <YAxis 
+                  type="number" 
+                  dataKey="y" 
+                  name="Dias desde última atividade" 
+                  stroke="hsl(var(--muted-foreground))" 
+                  fontSize={12}
+                />
+                <Tooltip 
+                  cursor={{ strokeDasharray: '3 3' }}
+                  formatter={(value, name) => [
+                    `${value.toFixed(1)} dias`,
+                    name === 'x' ? 'Dias desde criação' : 'Dias desde última atividade'
+                  ]}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '6px'
+                  }}
+                />
+                <Scatter data={engagementData} fill="hsl(var(--primary))">
+                  {engagementData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={
+                        entry.y <= 2 ? "hsl(var(--success))" : 
+                        entry.y <= 7 ? "hsl(var(--warning))" : 
+                        "hsl(var(--destructive))"
+                      } 
+                    />
+                  ))}
+                </Scatter>
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};

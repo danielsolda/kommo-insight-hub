@@ -24,3 +24,7 @@ export const LazyCustomFieldAnalysis = lazy(() =>
 export const LazyTagsComparator = lazy(() => 
   import('./TagsComparator').then(module => ({ default: module.TagsComparator }))
 );
+
+export const LazyLeadBehaviorAnalysis = lazy(() => 
+  import('./LeadBehaviorAnalysis').then(module => ({ default: module.LeadBehaviorAnalysis }))
+);
