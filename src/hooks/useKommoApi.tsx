@@ -454,6 +454,7 @@ export const useKommoApi = () => {
 
       return {
         month: monthName,
+        yearMonth: currentMonth?.monthKey,
         vendas: currentSales,
         meta: investmentConfig.monthlySalesGoal, // Use configured target
         leads: currentLeadsCount,
@@ -479,22 +480,24 @@ export const useKommoApi = () => {
       return change >= 0 ? `+${change.toFixed(1)}%` : `${change.toFixed(1)}%`;
     };
 
-    // Filter leads based on current period (for revenue and conversion rate)
+    // Build helpers for period
+    const periodStart = new Date(salesPeriod.start);
+    const periodEnd = new Date(salesPeriod.end);
+
+    // Leads considered for denominator (Total Leads Pipeline) follow the Sales filter
+    // We use created_at when available; fallback to updated_at; exclude "entrada"
+    const leadsCreatedInPeriod = allLeads.filter(lead => {
+      if (salesChartPipelineFilter && lead.pipeline_id !== salesChartPipelineFilter) return false;
+      const createdAt = lead.created_at ? new Date(lead.created_at * 1000) : (lead.updated_at ? new Date(lead.updated_at * 1000) : null);
+      if (!createdAt) return false;
+      return createdAt >= periodStart && createdAt <= periodEnd;
+    });
+
+    // For revenue, we still need current period leads closed within the period
     const currentPeriodLeads = allLeads.filter(lead => {
-      // Pipeline filter
-      if (salesChartPipelineFilter && lead.pipeline_id !== salesChartPipelineFilter) {
-        return false;
-      }
-      
-      // Period filter - use closed_at for won leads, updated_at for others
-      const leadDate = classifyLeadStatus(lead, pipelines) === "ganho" && lead.closed_at 
-        ? new Date(lead.closed_at * 1000)
-        : new Date(lead.updated_at * 1000);
-      
-      const periodStart = new Date(salesPeriod.start);
-      const periodEnd = new Date(salesPeriod.end);
-      
-      return leadDate >= periodStart && leadDate <= periodEnd;
+      if (salesChartPipelineFilter && lead.pipeline_id !== salesChartPipelineFilter) return false;
+      const closedAt = lead.closed_at ? new Date(lead.closed_at * 1000) : null;
+      return closedAt && closedAt >= periodStart && closedAt <= periodEnd;
     });
 
     // For "Leads em Andamento" - get ALL current active leads regardless of period
@@ -526,18 +529,19 @@ export const useKommoApi = () => {
     }) : [];
 
     // Calculate current period stats
-    const currentClosedWonLeads = currentPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "ganho");
-    const currentLostLeads = currentPeriodLeads.filter(lead => classifyLeadStatus(lead, pipelines) === "perdido");
-    
-    // Get leads that entered the funnel during the period (for conversion rate calculation)
-    const leadsEnteredFunnelInPeriod = currentPeriodLeads.filter(lead => {
-      const classification = classifyLeadStatus(lead, pipelines);
-      return classification !== "entrada"; // Any lead that progressed beyond entry
+    const currentClosedWonLeads = allLeads.filter(lead => {
+      if (salesChartPipelineFilter && lead.pipeline_id !== salesChartPipelineFilter) return false;
+      if (classifyLeadStatus(lead, pipelines) !== "ganho" || !lead.closed_at) return false;
+      const closedAt = new Date(lead.closed_at * 1000);
+      return closedAt >= periodStart && closedAt <= periodEnd;
     });
+
+    // Leads that entered the funnel in the period (denominator): all non-"entrada" created in period
+    const leadsEnteredFunnelInPeriod = leadsCreatedInPeriod.filter(lead => classifyLeadStatus(lead, pipelines) !== "entrada");
     
     const currentRevenue = currentClosedWonLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
     
-    // Conversion rate: leads won in period / leads that entered funnel in period
+    // Conversion rate (Nomenclatura): (Leads Fechados ÷ Total Leads Pipeline) × 100
     const currentConversionRate = leadsEnteredFunnelInPeriod.length > 0 
       ? (currentClosedWonLeads.length / leadsEnteredFunnelInPeriod.length) * 100 
       : 0;
@@ -971,6 +975,7 @@ export const useKommoApi = () => {
           price: lead.price || 0, // Add price field for consistency
           lastContact: lead.updated_at ? new Date(lead.updated_at * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           closed_at: lead.closed_at, // Preserve closed_at timestamp
+          created_at: lead.created_at, // Preserve created_at for period calculations
           priority: lead.price > 30000 ? 'high' : lead.price > 15000 ? 'medium' : 'low',
           source: 'Kommo CRM',
           responsible_user_id: lead.responsible_user_id,
@@ -994,6 +999,7 @@ export const useKommoApi = () => {
           price: lead._embedded?.leads?.[0]?.price || 0, // Add price field for consistency
           lastContact: lead.created_at ? new Date(lead.created_at * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           closed_at: null, // Unsorted leads don't have closed_at
+          created_at: lead.created_at, // Keep created_at for period calculations
           priority: 'medium',
           source: lead.metadata?.source_name || 'Kommo CRM',
           responsible_user_id: lead._embedded?.leads?.[0]?.responsible_user_id || null,
