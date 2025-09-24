@@ -37,6 +37,15 @@ export const LeadJourneyMap = ({
   pipelines, 
   selectedPipeline 
 }: LeadJourneyMapProps) => {
+  console.log("LeadJourneyMap rendering:", { allLeads: allLeads?.length, pipelines: pipelines?.length, selectedPipeline });
+  
+  if (!allLeads || !pipelines) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <p className="text-muted-foreground">Dados não disponíveis</p>
+      </div>
+    );
+  }
   
   const currentPipeline = useMemo(() => {
     return selectedPipeline ? 

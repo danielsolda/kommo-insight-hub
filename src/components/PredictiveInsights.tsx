@@ -37,6 +37,15 @@ export const PredictiveInsights = ({
   selectedPipeline, 
   selectedUser 
 }: PredictiveInsightsProps) => {
+  console.log("PredictiveInsights rendering:", { allLeads: allLeads?.length, pipelines: pipelines?.length, users: users?.length });
+  
+  if (!allLeads || !pipelines || !users) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <p className="text-muted-foreground">Dados não disponíveis</p>
+      </div>
+    );
+  }
 
   // Calculate predictive scores for active leads
   const leadPredictions = useMemo((): LeadPrediction[] => {

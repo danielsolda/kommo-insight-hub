@@ -39,6 +39,15 @@ export const BehaviorAlerts = ({
   users, 
   behaviorMetrics 
 }: BehaviorAlertsProps) => {
+  console.log("BehaviorAlerts rendering:", { allLeads: allLeads?.length, pipelines: pipelines?.length, users: users?.length, behaviorMetrics });
+  
+  if (!allLeads || !pipelines || !users) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <p className="text-muted-foreground">Dados não disponíveis</p>
+      </div>
+    );
+  }
 
   const alerts = useMemo((): AlertItem[] => {
     const alertsList: AlertItem[] = [];

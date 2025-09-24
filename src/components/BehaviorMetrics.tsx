@@ -13,14 +13,23 @@ interface BehaviorMetricsProps {
   timeFrame: string;
 }
 
-export const BehaviorMetrics = ({
-  allLeads,
-  pipelines,
-  users,
-  selectedPipeline,
-  selectedUser,
-  timeFrame
+export const BehaviorMetrics = ({ 
+  allLeads, 
+  pipelines, 
+  users, 
+  selectedPipeline, 
+  selectedUser, 
+  timeFrame 
 }: BehaviorMetricsProps) => {
+  console.log("BehaviorMetrics rendering:", { allLeads: allLeads?.length, pipelines: pipelines?.length, users: users?.length });
+  
+  if (!allLeads || !pipelines || !users) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <p className="text-muted-foreground">Dados não disponíveis</p>
+      </div>
+    );
+  }
   
   // Calculate velocity metrics
   const velocityData = useMemo(() => {

@@ -43,6 +43,8 @@ export const LeadBehaviorAnalysis = ({
   users, 
   loading 
 }: LeadBehaviorAnalysisProps) => {
+  console.log("LeadBehaviorAnalysis rendering:", { allLeads: allLeads?.length, pipelines: pipelines?.length, users: users?.length, loading });
+  
   const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
   const [timeFrame, setTimeFrame] = useState<string>("30"); // days
@@ -179,6 +181,7 @@ export const LeadBehaviorAnalysis = ({
   }, [allLeads, selectedPipeline, selectedUser]);
 
   if (loading) {
+    console.log("LeadBehaviorAnalysis showing loading state");
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -192,6 +195,22 @@ export const LeadBehaviorAnalysis = ({
               </CardContent>
             </Card>
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  console.log("LeadBehaviorAnalysis rendering main content");
+  
+  if (!allLeads || !pipelines || !users) {
+    console.log("LeadBehaviorAnalysis: Missing required data");
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <p className="text-muted-foreground">Dados não disponíveis</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Verifique se os dados foram carregados corretamente
+          </p>
         </div>
       </div>
     );
