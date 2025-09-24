@@ -66,7 +66,9 @@ export const BehaviorMetrics = ({
       const status = statusMap.get(lead.status_id);
       if (status) {
         const daysSinceCreated = (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000);
-        const daysSinceUpdate = (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
+        const daysSinceUpdate = typeof lead.updated_at === 'number'
+          ? (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000)
+          : daysSinceCreated;
         
         status.leads.push(lead);
         status.totalTime += daysSinceUpdate;
@@ -143,7 +145,9 @@ export const BehaviorMetrics = ({
 
     return filteredLeads.map(lead => {
       const daysSinceCreated = (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000);
-      const daysSinceUpdate = (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
+      const daysSinceUpdate = typeof lead.updated_at === 'number'
+        ? (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000)
+        : daysSinceCreated;
       const value = lead.price || 0;
       
       return {
@@ -179,15 +183,23 @@ export const BehaviorMetrics = ({
     }));
 
     filteredLeads.forEach(lead => {
-      const createdDate = new Date(lead.created_at * 1000);
-      const updatedDate = new Date(lead.updated_at * 1000);
+      const createdIndex = Number.isFinite(lead.created_at) ? new Date(lead.created_at * 1000).getDay() : null;
+      if (createdIndex !== null && activityByDay[createdIndex]) {
+        activityByDay[createdIndex].created++;
+      }
+
+      if (typeof lead.updated_at === 'number') {
+        const updatedIndex = new Date(lead.updated_at * 1000).getDay();
+        if (activityByDay[updatedIndex]) {
+          activityByDay[updatedIndex].updated++;
+        }
+      }
       
-      activityByDay[createdDate.getDay()].created++;
-      activityByDay[updatedDate.getDay()].updated++;
-      
-      if (lead.closed_at) {
-        const closedDate = new Date(lead.closed_at * 1000);
-        activityByDay[closedDate.getDay()].closed++;
+      if (typeof lead.closed_at === 'number') {
+        const closedIndex = new Date(lead.closed_at * 1000).getDay();
+        if (activityByDay[closedIndex]) {
+          activityByDay[closedIndex].closed++;
+        }
       }
     });
 
