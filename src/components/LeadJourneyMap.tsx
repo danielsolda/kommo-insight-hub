@@ -4,33 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { MapPin, TrendingUp, Clock, Users, ArrowRight } from "lucide-react";
-
-interface Lead {
-  id: number;
-  name: string;
-  status_id: number;
-  pipeline_id: number;
-  responsible_user_id: number;
-  price: number;
-  created_at: number;
-  updated_at: number;
-  closed_at?: number;
-  loss_reason_id?: number;
-}
-
-interface Pipeline {
-  id: number;
-  name: string;
-  is_main: boolean;
-  _embedded: {
-    statuses: Array<{
-      id: number;
-      name: string;
-      sort: number;
-      color: string;
-    }>;
-  };
-}
+import { Pipeline, Lead } from "@/services/kommoApi";
 
 interface LeadJourneyMapProps {
   allLeads: Lead[];
@@ -74,7 +48,7 @@ export const LeadJourneyMap = ({
   const journeySteps = useMemo((): JourneyStep[] => {
     if (!currentPipeline) return [];
 
-    const statuses = currentPipeline._embedded.statuses.sort((a, b) => a.sort - b.sort);
+    const statuses = currentPipeline.statuses.sort((a, b) => a.sort - b.sort);
     const pipelineLeads = allLeads.filter(lead => lead.pipeline_id === currentPipeline.id);
     const now = Date.now();
 

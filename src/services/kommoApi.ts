@@ -62,6 +62,11 @@ export interface Tag {
   color: string | null;
 }
 
+export interface User {
+  id: number;
+  name: string;
+}
+
 export class KommoApiService {
   private authService: KommoAuthService;
   private accountUrl: string;

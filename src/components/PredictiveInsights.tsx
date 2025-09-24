@@ -4,38 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Brain, TrendingUp, Target, AlertTriangle, Zap, DollarSign } from "lucide-react";
-
-interface Lead {
-  id: number;
-  name: string;
-  status_id: number;
-  pipeline_id: number;
-  responsible_user_id: number;
-  price: number;
-  created_at: number;
-  updated_at: number;
-  closed_at?: number;
-  loss_reason_id?: number;
-}
-
-interface Pipeline {
-  id: number;
-  name: string;
-  is_main: boolean;
-  _embedded: {
-    statuses: Array<{
-      id: number;
-      name: string;
-      sort: number;
-      color: string;
-    }>;
-  };
-}
-
-interface User {
-  id: number;
-  name: string;
-}
+import { Pipeline, Lead, User } from "@/services/kommoApi";
 
 interface PredictiveInsightsProps {
   allLeads: Lead[];
@@ -253,7 +222,7 @@ export const PredictiveInsights = ({
             ) : (
               topOpportunities.map((pred, index) => {
                 const pipeline = pipelines.find(p => p.id === pred.lead.pipeline_id);
-                const status = pipeline?._embedded.statuses.find(s => s.id === pred.lead.status_id);
+                const status = pipeline?.statuses.find(s => s.id === pred.lead.status_id);
                 const user = users.find(u => u.id === pred.lead.responsible_user_id);
                 
                 return (
@@ -320,7 +289,7 @@ export const PredictiveInsights = ({
             ) : (
               highRiskLeads.map((pred, index) => {
                 const pipeline = pipelines.find(p => p.id === pred.lead.pipeline_id);
-                const status = pipeline?._embedded.statuses.find(s => s.id === pred.lead.status_id);
+                const status = pipeline?.statuses.find(s => s.id === pred.lead.status_id);
                 const user = users.find(u => u.id === pred.lead.responsible_user_id);
                 const daysSinceUpdate = (Date.now() - (pred.lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
                 

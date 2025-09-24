@@ -13,38 +13,7 @@ import {
   XCircle,
   AlertCircle
 } from "lucide-react";
-
-interface Lead {
-  id: number;
-  name: string;
-  status_id: number;
-  pipeline_id: number;
-  responsible_user_id: number;
-  price: number;
-  created_at: number;
-  updated_at: number;
-  closed_at?: number;
-  loss_reason_id?: number;
-}
-
-interface Pipeline {
-  id: number;
-  name: string;
-  is_main: boolean;
-  _embedded: {
-    statuses: Array<{
-      id: number;
-      name: string;
-      sort: number;
-      color: string;
-    }>;
-  };
-}
-
-interface User {
-  id: number;
-  name: string;
-}
+import { Pipeline, Lead, User } from "@/services/kommoApi";
 
 interface BehaviorAlertsProps {
   allLeads: Lead[];
@@ -304,7 +273,7 @@ export const BehaviorAlerts = ({
                       <div className="space-y-1">
                         {alert.leads.map((lead) => {
                           const pipeline = pipelines.find(p => p.id === lead.pipeline_id);
-                          const status = pipeline?._embedded.statuses.find(s => s.id === lead.status_id);
+                          const status = pipeline?.statuses.find(s => s.id === lead.status_id);
                           const user = users.find(u => u.id === lead.responsible_user_id);
                           const daysSinceUpdate = (Date.now() - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
                           

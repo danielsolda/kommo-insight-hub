@@ -9,6 +9,7 @@ import { LeadJourneyMap } from "@/components/LeadJourneyMap";
 import { PredictiveInsights } from "@/components/PredictiveInsights";
 import { BehaviorAlerts } from "@/components/BehaviorAlerts";
 import { Progress } from "@/components/ui/progress";
+import { Pipeline, User, Lead } from "@/services/kommoApi";
 import { 
   TrendingUp, 
   AlertTriangle, 
@@ -19,38 +20,6 @@ import {
   Timer,
   Zap
 } from "lucide-react";
-
-interface Lead {
-  id: number;
-  name: string;
-  status_id: number;
-  pipeline_id: number;
-  responsible_user_id: number;
-  price: number;
-  created_at: number;
-  updated_at: number;
-  closed_at?: number;
-  loss_reason_id?: number;
-}
-
-interface Pipeline {
-  id: number;
-  name: string;
-  is_main: boolean;
-  _embedded: {
-    statuses: Array<{
-      id: number;
-      name: string;
-      sort: number;
-      color: string;
-    }>;
-  };
-}
-
-interface User {
-  id: number;
-  name: string;
-}
 
 interface LeadBehaviorAnalysisProps {
   allLeads: Lead[];

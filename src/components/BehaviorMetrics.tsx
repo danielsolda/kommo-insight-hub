@@ -2,38 +2,7 @@ import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ScatterChart, Scatter, Cell } from "recharts";
 import { TrendingUp, Clock, Target, Zap } from "lucide-react";
-
-interface Lead {
-  id: number;
-  name: string;
-  status_id: number;
-  pipeline_id: number;
-  responsible_user_id: number;
-  price: number;
-  created_at: number;
-  updated_at: number;
-  closed_at?: number;
-  loss_reason_id?: number;
-}
-
-interface Pipeline {
-  id: number;
-  name: string;
-  is_main: boolean;
-  _embedded: {
-    statuses: Array<{
-      id: number;
-      name: string;
-      sort: number;
-      color: string;
-    }>;
-  };
-}
-
-interface User {
-  id: number;
-  name: string;
-}
+import { Pipeline, User, Lead } from "@/services/kommoApi";
 
 interface BehaviorMetricsProps {
   allLeads: Lead[];
@@ -73,7 +42,7 @@ export const BehaviorMetrics = ({
     pipelines.forEach(pipeline => {
       if (selectedPipeline && pipeline.id !== selectedPipeline) return;
       
-      pipeline._embedded.statuses.forEach(status => {
+      pipeline.statuses.forEach(status => {
         statusMap.set(status.id, {
           name: status.name,
           color: status.color,
@@ -116,7 +85,7 @@ export const BehaviorMetrics = ({
     
     if (!pipeline) return [];
 
-    const statusOrder = pipeline._embedded.statuses.sort((a, b) => a.sort - b.sort);
+    const statusOrder = pipeline.statuses.sort((a, b) => a.sort - b.sort);
     
     const now = Date.now();
     const timeFrameMs = parseInt(timeFrame) * 24 * 60 * 60 * 1000;
@@ -297,7 +266,7 @@ export const BehaviorMetrics = ({
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <Tooltip 
                   formatter={(value, name) => [
-                    name === 'count' ? `${value} leads` : `${value.toFixed(1)}%`,
+                    name === 'count' ? `${value} leads` : `${typeof value === 'number' ? value.toFixed(1) : value}%`,
                     name === 'count' ? 'Quantidade' : 'Taxa de Conversão'
                   ]}
                   labelFormatter={(label) => conversionFunnelData.find(d => d.name === label)?.fullName || label}
@@ -385,7 +354,7 @@ export const BehaviorMetrics = ({
                 <Tooltip 
                   cursor={{ strokeDasharray: '3 3' }}
                   formatter={(value, name) => [
-                    `${value.toFixed(1)} dias`,
+                    `${typeof value === 'number' ? value.toFixed(1) : value} dias`,
                     name === 'x' ? 'Dias desde criação' : 'Dias desde última atividade'
                   ]}
                   contentStyle={{
