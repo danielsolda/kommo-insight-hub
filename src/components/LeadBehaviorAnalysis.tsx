@@ -51,14 +51,15 @@ export const LeadBehaviorAnalysis = ({
 
   // Calculate behavioral metrics
   const behaviorMetrics = useMemo(() => {
-    if (!allLeads.length) return null;
+    if (!allLeads || !allLeads.length) return null;
 
     const now = Date.now();
     const timeFrameMs = parseInt(timeFrame) * 24 * 60 * 60 * 1000;
     const startTime = now - timeFrameMs;
 
-    // Filter leads by timeframe and selected filters
+    // Filter leads by timeframe and selected filters - with null checks
     const filteredLeads = allLeads.filter(lead => {
+      if (!lead || typeof lead.created_at !== 'number') return false;
       const leadTime = lead.created_at * 1000;
       if (leadTime < startTime) return false;
       if (selectedPipeline && lead.pipeline_id !== selectedPipeline) return false;
@@ -69,13 +70,18 @@ export const LeadBehaviorAnalysis = ({
     // Calculate dormant leads (no updates in last 7 days)
     const dormantThreshold = now - (7 * 24 * 60 * 60 * 1000);
     const dormantLeads = filteredLeads.filter(lead => 
+      lead && 
+      typeof lead.updated_at === 'number' && 
       (lead.updated_at * 1000) < dormantThreshold && 
       !lead.closed_at
     );
 
     // Calculate velocity score
-    const activeLeads = filteredLeads.filter(lead => !lead.closed_at);
+    const activeLeads = filteredLeads.filter(lead => lead && !lead.closed_at);
     const totalVelocity = activeLeads.reduce((sum, lead) => {
+      if (!lead || typeof lead.created_at !== 'number' || typeof lead.updated_at !== 'number') {
+        return sum;
+      }
       const daysSinceCreated = (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000);
       const daysSinceUpdate = (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
       return sum + (1 / Math.max(daysSinceUpdate, 1));
@@ -83,13 +89,15 @@ export const LeadBehaviorAnalysis = ({
     const avgVelocity = activeLeads.length > 0 ? totalVelocity / activeLeads.length : 0;
 
     // Calculate conversion probability
-    const closedLeads = filteredLeads.filter(lead => lead.closed_at);
-    const wonLeads = closedLeads.filter(lead => lead.status_id === 142); // Won status
+    const closedLeads = filteredLeads.filter(lead => lead && lead.closed_at);
+    const wonLeads = closedLeads.filter(lead => lead && lead.status_id === 142); // Won status
     const conversionRate = closedLeads.length > 0 ? (wonLeads.length / closedLeads.length) * 100 : 0;
 
     // Find high-risk leads (old leads without recent activity)
     const highRiskThreshold = now - (14 * 24 * 60 * 60 * 1000);
     const highRiskLeads = activeLeads.filter(lead => 
+      lead && 
+      typeof lead.updated_at === 'number' && 
       (lead.updated_at * 1000) < highRiskThreshold
     );
 
@@ -108,10 +116,11 @@ export const LeadBehaviorAnalysis = ({
 
   // Calculate behavioral segments
   const behaviorSegments = useMemo((): BehaviorSegment[] => {
-    if (!allLeads.length) return [];
+    if (!allLeads || !allLeads.length) return [];
 
     const now = Date.now();
     const filteredLeads = allLeads.filter(lead => {
+      if (!lead) return false;
       if (selectedPipeline && lead.pipeline_id !== selectedPipeline) return false;
       if (selectedUser && lead.responsible_user_id !== selectedUser) return false;
       return true;
@@ -122,6 +131,9 @@ export const LeadBehaviorAnalysis = ({
 
     // Hot leads - recently created and frequently updated
     const hotLeads = filteredLeads.filter(lead => {
+      if (!lead || typeof lead.created_at !== 'number' || typeof lead.updated_at !== 'number') {
+        return false;
+      }
       const daysSinceCreated = (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000);
       const daysSinceUpdate = (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
       return daysSinceCreated <= 7 && daysSinceUpdate <= 2 && !lead.closed_at;
@@ -129,6 +141,9 @@ export const LeadBehaviorAnalysis = ({
 
     // Warm leads - moderate activity
     const warmLeads = filteredLeads.filter(lead => {
+      if (!lead || typeof lead.created_at !== 'number' || typeof lead.updated_at !== 'number') {
+        return false;
+      }
       const daysSinceCreated = (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000);
       const daysSinceUpdate = (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
       return daysSinceCreated <= 30 && daysSinceUpdate <= 7 && daysSinceUpdate > 2 && !lead.closed_at;
@@ -136,6 +151,9 @@ export const LeadBehaviorAnalysis = ({
 
     // Cold leads - low activity
     const coldLeads = filteredLeads.filter(lead => {
+      if (!lead || typeof lead.updated_at !== 'number') {
+        return false;
+      }
       const daysSinceUpdate = (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
       return daysSinceUpdate > 7 && !lead.closed_at;
     });
