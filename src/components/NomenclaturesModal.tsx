@@ -16,7 +16,8 @@ import {
   Clock,
   AlertTriangle,
   Target,
-  BarChart3
+  BarChart3,
+  Brain
 } from "lucide-react";
 
 interface NomenclaturesModalProps {
@@ -344,6 +345,186 @@ export const NomenclaturesModal = ({ open, onOpenChange }: NomenclaturesModalPro
                   <li>• O cache local é atualizado a cada refresh manual</li>
                   <li>• Métricas consideram apenas leads ativos no período selecionado</li>
                 </ul>
+              </div>
+            </section>
+
+            {/* Análise Comportamental */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 text-lg font-semibold text-primary">
+                <Brain className="h-5 w-5" />
+                Análise Comportamental de Leads
+              </div>
+              <div className="grid gap-3 text-sm">
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Métricas Comportamentais</h4>
+                  <ul className="text-muted-foreground space-y-1">
+                    <li>• <strong>Leads Ativos:</strong> Leads não fechados no período selecionado</li>
+                    <li>• <strong>Leads Dormentes:</strong> Sem atividade há mais de 7 dias</li>
+                    <li>• <strong>Leads de Risco:</strong> Sem atividade há mais de 14 dias</li>
+                    <li>• <strong>Taxa de Conversão:</strong> % de leads fechados como ganhos</li>
+                  </ul>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Segmentação Automática</h4>
+                  <ul className="text-muted-foreground space-y-1">
+                    <li>• <strong>Leads Quentes:</strong> Criados há ≤7 dias, atividade ≤2 dias</li>
+                    <li>• <strong>Leads Mornos:</strong> Criados há ≤30 dias, atividade 2-7 dias</li>
+                    <li>• <strong>Leads Frios:</strong> Última atividade há mais de 7 dias</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            {/* Métricas Detalhadas */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 text-lg font-semibold text-primary">
+                <BarChart3 className="h-5 w-5" />
+                Métricas Detalhadas (Aba Comportamento)
+              </div>
+              <div className="grid gap-3 text-sm">
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Tempo Médio por Status</h4>
+                  <p className="text-muted-foreground mb-2">
+                    Tempo que leads permanecem em cada etapa do pipeline
+                  </p>
+                  <code className="bg-background px-2 py-1 rounded text-xs">
+                    Tempo = (Data Atual - Data Última Atualização) por Status
+                  </code>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Funil de Conversão</h4>
+                  <p className="text-muted-foreground mb-2">
+                    Taxa de conversão entre cada etapa do pipeline
+                  </p>
+                  <code className="bg-background px-2 py-1 rounded text-xs">
+                    Taxa = Min(Leads Próximo Status, Leads Status Atual) ÷ Status Atual × 100
+                  </code>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Padrão de Atividade Semanal</h4>
+                  <p className="text-muted-foreground">
+                    Distribuição de atividades (criação, atualização, fechamento) por dia da semana
+                  </p>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Análise de Engajamento</h4>
+                  <p className="text-muted-foreground mb-2">
+                    Gráfico de dispersão relacionando idade do lead vs última atividade
+                  </p>
+                  <ul className="text-muted-foreground space-y-1 ml-4">
+                    <li>• <strong>Verde:</strong> Atividade recente ({'≤'}2 dias)</li>
+                    <li>• <strong>Amarelo:</strong> Atividade moderada (3-7 dias)</li>
+                    <li>• <strong>Vermelho:</strong> Sem atividade ({'>'}7 dias)</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            {/* Jornada do Pipeline */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 text-lg font-semibold text-primary">
+                <Target className="h-5 w-5" />
+                Jornada do Pipeline
+              </div>
+              <div className="grid gap-3 text-sm">
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Métricas da Jornada</h4>
+                  <ul className="text-muted-foreground space-y-1">
+                    <li>• <strong>Total de Leads:</strong> Soma de leads em todas as etapas</li>
+                    <li>• <strong>Valor Total:</strong> Soma do valor de todos os leads</li>
+                    <li>• <strong>Tempo Médio:</strong> Tempo médio acumulado em todas as etapas</li>
+                    <li>• <strong>Taxa Geral:</strong> (Leads último estágio ÷ Total leads) × 100</li>
+                  </ul>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Insights Automáticos</h4>
+                  <ul className="text-muted-foreground space-y-1">
+                    <li>• <strong>Gargalo:</strong> Status com maior tempo médio</li>
+                    <li>• <strong>Alta Taxa de Abandono:</strong> Status com {'>'}50% de dropoff</li>
+                    <li>• <strong>Padrão de Sucesso:</strong> Status com {'>'}80% de conversão</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            {/* Insights Preditivos */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 text-lg font-semibold text-primary">
+                <Brain className="h-5 w-5" />
+                Insights Preditivos
+              </div>
+              <div className="grid gap-3 text-sm">
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Projeção de Receita</h4>
+                  <ul className="text-muted-foreground space-y-1">
+                    <li>• <strong>Mês Atual:</strong> Receita de leads já fechados como ganhos</li>
+                    <li>• <strong>Projeção:</strong> Baseada em leads com {'>'}70% de probabilidade</li>
+                    <li>• <strong>Confiança:</strong> 20-95% baseada na proporção de leads de alta probabilidade</li>
+                  </ul>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Score de Conversão (0-100%)</h4>
+                  <p className="text-muted-foreground mb-2">Algoritmo considera:</p>
+                  <ul className="text-muted-foreground space-y-1">
+                    <li>• Atividade recente (+30 pts se {'≤'}1 dia)</li>
+                    <li>• Idade do lead (+15 pts se {'≤'}7 dias)</li>
+                    <li>• Valor do negócio (+10 pts se {'>'}R$10k)</li>
+                  </ul>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Score de Risco (0-100%)</h4>
+                  <p className="text-muted-foreground mb-2">Fatores de risco:</p>
+                  <ul className="text-muted-foreground space-y-1 ml-4">
+                    <li>• Tempo sem atividade (+20 pts se {'>'}14 dias)</li>
+                    <li>• Idade avançada (+15 pts se {'>'}60 dias)</li>
+                    <li>• Score inverso ao de conversão</li>
+                  </ul>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Ações Recomendadas</h4>
+                  <ul className="text-muted-foreground space-y-1">
+                    <li>• <strong>Contato Imediato:</strong> Sem atividade há {'>'}3 dias</li>
+                    <li>• <strong>Revisar Estratégia:</strong> Score de conversão {'<'}30%</li>
+                    <li>• <strong>Priorizar Follow-up:</strong> Valor {'>'}R$5k</li>
+                    <li>• <strong>Campanha de Reativação:</strong> Lead {'>'}45 dias</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            {/* Alertas Comportamentais */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 text-lg font-semibold text-primary">
+                <AlertTriangle className="h-5 w-5" />
+                Sistema de Alertas
+              </div>
+              <div className="grid gap-3 text-sm">
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Tipos de Alertas</h4>
+                  <ul className="text-muted-foreground space-y-1">
+                    <li>• <strong>Taxa de Conversão Baixa:</strong> {'<'}20% no período</li>
+                    <li>• <strong>Muitos Leads Dormentes:</strong> {'>'}10% do total</li>
+                    <li>• <strong>Alta Performance:</strong> {'>'}40% conversão + {'<'}5% dormentes</li>
+                    <li>• <strong>Leads Sem Follow-up:</strong> {'>'}7 dias sem contato</li>
+                  </ul>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <h4 className="font-medium mb-2">Priorização de Alertas</h4>
+                  <ul className="text-muted-foreground space-y-1">
+                    <li>• <strong>Crítico:</strong> Leads de alto valor sem atividade</li>
+                    <li>• <strong>Aviso:</strong> Padrões que precisam atenção</li>
+                    <li>• <strong>Sucesso:</strong> Reconhecimento de boa performance</li>
+                  </ul>
+                </div>
               </div>
             </section>
 

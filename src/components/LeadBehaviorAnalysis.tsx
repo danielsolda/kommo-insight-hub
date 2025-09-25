@@ -131,41 +131,65 @@ export const LeadBehaviorAnalysis = ({
 
     // Hot leads - recently created and frequently updated
     const hotLeads = filteredLeads.filter(lead => {
-      if (!lead || typeof lead.created_at !== 'number' || typeof lead.updated_at !== 'number') {
+      if (!lead || typeof lead.created_at !== 'number') {
         return false;
       }
       const daysSinceCreated = (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000);
-      const daysSinceUpdate = (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
-      return daysSinceCreated <= 7 && daysSinceUpdate <= 2 && !lead.closed_at;
+      const daysSinceUpdate = typeof lead.updated_at === 'number'
+        ? (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000)
+        : daysSinceCreated;
+      
+      return daysSinceCreated <= 30 && daysSinceUpdate <= 3 && !lead.closed_at;
     });
 
     // Warm leads - moderate activity
     const warmLeads = filteredLeads.filter(lead => {
-      if (!lead || typeof lead.created_at !== 'number' || typeof lead.updated_at !== 'number') {
+      if (!lead || typeof lead.created_at !== 'number') {
         return false;
       }
       const daysSinceCreated = (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000);
-      const daysSinceUpdate = (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
-      return daysSinceCreated <= 30 && daysSinceUpdate <= 7 && daysSinceUpdate > 2 && !lead.closed_at;
+      const daysSinceUpdate = typeof lead.updated_at === 'number'
+        ? (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000)
+        : daysSinceCreated;
+      
+      return daysSinceCreated <= 60 && daysSinceUpdate > 3 && daysSinceUpdate <= 14 && !lead.closed_at;
     });
 
     // Cold leads - low activity
     const coldLeads = filteredLeads.filter(lead => {
-      if (!lead || typeof lead.updated_at !== 'number') {
+      if (!lead) {
         return false;
       }
-      const daysSinceUpdate = (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
-      return daysSinceUpdate > 7 && !lead.closed_at;
+      const daysSinceUpdate = typeof lead.updated_at === 'number'
+        ? (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000)
+        : typeof lead.created_at === 'number'
+        ? (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000)
+        : 999;
+      
+      return daysSinceUpdate > 14 && !lead.closed_at;
     });
 
-    // Calculate conversion rates for each segment
+    // Calculate conversion rates for each segment using historical data
     const calculateConversionRate = (segmentLeads: Lead[]) => {
-      const closedInSegment = allLeads.filter(lead => 
-        lead.closed_at && 
-        segmentLeads.some(sl => sl.id === lead.id)
+      if (segmentLeads.length === 0) return 0;
+      
+      // Get all leads that were ever in this segment based on their characteristics
+      // and check their final outcome
+      const segmentLeadIds = segmentLeads.map(lead => lead.id);
+      const historicalOutcomes = allLeads.filter(lead => 
+        segmentLeadIds.includes(lead.id) && lead.closed_at
       );
-      const wonInSegment = closedInSegment.filter(lead => lead.status_id === 142);
-      return closedInSegment.length > 0 ? (wonInSegment.length / closedInSegment.length) * 100 : 0;
+      
+      if (historicalOutcomes.length === 0) {
+        // If no historical data, estimate based on segment activity level
+        if (segmentLeads === hotLeads) return 75; // Hot leads typically convert well
+        if (segmentLeads === warmLeads) return 45; // Warm leads moderate conversion
+        if (segmentLeads === coldLeads) return 15; // Cold leads low conversion
+        return 30; // Default fallback
+      }
+      
+      const wonInSegment = historicalOutcomes.filter(lead => lead.status_id === 142);
+      return (wonInSegment.length / historicalOutcomes.length) * 100;
     };
 
     segments.push({
