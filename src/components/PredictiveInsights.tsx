@@ -58,8 +58,13 @@ export const PredictiveInsights = ({
     });
 
     return filteredLeads.map(lead => {
-      const daysSinceCreated = (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000);
-      const daysSinceUpdate = (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
+      const daysSinceCreated = Number.isFinite(lead.created_at)
+        ? (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000)
+        : 0;
+      const daysSinceUpdate = typeof lead.updated_at === 'number'
+        ? (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000)
+        : daysSinceCreated;
+      const price = typeof lead.price === 'number' ? lead.price : 0;
       
       // Calculate conversion score (0-100)
       let conversionScore = 50; // Base score
@@ -76,8 +81,8 @@ export const PredictiveInsights = ({
       else if (daysSinceCreated > 90) conversionScore -= 25;
       
       // Value factor
-      if (lead.price > 10000) conversionScore += 10;
-      else if (lead.price > 5000) conversionScore += 5;
+      if (price > 10000) conversionScore += 10;
+      else if (price > 5000) conversionScore += 5;
       
       conversionScore = Math.max(0, Math.min(100, conversionScore));
       
@@ -98,7 +103,7 @@ export const PredictiveInsights = ({
       const recommendedActions: string[] = [];
       if (daysSinceUpdate > 3) recommendedActions.push("Fazer contato imediato");
       if (conversionScore < 30) recommendedActions.push("Revisar estratégia de abordagem");
-      if (lead.price > 5000) recommendedActions.push("Priorizar follow-up");
+      if (price > 5000) recommendedActions.push("Priorizar follow-up");
       if (daysSinceCreated > 45) recommendedActions.push("Considerar campanha de reativação");
       
       return {
@@ -107,7 +112,7 @@ export const PredictiveInsights = ({
         riskScore,
         expectedCloseDate,
         recommendedActions,
-        predictedValue: lead.price * (conversionScore / 100)
+        predictedValue: price * (conversionScore / 100)
       };
     }).sort((a, b) => b.conversionScore - a.conversionScore);
   }, [allLeads, selectedPipeline, selectedUser]);
@@ -131,8 +136,9 @@ export const PredictiveInsights = ({
     const highProbabilityLeads = leadPredictions.filter(pred => pred.conversionScore > 70);
     const nextMonthRevenue = highProbabilityLeads.reduce((sum, pred) => sum + pred.predictedValue, 0);
     
-    // Calculate confidence based on number of predictions
-    const confidence = Math.min(90, 40 + (highProbabilityLeads.length * 5));
+    // Calculate confidence based on proportion of high-probability leads (bounded 20–95)
+    const coverage = leadPredictions.length > 0 ? highProbabilityLeads.length / leadPredictions.length : 0;
+    const confidence = Math.round(Math.min(95, Math.max(20, 30 + (coverage * 60))));
     
     // Determine trend
     const trend = nextMonthRevenue > currentMonthRevenue ? 'up' : 

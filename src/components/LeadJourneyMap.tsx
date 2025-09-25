@@ -61,44 +61,48 @@ export const LeadJourneyMap = ({
     const pipelineLeads = allLeads.filter(lead => lead.pipeline_id === currentPipeline.id);
     const now = Date.now();
 
-    return statuses.map((status, index) => {
-      const leadsInStatus = pipelineLeads.filter(lead => lead.status_id === status.id);
-      const totalLeadsUpToThisStatus = pipelineLeads.filter(lead => {
-        const leadStatusSort = statuses.find(s => s.id === lead.status_id)?.sort || 0;
-        return leadStatusSort <= status.sort;
+      return statuses.map((status, index) => {
+        const leadsInStatus = pipelineLeads.filter(lead => lead.status_id === status.id);
+
+        // Calculate average time in status using safe fallbacks
+        const avgTimeInStatus = leadsInStatus.length > 0 ?
+          leadsInStatus.reduce((sum, lead) => {
+            const daysSinceCreated = Number.isFinite(lead.created_at)
+              ? (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000)
+              : 0;
+            const daysSinceUpdate = typeof lead.updated_at === 'number'
+              ? (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000)
+              : daysSinceCreated;
+            return sum + (Number.isFinite(daysSinceUpdate) ? daysSinceUpdate : 0);
+          }, 0) / leadsInStatus.length : 0;
+
+        // Estimate conversion rate to next status using snapshot counts
+        const nextStatus = statuses[index + 1];
+        let conversionRate = 100;
+        if (nextStatus) {
+          const nextCount = pipelineLeads.filter(lead => lead.status_id === nextStatus.id).length;
+          // Bound to 0..100 to avoid absurd values when next has more leads than current
+          conversionRate = Math.min(100, Math.max(0, (Math.min(nextCount, leadsInStatus.length) / Math.max(leadsInStatus.length, 1)) * 100));
+        }
+
+        // Dropoff is complementary and bounded to 0..100
+        const dropoffRate = index < statuses.length - 1 ? Math.max(0, 100 - conversionRate) : 0;
+
+        // Calculate total value in this status
+        const totalValue = leadsInStatus.reduce((sum, lead) => sum + (lead.price || 0), 0);
+
+        return {
+          statusId: status.id,
+          statusName: status.name,
+          color: status.color,
+          sort: status.sort,
+          leads: leadsInStatus,
+          avgTimeInStatus: Number.isFinite(avgTimeInStatus) ? avgTimeInStatus : 0,
+          conversionRate,
+          dropoffRate,
+          totalValue
+        };
       });
-
-      // Calculate average time in status (simplified - using update time as proxy)
-      const avgTimeInStatus = leadsInStatus.length > 0 ? 
-        leadsInStatus.reduce((sum, lead) => {
-          const daysSinceUpdate = (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000);
-          return sum + daysSinceUpdate;
-        }, 0) / leadsInStatus.length : 0;
-
-      // Calculate conversion rate (leads that moved from this status to next)
-      const nextStatus = statuses[index + 1];
-      const conversionRate = nextStatus ? 
-        (pipelineLeads.filter(lead => lead.status_id === nextStatus.id).length / Math.max(leadsInStatus.length, 1)) * 100 : 
-        100;
-
-      // Calculate dropoff rate
-      const dropoffRate = index < statuses.length - 1 ? 100 - conversionRate : 0;
-
-      // Calculate total value in this status
-      const totalValue = leadsInStatus.reduce((sum, lead) => sum + (lead.price || 0), 0);
-
-      return {
-        statusId: status.id,
-        statusName: status.name,
-        color: status.color,
-        sort: status.sort,
-        leads: leadsInStatus,
-        avgTimeInStatus,
-        conversionRate,
-        dropoffRate,
-        totalValue
-      };
-    });
   }, [allLeads, currentPipeline]);
 
   // Calculate lead flows between statuses
@@ -111,12 +115,13 @@ export const LeadJourneyMap = ({
       const currentStep = journeySteps[i];
       const nextStep = journeySteps[i + 1];
       
-      const flowCount = nextStep.leads.length;
+      const rawNextCount = nextStep.leads.length;
+      const flowCount = Math.min(currentStep.leads.length, rawNextCount);
       const flowPercentage = currentStep.leads.length > 0 ? 
-        (flowCount / currentStep.leads.length) * 100 : 0;
+        Math.min(100, Math.max(0, (flowCount / currentStep.leads.length) * 100)) : 0;
       
       // Simplified average time calculation
-      const avgTime = currentStep.avgTimeInStatus;
+      const avgTime = Number.isFinite(currentStep.avgTimeInStatus) ? currentStep.avgTimeInStatus : 0;
       
       flows.push({
         from: currentStep.statusName,
@@ -136,15 +141,15 @@ export const LeadJourneyMap = ({
 
     const totalLeads = journeySteps.reduce((sum, step) => sum + step.leads.length, 0);
     const totalValue = journeySteps.reduce((sum, step) => sum + step.totalValue, 0);
-    const avgJourneyTime = journeySteps.reduce((sum, step) => sum + step.avgTimeInStatus, 0);
-    const overallConversionRate = journeySteps.length > 0 ? 
-      (journeySteps[journeySteps.length - 1].leads.length / Math.max(journeySteps[0].leads.length, 1)) * 100 : 0;
+    const avgJourneyTime = journeySteps.reduce((sum, step) => sum + (Number.isFinite(step.avgTimeInStatus) ? step.avgTimeInStatus : 0), 0);
+    const lastStepLeads = journeySteps[journeySteps.length - 1].leads.length;
+    const overallConversionRate = totalLeads > 0 ? (lastStepLeads / totalLeads) * 100 : 0;
 
     return {
       totalLeads,
       totalValue,
-      avgJourneyTime,
-      overallConversionRate,
+      avgJourneyTime: Number.isFinite(avgJourneyTime) ? avgJourneyTime : 0,
+      overallConversionRate: Math.min(100, Math.max(0, overallConversionRate)),
       totalSteps: journeySteps.length
     };
   }, [journeySteps]);
