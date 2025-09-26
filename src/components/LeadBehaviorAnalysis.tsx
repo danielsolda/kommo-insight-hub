@@ -331,113 +331,13 @@ export const LeadBehaviorAnalysis = ({
         </CardContent>
       </Card>
 
-      {/* Key Metrics */}
-      {behaviorMetrics && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="bg-gradient-card border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Leads Ativos</p>
-                  <p className="text-2xl font-bold">{behaviorMetrics.activeLeads}</p>
-                </div>
-                <Activity className="h-8 w-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-card border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Leads Dormentes</p>
-                  <p className="text-2xl font-bold text-warning">{behaviorMetrics.dormantLeads}</p>
-                </div>
-                <Clock className="h-8 w-8 text-warning" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-card border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Taxa de Conversão</p>
-                  <p className="text-2xl font-bold text-success">{behaviorMetrics.conversionRate.toFixed(1)}%</p>
-                </div>
-                <Target className="h-8 w-8 text-success" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-card border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Leads de Risco</p>
-                  <p className="text-2xl font-bold text-destructive">{behaviorMetrics.highRiskLeads}</p>
-                </div>
-                <AlertTriangle className="h-8 w-8 text-destructive" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Behavioral Segments */}
-      <Card className="bg-gradient-card border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5" />
-            Segmentação Comportamental
-          </CardTitle>
-          <CardDescription>
-            Classificação automática dos leads baseada em padrões de atividade
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {behaviorSegments.map((segment, index) => (
-              <div key={index} className="p-4 rounded-lg border border-border/50 bg-card/50">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold" style={{ color: segment.color }}>
-                    {segment.name}
-                  </h4>
-                  <Badge variant="secondary">{segment.leads.length}</Badge>
-                </div>
-                
-                <div className="space-y-2 mb-4">
-                  {segment.characteristics.map((char, charIndex) => (
-                    <div key={charIndex} className="text-xs text-muted-foreground flex items-center gap-1">
-                      <div className="w-1 h-1 rounded-full bg-current"></div>
-                      {char}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Taxa de Conversão</span>
-                    <span className="font-medium">{segment.conversionRate.toFixed(1)}%</span>
-                  </div>
-                  <Progress 
-                    value={segment.conversionRate} 
-                    className="h-2"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Tabs for detailed analysis */}
       <Tabs defaultValue="metrics" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="metrics">Métricas Detalhadas</TabsTrigger>
           <TabsTrigger value="journey">Jornada dos Leads</TabsTrigger>
           <TabsTrigger value="insights">Insights Preditivos</TabsTrigger>
-          <TabsTrigger value="alerts">Alertas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="metrics">
@@ -466,15 +366,6 @@ export const LeadBehaviorAnalysis = ({
             users={users}
             selectedPipeline={selectedPipeline}
             selectedUser={selectedUser}
-          />
-        </TabsContent>
-
-        <TabsContent value="alerts">
-          <BehaviorAlerts 
-            allLeads={allLeads}
-            pipelines={pipelines}  
-            users={users}
-            behaviorMetrics={behaviorMetrics}
           />
         </TabsContent>
       </Tabs>
