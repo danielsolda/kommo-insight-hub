@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, TrendingUp, Clock, Users, ArrowRight } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { MapPin, TrendingUp, Clock, Users, ArrowRight, X, Search } from "lucide-react";
 import { Pipeline, Lead } from "@/services/kommoApi";
 
 interface LeadJourneyMapProps {
@@ -32,12 +34,24 @@ interface LeadFlow {
   avgTime: number;
 }
 
+interface StatusTransition {
+  fromStatusId: number;
+  toStatusId: number;
+  leads: Lead[];
+  avgTransitionTime: number;
+  conversionRate: number;
+}
+
 export const LeadJourneyMap = ({ 
   allLeads, 
   pipelines, 
   selectedPipeline 
 }: LeadJourneyMapProps) => {
   console.log("LeadJourneyMap rendering:", { allLeads: allLeads?.length, pipelines: pipelines?.length, selectedPipeline });
+  
+  // Status transition analyzer state
+  const [selectedFromStatus, setSelectedFromStatus] = useState<number | null>(null);
+  const [selectedToStatus, setSelectedToStatus] = useState<number | null>(null);
   
   if (!allLeads || !pipelines) {
     return (
@@ -154,6 +168,46 @@ export const LeadJourneyMap = ({
     };
   }, [journeySteps]);
 
+  // Calculate specific status transition
+  const statusTransition = useMemo((): StatusTransition | null => {
+    if (!selectedFromStatus || !selectedToStatus || !currentPipeline) return null;
+    
+    const pipelineLeads = allLeads.filter(lead => lead.pipeline_id === currentPipeline.id);
+    
+    // Find leads that had the origin status and later moved to destination status
+    const transitionLeads = pipelineLeads.filter(lead => {
+      // For simplicity, we'll consider current status. In a more complex scenario,
+      // we would need lead history to track actual transitions
+      if (lead.status_id === selectedToStatus) {
+        // This is a simplified approach - in reality we'd need status change history
+        return true;
+      }
+      return false;
+    });
+
+    const fromStatusLeads = pipelineLeads.filter(lead => lead.status_id === selectedFromStatus);
+    const toStatusLeads = pipelineLeads.filter(lead => lead.status_id === selectedToStatus);
+    
+    // Calculate average transition time (simplified)
+    const avgTransitionTime = transitionLeads.length > 0 ? 
+      transitionLeads.reduce((sum, lead) => {
+        const daysSinceCreated = (Date.now() - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000);
+        return sum + daysSinceCreated;
+      }, 0) / transitionLeads.length : 0;
+
+    // Calculate conversion rate
+    const conversionRate = fromStatusLeads.length > 0 ? 
+      (Math.min(toStatusLeads.length, fromStatusLeads.length) / fromStatusLeads.length) * 100 : 0;
+
+    return {
+      fromStatusId: selectedFromStatus,
+      toStatusId: selectedToStatus,
+      leads: toStatusLeads, // Simplified - shows leads currently in destination status
+      avgTransitionTime,
+      conversionRate
+    };
+  }, [selectedFromStatus, selectedToStatus, allLeads, currentPipeline]);
+
   if (!currentPipeline || !journeySteps.length) {
     return (
       <Card className="bg-gradient-card border-border/50">
@@ -207,6 +261,123 @@ export const LeadJourneyMap = ({
         )}
       </Card>
 
+      {/* Status Transition Analyzer */}
+      <Card className="bg-gradient-card border-border/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Analisador de Transições
+          </CardTitle>
+          <CardDescription>
+            Analise o fluxo específico entre dois status do seu pipeline
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Status de Origem</label>
+              <Select value={selectedFromStatus?.toString() || ""} onValueChange={(value) => setSelectedFromStatus(value ? parseInt(value) : null)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status inicial" />
+                </SelectTrigger>
+                <SelectContent>
+                  {currentPipeline.statuses.map(status => (
+                    <SelectItem key={status.id} value={status.id.toString()}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: status.color }} />
+                        {status.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium mb-2 block">Status de Destino</label>
+              <Select value={selectedToStatus?.toString() || ""} onValueChange={(value) => setSelectedToStatus(value ? parseInt(value) : null)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status final" />
+                </SelectTrigger>
+                <SelectContent>
+                  {currentPipeline.statuses.map(status => (
+                    <SelectItem key={status.id} value={status.id.toString()}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: status.color }} />
+                        {status.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-end">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSelectedFromStatus(null);
+                  setSelectedToStatus(null);
+                }}
+                className="w-full"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Limpar
+              </Button>
+            </div>
+          </div>
+
+          {/* Transition Results */}
+          {statusTransition && selectedFromStatus && selectedToStatus && (
+            <div className="mt-6 p-4 rounded-lg border border-border/50 bg-muted/30">
+              <div className="flex items-center gap-2 mb-4">
+                <ArrowRight className="h-4 w-4" />
+                <span className="font-semibold">
+                  {currentPipeline.statuses.find(s => s.id === selectedFromStatus)?.name} → {currentPipeline.statuses.find(s => s.id === selectedToStatus)?.name}
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">{statusTransition.leads.length}</div>
+                  <div className="text-sm text-muted-foreground">Leads no Status Destino</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-success">{statusTransition.conversionRate.toFixed(1)}%</div>
+                  <div className="text-sm text-muted-foreground">Taxa de Conversão</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-warning">{statusTransition.avgTransitionTime.toFixed(0)} dias</div>
+                  <div className="text-sm text-muted-foreground">Tempo Médio</div>
+                </div>
+              </div>
+
+              {/* Leads List */}
+              {statusTransition.leads.length > 0 && (
+                <div>
+                  <h4 className="font-semibold mb-2">Leads no Status Destino:</h4>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {statusTransition.leads.slice(0, 10).map(lead => (
+                      <div key={lead.id} className="text-sm flex justify-between items-center p-2 rounded bg-background/50">
+                        <span>{lead.name}</span>
+                        <span className="text-muted-foreground">
+                          R$ {(lead.price / 1000).toFixed(0)}k
+                        </span>
+                      </div>
+                    ))}
+                    {statusTransition.leads.length > 10 && (
+                      <div className="text-xs text-muted-foreground text-center pt-2">
+                        +{statusTransition.leads.length - 10} leads adicionais
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Journey Visualization */}
       <Card className="bg-gradient-card border-border/50">
         <CardHeader>
@@ -223,9 +394,17 @@ export const LeadJourneyMap = ({
             {journeySteps.map((step, index) => (
               <div key={step.statusId}>
                 {/* Status Step */}
-                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card/30">
+                <div className={`flex items-center gap-4 p-4 rounded-lg border transition-all ${
+                  (selectedFromStatus === step.statusId || selectedToStatus === step.statusId) 
+                    ? 'border-primary/50 bg-primary/5 ring-2 ring-primary/20' 
+                    : 'border-border/50 bg-card/30'
+                }`}>
                   <div 
-                    className="w-4 h-4 rounded-full flex-shrink-0" 
+                    className={`w-4 h-4 rounded-full flex-shrink-0 ${
+                      (selectedFromStatus === step.statusId || selectedToStatus === step.statusId) 
+                        ? 'ring-2 ring-primary/50' 
+                        : ''
+                    }`}
                     style={{ backgroundColor: step.color }}
                   />
                   
