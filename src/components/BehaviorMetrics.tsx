@@ -140,22 +140,23 @@ export const BehaviorMetrics = ({
       if (leadTime < startTime) return false;
       if (selectedPipeline && lead.pipeline_id !== selectedPipeline) return false;
       if (selectedUser && lead.responsible_user_id !== selectedUser) return false;
-      return !lead.closed_at; // Only active leads
+      return true; // Include all leads (active and closed)
     });
 
     return filteredLeads.map(lead => {
-      const daysSinceCreated = (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000);
+      const daysSinceCreated = Math.max(0, (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000));
       const daysSinceUpdate = typeof lead.updated_at === 'number'
-        ? (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000)
+        ? Math.max(0, (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000))
         : daysSinceCreated;
-      const value = lead.price || 0;
+      const value = Math.max(1000, lead.price || 1000); // Minimum value for visibility
       
       return {
-        x: daysSinceCreated,
-        y: daysSinceUpdate,
+        x: Math.round(daysSinceCreated * 10) / 10, // Round for better grouping
+        y: Math.round(daysSinceUpdate * 10) / 10,
         z: value,
         name: lead.name,
-        status: lead.status_id
+        status: lead.status_id,
+        isClosed: !!lead.closed_at
       };
     });
   }, [allLeads, selectedPipeline, selectedUser, timeFrame]);
@@ -374,27 +375,46 @@ export const BehaviorMetrics = ({
                 />
                 <Tooltip 
                   cursor={{ strokeDasharray: '3 3' }}
-                  formatter={(value, name) => [
-                    `${typeof value === 'number' ? value.toFixed(1) : value} dias`,
-                    name === 'x' ? 'Dias desde criação' : 'Dias desde última atividade'
-                  ]}
+                  formatter={(value, name, props) => {
+                    if (name === 'x') return [`${value} dias`, 'Dias desde criação'];
+                    if (name === 'y') return [`${value} dias`, 'Dias desde última atividade'];
+                    return [value, name];
+                  }}
+                  labelFormatter={(label, payload) => {
+                    if (payload && payload[0]) {
+                      const data = payload[0].payload;
+                      return `${data.name} - R$ ${(data.z / 1000).toFixed(0)}k ${data.isClosed ? '(Fechado)' : '(Ativo)'}`;
+                    }
+                    return label;
+                  }}
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '6px'
                   }}
                 />
-                <Scatter data={engagementData} fill="hsl(var(--primary))">
-                  {engagementData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={
-                        entry.y <= 2 ? "hsl(var(--success))" : 
-                        entry.y <= 7 ? "hsl(var(--warning))" : 
-                        "hsl(var(--destructive))"
-                      } 
-                    />
-                  ))}
+                <Scatter data={engagementData}>
+                  {engagementData.map((entry, index) => {
+                    // Calculate bubble size based on value (z)
+                    const minSize = 4;
+                    const maxSize = 20;
+                    const maxValue = Math.max(...engagementData.map(d => d.z));
+                    const size = minSize + ((entry.z / maxValue) * (maxSize - minSize));
+                    
+                    return (
+                      <Cell 
+                        key={`cell-${index}`}
+                        r={size}
+                        fill={
+                          entry.isClosed ? "hsl(var(--muted-foreground))" :
+                          entry.y <= 2 ? "hsl(var(--success))" : 
+                          entry.y <= 7 ? "hsl(var(--warning))" : 
+                          "hsl(var(--destructive))"
+                        }
+                        fillOpacity={entry.isClosed ? 0.4 : 0.8}
+                      />
+                    );
+                  })}
                 </Scatter>
               </ScatterChart>
             </ResponsiveContainer>
