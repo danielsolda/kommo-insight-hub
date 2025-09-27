@@ -177,26 +177,49 @@ export const LeadJourneyMap = ({
     
     const pipelineLeads = allLeads.filter(lead => lead.pipeline_id === currentPipeline.id);
     const now = Date.now();
-    const periodStart = now - (selectedPeriod * 24 * 60 * 60 * 1000); // Convert days to milliseconds
+    const periodStart = now - (selectedPeriod * 24 * 60 * 60 * 1000);
+    const periodEnd = now;
     
-    // Find leads that transitioned from origin to destination status in the period
-    // Since we don't have full status history, we'll use a heuristic:
-    // - Leads currently in destination status
-    // - That were updated within the period
-    // - And have creation date before the period (so they existed before and moved during period)
+    console.log('🔄 Analisando transições para o período:', {
+      fromStatus: selectedFromStatus,
+      toStatus: selectedToStatus,
+      periodDays: selectedPeriod,
+      periodStart: new Date(periodStart).toLocaleDateString('pt-BR'),
+      periodEnd: new Date(periodEnd).toLocaleDateString('pt-BR'),
+      totalLeads: pipelineLeads.length
+    });
+    
+    // Find leads that transitioned to destination status within the period
+    // Strategy: Look for leads currently in destination status that were updated in the period
     const transitionLeads = pipelineLeads.filter(lead => {
-      // Must be in destination status
+      // Must be currently in the destination status
       if (lead.status_id !== selectedToStatus) return false;
       
-      // Must have been updated within the period (indicating recent activity/status change)
+      // Get the lead's last update time
       const leadUpdateTime = (lead.updated_at || lead.created_at) * 1000;
-      if (leadUpdateTime < periodStart) return false;
       
-      // Must have been created before the period (so they existed and could transition)
+      // Must have been updated within the selected period
+      if (leadUpdateTime < periodStart || leadUpdateTime > periodEnd) return false;
+      
+      // Must have been created before the period started (so it existed and could transition)
       const leadCreationTime = lead.created_at * 1000;
       if (leadCreationTime >= periodStart) return false;
       
+      console.log('✅ Lead transitou no período:', {
+        id: lead.id,
+        name: lead.name,
+        currentStatus: lead.status_id,
+        updatedAt: new Date(leadUpdateTime).toLocaleString('pt-BR'),
+        createdAt: new Date(leadCreationTime).toLocaleString('pt-BR'),
+        value: lead.price
+      });
+      
       return true;
+    });
+    
+    console.log('📊 Resultado da análise:', {
+      leadsEncontrados: transitionLeads.length,
+      valorTotal: transitionLeads.reduce((sum, lead) => sum + (lead.price || 0), 0)
     });
 
     // Get current count of leads in origin status for comparison
@@ -210,9 +233,10 @@ export const LeadJourneyMap = ({
         return sum + daysSinceUpdate;
       }, 0) / transitionLeads.length : 0;
 
-    // Calculate transition rate as percentage of leads that moved vs current origin status count
+    // Calculate transition rate - simplified to show actual count vs potential
     const transitionRate = currentFromStatusLeads.length > 0 ? 
-      (transitionLeads.length / (currentFromStatusLeads.length + transitionLeads.length)) * 100 : 0;
+      (transitionLeads.length / (currentFromStatusLeads.length + transitionLeads.length)) * 100 : 
+      transitionLeads.length > 0 ? 100 : 0;
 
     // Get total value of leads that transitioned in the period
     const totalTransitionValue = transitionLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
@@ -382,7 +406,7 @@ export const LeadJourneyMap = ({
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">{statusTransition.leads.length}</div>
-                  <div className="text-sm text-muted-foreground">Leads que Entraram</div>
+                  <div className="text-sm text-muted-foreground">Leads que Transitaram</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-success">R$ {(statusTransition.totalValue / 1000).toFixed(0)}k</div>
@@ -402,20 +426,25 @@ export const LeadJourneyMap = ({
               {statusTransition.leads.length > 0 && (
                 <div>
                   <h4 className="font-semibold mb-2">
-                    Leads que entraram no status {currentPipeline.statuses.find(s => s.id === selectedToStatus)?.name} nos últimos {statusTransition.periodDays} dias:
+                    Leads que passaram de "{currentPipeline.statuses.find(s => s.id === selectedFromStatus)?.name}" → "{currentPipeline.statuses.find(s => s.id === selectedToStatus)?.name}" nos últimos {statusTransition.periodDays} dias:
                   </h4>
                   <div className="max-h-32 overflow-y-auto space-y-1">
-                    {statusTransition.leads.slice(0, 10).map(lead => (
-                      <div key={lead.id} className="text-sm flex justify-between items-center p-2 rounded bg-background/50">
-                        <span>{lead.name}</span>
-                        <span className="text-muted-foreground">
+                    {statusTransition.leads.slice(0, 15).map(lead => (
+                      <div key={lead.id} className="text-sm flex justify-between items-center p-2 rounded bg-background/50 hover:bg-background/70 transition-colors">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{lead.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            Atualizado: {new Date((lead.updated_at || lead.created_at) * 1000).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                        <span className="text-muted-foreground font-medium">
                           R$ {((lead.price || 0) / 1000).toFixed(0)}k
                         </span>
                       </div>
                     ))}
-                    {statusTransition.leads.length > 10 && (
-                      <div className="text-xs text-muted-foreground text-center pt-2">
-                        +{statusTransition.leads.length - 10} leads adicionais
+                    {statusTransition.leads.length > 15 && (
+                      <div className="text-xs text-muted-foreground text-center pt-2 border-t border-border/50">
+                        +{statusTransition.leads.length - 15} leads adicionais
                       </div>
                     )}
                   </div>
@@ -423,8 +452,13 @@ export const LeadJourneyMap = ({
               )}
               
               {statusTransition.leads.length === 0 && (
-                <div className="text-center py-4 text-muted-foreground">
-                  Nenhum lead entrou no status {currentPipeline.statuses.find(s => s.id === selectedToStatus)?.name} nos últimos {statusTransition.periodDays} dias
+                <div className="text-center text-muted-foreground py-4">
+                  <div className="text-sm">
+                    Nenhum lead passou de "{currentPipeline.statuses.find(s => s.id === selectedFromStatus)?.name}" para "{currentPipeline.statuses.find(s => s.id === selectedToStatus)?.name}" nos últimos {statusTransition.periodDays} dias
+                  </div>
+                  <div className="text-xs mt-2 text-muted-foreground/70">
+                    Tente um período maior ou verifique se há leads nessa transição específica
+                  </div>
                 </div>
               )}
             </div>
