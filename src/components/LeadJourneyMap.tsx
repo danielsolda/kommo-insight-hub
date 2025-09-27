@@ -179,21 +179,30 @@ export const LeadJourneyMap = ({
     const now = Date.now();
     const periodStart = now - (selectedPeriod * 24 * 60 * 60 * 1000); // Convert days to milliseconds
     
-    // Find leads that are currently in the destination status and were updated within the period
+    // Find leads that transitioned from origin to destination status in the period
+    // Since we don't have full status history, we'll use a heuristic:
+    // - Leads currently in destination status
+    // - That were updated within the period
+    // - And have creation date before the period (so they existed before and moved during period)
     const transitionLeads = pipelineLeads.filter(lead => {
-      // Check if lead is in destination status
+      // Must be in destination status
       if (lead.status_id !== selectedToStatus) return false;
       
-      // Check if the lead was updated within the selected period
+      // Must have been updated within the period (indicating recent activity/status change)
       const leadUpdateTime = (lead.updated_at || lead.created_at) * 1000;
       if (leadUpdateTime < periodStart) return false;
+      
+      // Must have been created before the period (so they existed and could transition)
+      const leadCreationTime = lead.created_at * 1000;
+      if (leadCreationTime >= periodStart) return false;
       
       return true;
     });
 
-    const fromStatusLeads = pipelineLeads.filter(lead => lead.status_id === selectedFromStatus);
+    // Get current count of leads in origin status for comparison
+    const currentFromStatusLeads = pipelineLeads.filter(lead => lead.status_id === selectedFromStatus);
     
-    // Calculate average transition time (simplified - time since update)
+    // Calculate average days since the transition (time since last update)
     const avgTransitionTime = transitionLeads.length > 0 ? 
       transitionLeads.reduce((sum, lead) => {
         const leadUpdateTime = (lead.updated_at || lead.created_at) * 1000;
@@ -201,9 +210,9 @@ export const LeadJourneyMap = ({
         return sum + daysSinceUpdate;
       }, 0) / transitionLeads.length : 0;
 
-    // Calculate conversion rate based on leads that entered destination status in the period
-    const conversionRate = fromStatusLeads.length > 0 ? 
-      (transitionLeads.length / fromStatusLeads.length) * 100 : 0;
+    // Calculate transition rate as percentage of leads that moved vs current origin status count
+    const transitionRate = currentFromStatusLeads.length > 0 ? 
+      (transitionLeads.length / (currentFromStatusLeads.length + transitionLeads.length)) * 100 : 0;
 
     // Get total value of leads that transitioned in the period
     const totalTransitionValue = transitionLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
@@ -213,7 +222,7 @@ export const LeadJourneyMap = ({
       toStatusId: selectedToStatus,
       leads: transitionLeads,
       avgTransitionTime,
-      conversionRate,
+      conversionRate: transitionRate,
       totalValue: totalTransitionValue,
       periodDays: selectedPeriod
     };
