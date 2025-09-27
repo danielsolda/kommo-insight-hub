@@ -40,6 +40,8 @@ interface StatusTransition {
   leads: Lead[];
   avgTransitionTime: number;
   conversionRate: number;
+  totalValue: number;
+  periodDays: number;
 }
 
 export const LeadJourneyMap = ({ 
@@ -52,6 +54,7 @@ export const LeadJourneyMap = ({
   // Status transition analyzer state
   const [selectedFromStatus, setSelectedFromStatus] = useState<number | null>(null);
   const [selectedToStatus, setSelectedToStatus] = useState<number | null>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState<number>(30); // days
   
   if (!allLeads || !pipelines) {
     return (
@@ -168,45 +171,53 @@ export const LeadJourneyMap = ({
     };
   }, [journeySteps]);
 
-  // Calculate specific status transition
+  // Calculate specific status transition with time period filter
   const statusTransition = useMemo((): StatusTransition | null => {
     if (!selectedFromStatus || !selectedToStatus || !currentPipeline) return null;
     
     const pipelineLeads = allLeads.filter(lead => lead.pipeline_id === currentPipeline.id);
+    const now = Date.now();
+    const periodStart = now - (selectedPeriod * 24 * 60 * 60 * 1000); // Convert days to milliseconds
     
-    // Find leads that had the origin status and later moved to destination status
+    // Find leads that are currently in the destination status and were updated within the period
     const transitionLeads = pipelineLeads.filter(lead => {
-      // For simplicity, we'll consider current status. In a more complex scenario,
-      // we would need lead history to track actual transitions
-      if (lead.status_id === selectedToStatus) {
-        // This is a simplified approach - in reality we'd need status change history
-        return true;
-      }
-      return false;
+      // Check if lead is in destination status
+      if (lead.status_id !== selectedToStatus) return false;
+      
+      // Check if the lead was updated within the selected period
+      const leadUpdateTime = (lead.updated_at || lead.created_at) * 1000;
+      if (leadUpdateTime < periodStart) return false;
+      
+      return true;
     });
 
     const fromStatusLeads = pipelineLeads.filter(lead => lead.status_id === selectedFromStatus);
-    const toStatusLeads = pipelineLeads.filter(lead => lead.status_id === selectedToStatus);
     
-    // Calculate average transition time (simplified)
+    // Calculate average transition time (simplified - time since update)
     const avgTransitionTime = transitionLeads.length > 0 ? 
       transitionLeads.reduce((sum, lead) => {
-        const daysSinceCreated = (Date.now() - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000);
-        return sum + daysSinceCreated;
+        const leadUpdateTime = (lead.updated_at || lead.created_at) * 1000;
+        const daysSinceUpdate = (now - leadUpdateTime) / (24 * 60 * 60 * 1000);
+        return sum + daysSinceUpdate;
       }, 0) / transitionLeads.length : 0;
 
-    // Calculate conversion rate
+    // Calculate conversion rate based on leads that entered destination status in the period
     const conversionRate = fromStatusLeads.length > 0 ? 
-      (Math.min(toStatusLeads.length, fromStatusLeads.length) / fromStatusLeads.length) * 100 : 0;
+      (transitionLeads.length / fromStatusLeads.length) * 100 : 0;
+
+    // Get total value of leads that transitioned in the period
+    const totalTransitionValue = transitionLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
 
     return {
       fromStatusId: selectedFromStatus,
       toStatusId: selectedToStatus,
-      leads: toStatusLeads, // Simplified - shows leads currently in destination status
+      leads: transitionLeads,
       avgTransitionTime,
-      conversionRate
+      conversionRate,
+      totalValue: totalTransitionValue,
+      periodDays: selectedPeriod
     };
-  }, [selectedFromStatus, selectedToStatus, allLeads, currentPipeline]);
+  }, [selectedFromStatus, selectedToStatus, allLeads, currentPipeline, selectedPeriod]);
 
   if (!currentPipeline || !journeySteps.length) {
     return (
@@ -273,7 +284,7 @@ export const LeadJourneyMap = ({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             <div>
               <label className="text-sm font-medium mb-2 block">Status de Origem</label>
               <Select value={selectedFromStatus?.toString() || ""} onValueChange={(value) => setSelectedFromStatus(value ? parseInt(value) : null)}>
@@ -312,6 +323,23 @@ export const LeadJourneyMap = ({
               </Select>
             </div>
             
+            <div>
+              <label className="text-sm font-medium mb-2 block">Período</label>
+              <Select value={selectedPeriod.toString()} onValueChange={(value) => setSelectedPeriod(parseInt(value))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Últimos 7 dias</SelectItem>
+                  <SelectItem value="15">Últimos 15 dias</SelectItem>
+                  <SelectItem value="30">Últimos 30 dias</SelectItem>
+                  <SelectItem value="60">Últimos 60 dias</SelectItem>
+                  <SelectItem value="90">Últimos 90 dias</SelectItem>
+                  <SelectItem value="180">Últimos 180 dias</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
             <div className="flex items-end">
               <Button 
                 variant="outline" 
@@ -330,20 +358,29 @@ export const LeadJourneyMap = ({
           {/* Transition Results */}
           {statusTransition && selectedFromStatus && selectedToStatus && (
             <div className="mt-6 p-4 rounded-lg border border-border/50 bg-muted/30">
-              <div className="flex items-center gap-2 mb-4">
-                <ArrowRight className="h-4 w-4" />
-                <span className="font-semibold">
-                  {currentPipeline.statuses.find(s => s.id === selectedFromStatus)?.name} → {currentPipeline.statuses.find(s => s.id === selectedToStatus)?.name}
-                </span>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <ArrowRight className="h-4 w-4" />
+                  <span className="font-semibold">
+                    {currentPipeline.statuses.find(s => s.id === selectedFromStatus)?.name} → {currentPipeline.statuses.find(s => s.id === selectedToStatus)?.name}
+                  </span>
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  Últimos {statusTransition.periodDays} dias
+                </Badge>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">{statusTransition.leads.length}</div>
-                  <div className="text-sm text-muted-foreground">Leads no Status Destino</div>
+                  <div className="text-sm text-muted-foreground">Leads que Entraram</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-success">{statusTransition.conversionRate.toFixed(1)}%</div>
+                  <div className="text-2xl font-bold text-success">R$ {(statusTransition.totalValue / 1000).toFixed(0)}k</div>
+                  <div className="text-sm text-muted-foreground">Valor Total</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-info">{statusTransition.conversionRate.toFixed(1)}%</div>
                   <div className="text-sm text-muted-foreground">Taxa de Conversão</div>
                 </div>
                 <div className="text-center">
@@ -355,13 +392,15 @@ export const LeadJourneyMap = ({
               {/* Leads List */}
               {statusTransition.leads.length > 0 && (
                 <div>
-                  <h4 className="font-semibold mb-2">Leads no Status Destino:</h4>
+                  <h4 className="font-semibold mb-2">
+                    Leads que entraram no status {currentPipeline.statuses.find(s => s.id === selectedToStatus)?.name} nos últimos {statusTransition.periodDays} dias:
+                  </h4>
                   <div className="max-h-32 overflow-y-auto space-y-1">
                     {statusTransition.leads.slice(0, 10).map(lead => (
                       <div key={lead.id} className="text-sm flex justify-between items-center p-2 rounded bg-background/50">
                         <span>{lead.name}</span>
                         <span className="text-muted-foreground">
-                          R$ {(lead.price / 1000).toFixed(0)}k
+                          R$ {((lead.price || 0) / 1000).toFixed(0)}k
                         </span>
                       </div>
                     ))}
@@ -371,6 +410,12 @@ export const LeadJourneyMap = ({
                       </div>
                     )}
                   </div>
+                </div>
+              )}
+              
+              {statusTransition.leads.length === 0 && (
+                <div className="text-center py-4 text-muted-foreground">
+                  Nenhum lead entrou no status {currentPipeline.statuses.find(s => s.id === selectedToStatus)?.name} nos últimos {statusTransition.periodDays} dias
                 </div>
               )}
             </div>
