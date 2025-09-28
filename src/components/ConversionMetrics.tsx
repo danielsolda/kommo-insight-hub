@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, TrendingUp, AlertTriangle, Target } from "lucide-react";
+import { Clock, TrendingUp, AlertTriangle, Target, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface ConversionTimeData {
   averageConversionTime: number; // em dias
@@ -45,7 +46,8 @@ export const ConversionMetrics = ({ data, loading = false }: ConversionMetricsPr
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <TooltipProvider>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       {/* Tempo Médio de Conversão */}
       <Card className="bg-gradient-card border-border/50 shadow-card">
         <CardHeader className="pb-3">
@@ -64,12 +66,22 @@ export const ConversionMetrics = ({ data, loading = false }: ConversionMetricsPr
         </CardContent>
       </Card>
 
-      {/* Taxa de Conversão */}
+      {/* Taxa de Conclusão */}
       <Card className="bg-gradient-card border-border/50 shadow-card">
         <CardHeader className="pb-3">
           <div className="flex items-center space-x-2">
             <TrendingUp className="h-5 w-5 text-green-500" />
-            <CardTitle className="text-sm font-medium">Taxa Conversão</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-sm font-medium">Taxa de Conclusão</CardTitle>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3 w-3 text-muted-foreground/60 hover:text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">Percentual de leads que finalizaram o processo (ganhos + perdidos) em relação ao total de leads</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -77,7 +89,7 @@ export const ConversionMetrics = ({ data, loading = false }: ConversionMetricsPr
             {data.conversionRate.toFixed(1)}%
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Leads fechados
+            Leads finalizados
           </p>
         </CardContent>
       </Card>
@@ -158,6 +170,7 @@ export const ConversionMetrics = ({ data, loading = false }: ConversionMetricsPr
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 };

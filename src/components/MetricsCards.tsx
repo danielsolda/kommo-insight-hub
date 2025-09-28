@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Users, DollarSign, Target } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, DollarSign, Target, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface GeneralStats {
   totalRevenue: number;
@@ -49,7 +50,8 @@ export const MetricsCards = ({ generalStats, loading }: MetricsCardsProps) => {
       bgColor: "bg-info/10"
     },
     {
-      title: "Taxa de Fechamento",
+      title: "Taxa de Fechamento (Histórico)",
+      tooltip: "Percentual de leads ganhos em relação ao total histórico de leads",
       value: loading ? "..." : generalStats ? `${generalStats.conversionRate.toFixed(1)}%` : "0%",
       change: generalStats?.conversionChange || "+0%",
       trend: generalStats?.conversionChange?.startsWith('+') ? "up" : "down",
@@ -68,19 +70,32 @@ export const MetricsCards = ({ generalStats, loading }: MetricsCardsProps) => {
     }
   ];
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {metrics.map((metric, index) => {
-        const Icon = metric.icon;
-        return (
-          <Card key={index} className="bg-gradient-card border-border/50 shadow-card hover:shadow-elegant transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {metric.title}
-              </CardTitle>
-              <div className={`p-2 rounded-lg ${metric.bgColor}`}>
-                <Icon className={`h-4 w-4 ${metric.color}`} />
-              </div>
-            </CardHeader>
+    <TooltipProvider>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {metrics.map((metric, index) => {
+          const Icon = metric.icon;
+          return (
+            <Card key={index} className="bg-gradient-card border-border/50 shadow-card hover:shadow-elegant transition-all duration-300">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="flex items-center gap-1">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {metric.title}
+                  </CardTitle>
+                  {metric.tooltip && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground/60 hover:text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="max-w-xs">{metric.tooltip}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+                <div className={`p-2 rounded-lg ${metric.bgColor}`}>
+                  <Icon className={`h-4 w-4 ${metric.color}`} />
+                </div>
+              </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold mb-1">{metric.value}</div>
               <div className="flex items-center text-xs">
@@ -101,8 +116,9 @@ export const MetricsCards = ({ generalStats, loading }: MetricsCardsProps) => {
               </div>
             </CardContent>
           </Card>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+    </TooltipProvider>
   );
 };

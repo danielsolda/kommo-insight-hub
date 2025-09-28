@@ -3,7 +3,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Calendar, GitCompare, TrendingUp, TrendingDown } from "lucide-react";
+import { Loader2, Calendar, GitCompare, TrendingUp, TrendingDown, Info } from "lucide-react";
+import { Tooltip as UITooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useMemo } from "react";
 
 interface SalesData {
@@ -144,7 +145,8 @@ export const SalesChart = ({
   };
 
   return (
-    <Card className="bg-gradient-card border-border/50 shadow-card">
+    <TooltipProvider>
+      <Card className="bg-gradient-card border-border/50 shadow-card">
       <CardHeader>
         <div className="flex items-center justify-between mb-2">
           <div>
@@ -314,7 +316,17 @@ export const SalesChart = ({
                 </div>
               
               <div className="text-center p-3 bg-muted/30 rounded-lg">
-                <div className="text-sm font-medium text-muted-foreground">Leads Convertidos</div>
+                <div className="flex items-center justify-center gap-1 text-sm font-medium text-muted-foreground">
+                  <span>Taxa de Fechamento do Período</span>
+                  <UITooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-muted-foreground/60 hover:text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">Leads ganhos no período selecionado</p>
+                    </TooltipContent>
+                  </UITooltip>
+                </div>
                 <div className="text-xl font-bold text-info">{actualWonLeads}</div>
                 {comparisonMode && (
                   <div className="flex items-center justify-center gap-1 mt-1">
@@ -336,6 +348,7 @@ export const SalesChart = ({
           </>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </TooltipProvider>
   );
 };
