@@ -190,42 +190,61 @@ export const LeadJourneyMap = ({
     });
     
     // Find leads that transitioned to destination status within the period
-    // Strategy: Look for leads currently in destination status that were updated in the period
-    const transitionLeads = pipelineLeads.filter(lead => {
-      // Must be currently in the destination status
+    // Strategy 1: Leads currently in destination status that were updated in the period
+    const leadsInDestination = pipelineLeads.filter(lead => {
       if (lead.status_id !== selectedToStatus) return false;
       
-      // Get the lead's last update time
       const leadUpdateTime = (lead.updated_at || lead.created_at) * 1000;
-      
-      // Must have been updated within the selected period
       if (leadUpdateTime < periodStart || leadUpdateTime > periodEnd) return false;
-      
-      // Must have been created before the period started (so it existed and could transition)
-      const leadCreationTime = lead.created_at * 1000;
-      if (leadCreationTime >= periodStart) return false;
-      
-      console.log('✅ Lead transitou no período:', {
-        id: lead.id,
-        name: lead.name,
-        currentStatus: lead.status_id,
-        updatedAt: new Date(leadUpdateTime).toLocaleString('pt-BR'),
-        createdAt: new Date(leadCreationTime).toLocaleString('pt-BR'),
-        value: lead.price
-      });
       
       return true;
     });
     
+    // Strategy 2: Leads that passed through destination status but moved on
+    // These are leads updated in the period but NOT in destination anymore
+    const leadsPassedThrough = pipelineLeads.filter(lead => {
+      // Different from destination status (they already moved on)
+      if (lead.status_id === selectedToStatus) return false;
+      
+      const leadUpdateTime = (lead.updated_at || lead.created_at) * 1000;
+      
+      // Must have been updated within the period
+      if (leadUpdateTime < periodStart || leadUpdateTime > periodEnd) return false;
+      
+      // Heuristic: If current status comes after destination in pipeline order, 
+      // it's likely it passed through destination
+      const statuses = currentPipeline.statuses;
+      const toStatusIndex = statuses.findIndex(s => s.id === selectedToStatus);
+      const currentStatusIndex = statuses.findIndex(s => s.id === lead.status_id);
+      
+      // Only count if current status is after destination status
+      if (currentStatusIndex > toStatusIndex) return true;
+      
+      return false;
+    });
+    
+    const transitionLeads = [...leadsInDestination, ...leadsPassedThrough];
+    
     console.log('📊 Resultado da análise:', {
-      leadsEncontrados: transitionLeads.length,
+      leadsAindaNoDestino: leadsInDestination.length,
+      leadsQueJaSairam: leadsPassedThrough.length,
+      totalLeads: transitionLeads.length,
       valorTotal: transitionLeads.reduce((sum, lead) => sum + (lead.price || 0), 0)
     });
-
-    // Get current count of leads in origin status for comparison
-    const currentFromStatusLeads = pipelineLeads.filter(lead => lead.status_id === selectedFromStatus);
     
-    // Calculate average days since the transition (time since last update)
+    transitionLeads.forEach(lead => {
+      const leadUpdateTime = (lead.updated_at || lead.created_at) * 1000;
+      console.log('✅ Lead transitou:', {
+        id: lead.id,
+        name: lead.name,
+        statusAtual: lead.status_id,
+        aindaNoDestino: lead.status_id === selectedToStatus,
+        updatedAt: new Date(leadUpdateTime).toLocaleString('pt-BR'),
+        value: lead.price
+      });
+    });
+
+    // Calculate average days in the period (from update to now or from update to period end)
     const avgTransitionTime = transitionLeads.length > 0 ? 
       transitionLeads.reduce((sum, lead) => {
         const leadUpdateTime = (lead.updated_at || lead.created_at) * 1000;
@@ -233,12 +252,14 @@ export const LeadJourneyMap = ({
         return sum + daysSinceUpdate;
       }, 0) / transitionLeads.length : 0;
 
-    // Calculate transition rate - simplified to show actual count vs potential
-    const transitionRate = currentFromStatusLeads.length > 0 ? 
-      (transitionLeads.length / (currentFromStatusLeads.length + transitionLeads.length)) * 100 : 
-      transitionLeads.length > 0 ? 100 : 0;
+    // Get leads currently in origin status
+    const currentFromStatusLeads = pipelineLeads.filter(lead => lead.status_id === selectedFromStatus);
+    
+    // Calculate transition rate: leads that transitioned vs leads available to transition
+    const baseForRate = currentFromStatusLeads.length + transitionLeads.length;
+    const transitionRate = baseForRate > 0 ? 
+      (transitionLeads.length / baseForRate) * 100 : 0;
 
-    // Get total value of leads that transitioned in the period
     const totalTransitionValue = transitionLeads.reduce((sum, lead) => sum + (lead.price || 0), 0);
 
     return {
