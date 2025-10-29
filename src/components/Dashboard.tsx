@@ -21,7 +21,8 @@ import {
   LazyCustomFieldAnalysis,
   LazyTagsComparator,
   LazySalesRanking,
-  LazyLeadBehaviorAnalysis
+  LazyLeadBehaviorAnalysis,
+  LazyFunnelAnalysis
 } from "@/components/LazyComponents";
 import { NomenclaturesModal } from "@/components/NomenclaturesModal";
 import { InvestmentSettingsModal } from "@/components/InvestmentSettingsModal";
@@ -332,18 +333,32 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
             </Card>
             
             {kommoApi.selectedPipeline && (
-              <Suspense fallback={<ChartSkeleton title="Estatísticas do Pipeline" />}>
-                {kommoApi.loadingStates.pipelineStats ? (
-                  <ChartSkeleton title="Estatísticas do Pipeline" />
-                ) : (
-                  <LazyPipelineChart 
-                    pipelineStats={kommoApi.pipelineStats} 
-                    loading={kommoApi.loadingStates.pipelineStats}
-                    onCalculateConversionTime={kommoApi.calculateConversionTimeData}
-                    onCalculateTimeAnalysis={kommoApi.calculateTimeAnalysisData}
-                  />
-                )}
-              </Suspense>
+              <>
+                <Suspense fallback={<ChartSkeleton title="Estatísticas do Pipeline" />}>
+                  {kommoApi.loadingStates.pipelineStats ? (
+                    <ChartSkeleton title="Estatísticas do Pipeline" />
+                  ) : (
+                    <LazyPipelineChart 
+                      pipelineStats={kommoApi.pipelineStats} 
+                      loading={kommoApi.loadingStates.pipelineStats}
+                      onCalculateConversionTime={kommoApi.calculateConversionTimeData}
+                      onCalculateTimeAnalysis={kommoApi.calculateTimeAnalysisData}
+                    />
+                  )}
+                </Suspense>
+                
+                <Suspense fallback={<ChartSkeleton title="Análise Detalhada de Funil" />}>
+                  {kommoApi.loadingStates.leads ? (
+                    <ChartSkeleton title="Análise Detalhada de Funil" />
+                  ) : (
+                    <LazyFunnelAnalysis 
+                      allLeads={kommoApi.allLeads || []} 
+                      pipelines={kommoApi.pipelines || []} 
+                      selectedPipeline={kommoApi.selectedPipeline}
+                    />
+                  )}
+                </Suspense>
+              </>
             )}
           </TabsContent>
 

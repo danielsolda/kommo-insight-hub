@@ -28,3 +28,7 @@ export const LazyTagsComparator = lazy(() =>
 export const LazyLeadBehaviorAnalysis = lazy(() => 
   import('./LeadBehaviorAnalysis').then(module => ({ default: module.LeadBehaviorAnalysis }))
 );
+
+export const LazyFunnelAnalysis = lazy(() => 
+  import('./FunnelAnalysis').then(module => ({ default: module.FunnelAnalysis }))
+);
