@@ -2,7 +2,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { AlertCircle, TrendingDown, Clock, ArrowRight } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertCircle, TrendingDown, Clock, ArrowRight, Info } from 'lucide-react';
 import { Lead, Pipeline } from '@/services/kommoApi';
 import { useFunnelAnalytics, ConversionStep } from '@/hooks/useFunnelAnalytics';
 import { useFilteredLeads } from '@/hooks/useFilteredData';
@@ -116,8 +117,9 @@ export const FunnelAnalysis = ({ allLeads, pipelines, selectedPipeline }: Funnel
   const { identifyBottlenecks, calculateStepConversions } = useFunnelAnalytics(filteredLeads, pipelines);
 
   const activePipelineId = selectedPipeline || pipelines[0]?.id;
+  const pipeline = pipelines.find(p => p.id === activePipelineId);
   
-  if (!activePipelineId) {
+  if (!activePipelineId || !pipeline) {
     return (
       <Card>
         <CardContent className="py-8">
@@ -179,6 +181,49 @@ export const FunnelAnalysis = ({ allLeads, pipelines, selectedPipeline }: Funnel
           </CardContent>
         </Card>
       </div>
+
+      {/* Distribuição Atual no Funil */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">📊 Distribuição Atual no Funil</CardTitle>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>Taxa de conversão calculada baseada em leads que alcançaram cada etapa. Análise cumulativa do volume do funil.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <CardDescription>Quantidade de leads em cada status</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {pipeline.statuses.sort((a, b) => a.sort - b.sort).map(status => {
+              const count = filteredLeads.filter(l => l.status_id === status.id).length;
+              const percentage = filteredLeads.length > 0 
+                ? (count / filteredLeads.length * 100).toFixed(1) 
+                : '0.0';
+              
+              return (
+                <div key={status.id} className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">{status.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{count} leads</span>
+                      <Badge variant="secondary">{percentage}%</Badge>
+                    </div>
+                  </div>
+                  <Progress value={parseFloat(percentage)} className="h-1.5" />
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Gargalos Identificados */}
       <div>

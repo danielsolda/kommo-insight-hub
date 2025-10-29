@@ -48,29 +48,57 @@ export const useFunnelAnalytics = (leads: Lead[], pipelines: Pipeline[]) => {
       const pipelineLeads = leads.filter(l => l.pipeline_id === pipelineId);
       const steps: ConversionStep[] = [];
 
+      console.log(`📊 Analisando pipeline: ${pipeline.name}`);
+      console.log(`   Total de leads: ${pipelineLeads.length}`);
+      console.log(`   Status no pipeline: ${statuses.length}`);
+      console.log('🔍 DEBUG - Leads por status:');
+      statuses.forEach(status => {
+        const count = pipelineLeads.filter(l => l.status_id === status.id).length;
+        console.log(`   ${status.name} (sort: ${status.sort}): ${count} leads`);
+      });
+
       for (let i = 0; i < statuses.length - 1; i++) {
         const fromStatus = statuses[i];
         const toStatus = statuses[i + 1];
 
-        const leadsAtStart = pipelineLeads.filter(l => l.status_id === fromStatus.id);
-        const totalLeadsAtStart = leadsAtStart.length;
+        // Nova lógica: Contar leads que alcançaram ou passaram por cada status
+        // Leads que chegaram em fromStatus ou além
+        const leadsReachedFromStatus = pipelineLeads.filter(lead => {
+          const leadStatus = statuses.find(s => s.id === lead.status_id);
+          if (!leadStatus) return false;
+          
+          // Lead está em fromStatus ou em status posterior (ou fechado)
+          return leadStatus.sort >= fromStatus.sort || !!lead.closed_at;
+        });
+        
+        const totalLeadsAtStart = leadsReachedFromStatus.length;
 
-        // Aproximação: leads que estão no próximo status
-        const leadsAtDestination = pipelineLeads.filter(l => l.status_id === toStatus.id);
-        const convertedLeads = leadsAtDestination.length;
+        // Leads que chegaram em toStatus ou além
+        const leadsReachedToStatus = pipelineLeads.filter(lead => {
+          const leadStatus = statuses.find(s => s.id === lead.status_id);
+          if (!leadStatus) return false;
+          
+          // Lead está em toStatus ou em status posterior (ou fechado)
+          return leadStatus.sort >= toStatus.sort || !!lead.closed_at;
+        });
+        
+        const convertedLeads = leadsReachedToStatus.length;
 
+        // Taxa de conversão
         const conversionRate = totalLeadsAtStart > 0 
-          ? Math.min(100, (convertedLeads / totalLeadsAtStart) * 100) 
+          ? (convertedLeads / totalLeadsAtStart) * 100 
           : 0;
 
-        const droppedLeads = Math.max(0, totalLeadsAtStart - convertedLeads);
+        // Leads que não avançaram além de fromStatus
+        const droppedLeads = totalLeadsAtStart - convertedLeads;
         const dropoffRate = totalLeadsAtStart > 0 
           ? (droppedLeads / totalLeadsAtStart) * 100 
           : 0;
 
-        // Tempo médio baseado em updated_at
+        // Tempo médio: calcular apenas para leads que ESTÃO em fromStatus
+        const leadsCurrentlyInFromStatus = pipelineLeads.filter(l => l.status_id === fromStatus.id);
         const now = Date.now();
-        const times = leadsAtStart.map(lead => {
+        const times = leadsCurrentlyInFromStatus.map(lead => {
           const updateTime = typeof lead.updated_at === 'number' 
             ? lead.updated_at * 1000 
             : new Date(lead.updated_at).getTime();
@@ -83,6 +111,11 @@ export const useFunnelAnalytics = (leads: Lead[], pipelines: Pipeline[]) => {
         let bottleneckSeverity: 'low' | 'medium' | 'high' = 'low';
         if (conversionRate < 70) bottleneckSeverity = 'high';
         else if (conversionRate < 85) bottleneckSeverity = 'medium';
+
+        console.log(`   ${fromStatus.name} → ${toStatus.name}:`);
+        console.log(`      Leads reached from: ${totalLeadsAtStart}`);
+        console.log(`      Leads reached to: ${convertedLeads}`);
+        console.log(`      Conversion: ${conversionRate.toFixed(1)}%`);
 
         steps.push({
           fromStatusId: fromStatus.id,
