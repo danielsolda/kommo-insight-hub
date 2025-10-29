@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ScatterChart, Scatter, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ScatterChart, Scatter, Cell, Dot } from "recharts";
 import { TrendingUp, Clock, Target, Zap } from "lucide-react";
 import { Pipeline, User, Lead } from "@/services/kommoApi";
 import { LeadListDialog } from "./LeadListDialog";
@@ -392,16 +392,22 @@ export const BehaviorMetrics = ({
                   stroke="hsl(var(--primary))" 
                   name="Criados" 
                   strokeWidth={2}
-                  dot={{ 
-                    r: 5, 
-                    cursor: 'pointer',
-                    onClick: (e: any, payload: any) => handleDotClick(payload, 'created')
-                  }}
-                  activeDot={{ 
-                    r: 8, 
-                    cursor: 'pointer',
-                    onClick: (e: any, payload: any) => handleDotClick(payload, 'created')
-                  }}
+                  dot={(props: any) => (
+                    <Dot
+                      {...props}
+                      r={5}
+                      cursor="pointer"
+                      onClick={() => handleDotClick(props.payload, 'created')}
+                    />
+                  )}
+                  activeDot={(props: any) => (
+                    <Dot
+                      {...props}
+                      r={8}
+                      cursor="pointer"
+                      onClick={() => handleDotClick(props.payload, 'created')}
+                    />
+                  )}
                 />
                 <Line 
                   type="monotone" 
@@ -409,16 +415,22 @@ export const BehaviorMetrics = ({
                   stroke="hsl(var(--success))" 
                   name="Atualizados" 
                   strokeWidth={2}
-                  dot={{ 
-                    r: 5, 
-                    cursor: 'pointer',
-                    onClick: (e: any, payload: any) => handleDotClick(payload, 'updated')
-                  }}
-                  activeDot={{ 
-                    r: 8, 
-                    cursor: 'pointer',
-                    onClick: (e: any, payload: any) => handleDotClick(payload, 'updated')
-                  }}
+                  dot={(props: any) => (
+                    <Dot
+                      {...props}
+                      r={5}
+                      cursor="pointer"
+                      onClick={() => handleDotClick(props.payload, 'updated')}
+                    />
+                  )}
+                  activeDot={(props: any) => (
+                    <Dot
+                      {...props}
+                      r={8}
+                      cursor="pointer"
+                      onClick={() => handleDotClick(props.payload, 'updated')}
+                    />
+                  )}
                 />
                 <Line 
                   type="monotone" 
@@ -426,16 +438,22 @@ export const BehaviorMetrics = ({
                   stroke="hsl(var(--warning))" 
                   name="Fechados" 
                   strokeWidth={2}
-                  dot={{ 
-                    r: 5, 
-                    cursor: 'pointer',
-                    onClick: (e: any, payload: any) => handleDotClick(payload, 'closed')
-                  }}
-                  activeDot={{ 
-                    r: 8, 
-                    cursor: 'pointer',
-                    onClick: (e: any, payload: any) => handleDotClick(payload, 'closed')
-                  }}
+                  dot={(props: any) => (
+                    <Dot
+                      {...props}
+                      r={5}
+                      cursor="pointer"
+                      onClick={() => handleDotClick(props.payload, 'closed')}
+                    />
+                  )}
+                  activeDot={(props: any) => (
+                    <Dot
+                      {...props}
+                      r={8}
+                      cursor="pointer"
+                      onClick={() => handleDotClick(props.payload, 'closed')}
+                    />
+                  )}
                 />
               </LineChart>
             </ResponsiveContainer>
