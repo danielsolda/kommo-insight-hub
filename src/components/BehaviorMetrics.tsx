@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ScatterChart, Scatter, Cell } from "recharts";
 import { TrendingUp, Clock, Target, Zap } from "lucide-react";
 import { Pipeline, User, Lead } from "@/services/kommoApi";
+import { LeadListDialog } from "./LeadListDialog";
 
 interface BehaviorMetricsProps {
   allLeads: Lead[];
@@ -22,6 +23,12 @@ export const BehaviorMetrics = ({
   timeFrame 
 }: BehaviorMetricsProps) => {
   console.log("BehaviorMetrics rendering:", { allLeads: allLeads?.length, pipelines: pipelines?.length, users: users?.length });
+  
+  const [selectedActivity, setSelectedActivity] = useState<{
+    day: string;
+    type: 'created' | 'updated' | 'closed';
+    leads: Lead[];
+  } | null>(null);
   
   if (!allLeads || !pipelines || !users) {
     return (
@@ -161,7 +168,7 @@ export const BehaviorMetrics = ({
     });
   }, [allLeads, selectedPipeline, selectedUser, timeFrame]);
 
-  // Calculate time analysis by day of week
+  // Calculate time analysis by day of week with detailed lead tracking
   const weeklyActivityData = useMemo(() => {
     const now = Date.now();
     const timeFrameMs = parseInt(timeFrame) * 24 * 60 * 60 * 1000;
@@ -180,19 +187,24 @@ export const BehaviorMetrics = ({
       day: weekdays[index],
       created: 0,
       updated: 0,
-      closed: 0
+      closed: 0,
+      createdLeads: [] as Lead[],
+      updatedLeads: [] as Lead[],
+      closedLeads: [] as Lead[]
     }));
 
     filteredLeads.forEach(lead => {
       const createdIndex = Number.isFinite(lead.created_at) ? new Date(lead.created_at * 1000).getDay() : null;
       if (createdIndex !== null && activityByDay[createdIndex]) {
         activityByDay[createdIndex].created++;
+        activityByDay[createdIndex].createdLeads.push(lead);
       }
 
       if (typeof lead.updated_at === 'number') {
         const updatedIndex = new Date(lead.updated_at * 1000).getDay();
         if (activityByDay[updatedIndex]) {
           activityByDay[updatedIndex].updated++;
+          activityByDay[updatedIndex].updatedLeads.push(lead);
         }
       }
       
@@ -200,12 +212,32 @@ export const BehaviorMetrics = ({
         const closedIndex = new Date(lead.closed_at * 1000).getDay();
         if (activityByDay[closedIndex]) {
           activityByDay[closedIndex].closed++;
+          activityByDay[closedIndex].closedLeads.push(lead);
         }
       }
     });
 
     return activityByDay;
   }, [allLeads, selectedPipeline, selectedUser, timeFrame]);
+
+  const handleLineClick = (data: any, type: 'created' | 'updated' | 'closed') => {
+    if (!data || !data.activePayload || !data.activePayload[0]) return;
+    
+    const dayIndex = data.activeLabel;
+    const dayData = weeklyActivityData.find(d => d.day === dayIndex);
+    
+    if (dayData) {
+      const leadsForType = type === 'created' ? dayData.createdLeads :
+                          type === 'updated' ? dayData.updatedLeads :
+                          dayData.closedLeads;
+      
+      setSelectedActivity({
+        day: dayData.day,
+        type: type,
+        leads: leadsForType
+      });
+    }
+  };
 
   const formatTooltip = (value: any, name: string) => {
     if (name === 'avgDays') {
@@ -317,7 +349,7 @@ export const BehaviorMetrics = ({
             Padrão de Atividade Semanal
           </CardTitle>
           <CardDescription>
-            Distribuição de atividades por dia da semana
+            Distribuição de atividades por dia da semana • Clique em qualquer ponto para ver os leads
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -333,10 +365,58 @@ export const BehaviorMetrics = ({
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '6px'
                   }}
+                  content={(props) => {
+                    if (props.active && props.payload && props.payload.length) {
+                      return (
+                        <div style={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px',
+                          padding: '8px 12px'
+                        }}>
+                          <p className="text-sm font-medium">{props.label}</p>
+                          {props.payload.map((entry: any, index: number) => (
+                            <p key={index} style={{ color: entry.color }} className="text-sm">
+                              {entry.name}: {entry.value}
+                            </p>
+                          ))}
+                          <p className="text-xs text-muted-foreground mt-1">Clique para ver detalhes</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
-                <Line type="monotone" dataKey="created" stroke="hsl(var(--primary))" name="Criados" strokeWidth={2} />
-                <Line type="monotone" dataKey="updated" stroke="hsl(var(--success))" name="Atualizados" strokeWidth={2} />
-                <Line type="monotone" dataKey="closed" stroke="hsl(var(--warning))" name="Fechados" strokeWidth={2} />
+                <Line 
+                  type="monotone" 
+                  dataKey="created" 
+                  stroke="hsl(var(--primary))" 
+                  name="Criados" 
+                  strokeWidth={2}
+                  className="cursor-pointer"
+                  onClick={(data) => handleLineClick(data, 'created')}
+                  activeDot={{ r: 8, cursor: 'pointer' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="updated" 
+                  stroke="hsl(var(--success))" 
+                  name="Atualizados" 
+                  strokeWidth={2}
+                  className="cursor-pointer"
+                  onClick={(data) => handleLineClick(data, 'updated')}
+                  activeDot={{ r: 8, cursor: 'pointer' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="closed" 
+                  stroke="hsl(var(--warning))" 
+                  name="Fechados" 
+                  strokeWidth={2}
+                  className="cursor-pointer"
+                  onClick={(data) => handleLineClick(data, 'closed')}
+                  activeDot={{ r: 8, cursor: 'pointer' }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -421,6 +501,18 @@ export const BehaviorMetrics = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Lead List Dialog */}
+      {selectedActivity && (
+        <LeadListDialog
+          open={!!selectedActivity}
+          onOpenChange={(open) => !open && setSelectedActivity(null)}
+          leads={selectedActivity.leads}
+          day={selectedActivity.day}
+          type={selectedActivity.type}
+          users={users}
+        />
+      )}
     </div>
   );
 };
