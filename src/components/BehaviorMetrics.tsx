@@ -220,11 +220,10 @@ export const BehaviorMetrics = ({
     return activityByDay;
   }, [allLeads, selectedPipeline, selectedUser, timeFrame]);
 
-  const handleLineClick = (data: any, type: 'created' | 'updated' | 'closed') => {
-    if (!data || !data.activePayload || !data.activePayload[0]) return;
+  const handleDotClick = (data: any, type: 'created' | 'updated' | 'closed') => {
+    if (!data || !data.day) return;
     
-    const dayIndex = data.activeLabel;
-    const dayData = weeklyActivityData.find(d => d.day === dayIndex);
+    const dayData = weeklyActivityData.find(d => d.day === data.day);
     
     if (dayData) {
       const leadsForType = type === 'created' ? dayData.createdLeads :
@@ -393,9 +392,16 @@ export const BehaviorMetrics = ({
                   stroke="hsl(var(--primary))" 
                   name="Criados" 
                   strokeWidth={2}
-                  className="cursor-pointer"
-                  onClick={(data) => handleLineClick(data, 'created')}
-                  activeDot={{ r: 8, cursor: 'pointer' }}
+                  dot={{ 
+                    r: 5, 
+                    cursor: 'pointer',
+                    onClick: (e: any, payload: any) => handleDotClick(payload, 'created')
+                  }}
+                  activeDot={{ 
+                    r: 8, 
+                    cursor: 'pointer',
+                    onClick: (e: any, payload: any) => handleDotClick(payload, 'created')
+                  }}
                 />
                 <Line 
                   type="monotone" 
@@ -403,9 +409,16 @@ export const BehaviorMetrics = ({
                   stroke="hsl(var(--success))" 
                   name="Atualizados" 
                   strokeWidth={2}
-                  className="cursor-pointer"
-                  onClick={(data) => handleLineClick(data, 'updated')}
-                  activeDot={{ r: 8, cursor: 'pointer' }}
+                  dot={{ 
+                    r: 5, 
+                    cursor: 'pointer',
+                    onClick: (e: any, payload: any) => handleDotClick(payload, 'updated')
+                  }}
+                  activeDot={{ 
+                    r: 8, 
+                    cursor: 'pointer',
+                    onClick: (e: any, payload: any) => handleDotClick(payload, 'updated')
+                  }}
                 />
                 <Line 
                   type="monotone" 
@@ -413,9 +426,16 @@ export const BehaviorMetrics = ({
                   stroke="hsl(var(--warning))" 
                   name="Fechados" 
                   strokeWidth={2}
-                  className="cursor-pointer"
-                  onClick={(data) => handleLineClick(data, 'closed')}
-                  activeDot={{ r: 8, cursor: 'pointer' }}
+                  dot={{ 
+                    r: 5, 
+                    cursor: 'pointer',
+                    onClick: (e: any, payload: any) => handleDotClick(payload, 'closed')
+                  }}
+                  activeDot={{ 
+                    r: 8, 
+                    cursor: 'pointer',
+                    onClick: (e: any, payload: any) => handleDotClick(payload, 'closed')
+                  }}
                 />
               </LineChart>
             </ResponsiveContainer>
