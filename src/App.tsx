@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { isGitHubPages } from "@/utils/environment";
+import { FilterProvider } from "@/contexts/FilterContext";
 import Index from "./pages/Index";
 import OAuthCallback from "./pages/OAuthCallback";
 import NotFound from "./pages/NotFound";
@@ -13,16 +14,18 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter basename={isGitHubPages() ? "/kommo-insight-hub" : "/"}>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/oauth/callback" element={<OAuthCallback />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <FilterProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter basename={isGitHubPages() ? "/kommo-insight-hub" : "/"}>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/oauth/callback" element={<OAuthCallback />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </FilterProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

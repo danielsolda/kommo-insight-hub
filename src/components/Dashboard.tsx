@@ -25,6 +25,7 @@ import {
 } from "@/components/LazyComponents";
 import { NomenclaturesModal } from "@/components/NomenclaturesModal";
 import { InvestmentSettingsModal } from "@/components/InvestmentSettingsModal";
+import { GlobalFilters } from "@/components/GlobalFilters";
 import { useToast } from "@/hooks/use-toast";
 import { useKommoApi } from "@/hooks/useKommoApi";
 import { APP_VERSION } from "@/version";
@@ -124,6 +125,15 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 Sair
               </Button>
             </div>
+          </div>
+          
+          {/* Global Filters */}
+          <div className="mt-4 pb-2">
+            <GlobalFilters 
+              pipelines={kommoApi.pipelines}
+              users={kommoApi.users}
+              loading={isAnyLoading}
+            />
           </div>
         </div>
       </div>
