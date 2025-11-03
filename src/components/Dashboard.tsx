@@ -30,6 +30,8 @@ import { GlobalFilters } from "@/components/GlobalFilters";
 import { AIChatBot } from "@/components/AIChatBot";
 import { useToast } from "@/hooks/use-toast";
 import { useKommoApi } from "@/hooks/useKommoApi";
+import { useFilteredLeads } from "@/hooks/useFilteredData";
+import { useGlobalFilters } from "@/contexts/FilterContext";
 import { APP_VERSION } from "@/version";
 
 interface DashboardProps {
@@ -44,6 +46,8 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
   const [nomenclaturesOpen, setNomenclaturesOpen] = useState(false);
   const { toast } = useToast();
   const kommoApi = useKommoApi();
+  const { filters } = useGlobalFilters();
+  const filteredLeads = useFilteredLeads(kommoApi.allLeads);
 
   const handleRefresh = async () => {
     setLoading(true);
@@ -409,14 +413,35 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
           generalStats: kommoApi.filteredGeneralStats,
           pipelines: kommoApi.pipelines?.map(p => ({ 
             id: p.id, 
-            name: p.name 
+            name: p.name,
+            statuses: p.statuses?.map(s => ({ id: s.id, name: s.name, color: s.color }))
           })),
+          pipelineStats: kommoApi.pipelineStats,
           leadsCount: kommoApi.allLeads?.length || 0,
           openLeadsCount: kommoApi.allLeads?.filter(l => !l.closed_at).length || 0,
+          filteredLeadsCount: filteredLeads?.length || 0,
           users: kommoApi.users?.map(u => ({ 
             id: u.id, 
             name: u.name 
           })),
+          salesRanking: kommoApi.salesRanking,
+          salesData: kommoApi.salesData,
+          conversionTimeData: kommoApi.calculateConversionTimeData(filters.pipelineId),
+          timeAnalysisData: kommoApi.calculateTimeAnalysisData(filters.pipelineId),
+          customFields: kommoApi.customFields?.map(cf => ({ 
+            id: cf.id, 
+            name: cf.name, 
+            type: cf.type 
+          })),
+          tags: kommoApi.tags?.map(t => ({ id: t.id, name: t.name })),
+          currentFilters: {
+            dateRange: {
+              from: filters.dateRange.from.toLocaleDateString('pt-BR'),
+              to: filters.dateRange.to.toLocaleDateString('pt-BR')
+            },
+            pipelineId: filters.pipelineId,
+            userId: filters.userId
+          }
         }}
       />
     </div>
