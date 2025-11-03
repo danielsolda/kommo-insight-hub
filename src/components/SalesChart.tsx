@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Calendar, GitCompare, TrendingUp, TrendingDown, Info } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useState, useMemo } from "react";
+import { useGlobalFilters } from "@/contexts/FilterContext";
+import { useFilteredLeads } from "@/hooks/useFilteredData";
+import type { Lead, Pipeline } from "@/services/kommoApi";
 
 interface SalesData {
   month: string;
@@ -21,29 +24,42 @@ interface SalesData {
 interface SalesChartProps {
   salesData?: SalesData[];
   loading?: boolean;
-  pipelineName?: string;
-  wonLeadsCount?: number;
-  onPeriodChange?: (period: { start: string; end: string }) => void;
+  pipelines: Pipeline[];
+  allLeads: Lead[];
   onComparisonToggle?: (enabled: boolean) => void;
   onComparisonPeriodChange?: (period: { start: string; end: string }) => void;
   comparisonMode?: boolean;
-  currentPeriod?: { start: string; end: string };
   comparisonPeriod?: { start: string; end: string };
 }
 
 export const SalesChart = ({ 
   salesData = [], 
-  loading = false, 
-  pipelineName, 
-  wonLeadsCount = 0,
-  onPeriodChange,
+  loading = false,
+  pipelines,
+  allLeads,
   onComparisonToggle,
   onComparisonPeriodChange,
   comparisonMode = false,
-  currentPeriod,
   comparisonPeriod
 }: SalesChartProps) => {
-  const [selectedPeriod, setSelectedPeriod] = useState("6m");
+  const { filters, setDateRange } = useGlobalFilters();
+  const filteredLeads = useFilteredLeads(allLeads);
+  const [selectedPeriod, setSelectedPeriod] = useState("custom");
+  
+  // ✅ Calcular pipelineName e wonLeadsCount internamente
+  const pipelineName = useMemo(() => {
+    if (!filters.pipelineId) return undefined;
+    return pipelines.find(p => p.id === filters.pipelineId)?.name;
+  }, [filters.pipelineId, pipelines]);
+  
+  const wonLeadsCount = useMemo(() => {
+    return filteredLeads.filter(lead => lead.status_id === 142).length;
+  }, [filteredLeads]);
+  
+  const currentPeriod = {
+    start: filters.dateRange.from.toISOString().split('T')[0],
+    end: filters.dateRange.to.toISOString().split('T')[0]
+  };
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -103,6 +119,9 @@ export const SalesChart = ({
 
   const handlePeriodChange = (value: string) => {
     setSelectedPeriod(value);
+    
+    if (value === "custom") return; // Não mudar o range se for "custom"
+    
     const now = new Date();
     let start: Date;
     
@@ -117,13 +136,11 @@ export const SalesChart = ({
         start = new Date(now.getFullYear(), now.getMonth() - 12, 1);
         break;
       default:
-        start = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+        return;
     }
     
-    onPeriodChange?.({
-      start: start.toISOString().split('T')[0],
-      end: now.toISOString().split('T')[0]
-    });
+    // ✅ Atualizar filtro global
+    setDateRange(start, now);
   };
 
   const toggleComparison = () => {
@@ -167,6 +184,7 @@ export const SalesChart = ({
                 <SelectItem value="3m">Últimos 3 meses</SelectItem>
                 <SelectItem value="6m">Últimos 6 meses</SelectItem>
                 <SelectItem value="12m">Último ano</SelectItem>
+                <SelectItem value="custom">Personalizado</SelectItem>
               </SelectContent>
             </Select>
             <Button

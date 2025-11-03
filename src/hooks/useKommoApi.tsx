@@ -4,6 +4,7 @@ import { KommoAuthService } from "@/services/kommoAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocalCache } from "@/hooks/useLocalCache";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
+import { useGlobalFilters } from "@/contexts/FilterContext";
 
 // Interface for the raw API response
 interface RawPipeline {
@@ -122,9 +123,27 @@ interface LoadingProgress {
 }
 
 export const useKommoApi = () => {
+  // ✅ Conectar ao FilterContext (fonte única da verdade)
+  const { filters, setDateRange, setPipelineId, setUserId } = useGlobalFilters();
+  
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [pipelineStats, setPipelineStats] = useState<PipelineStats[]>([]);
-  const [selectedPipeline, setSelectedPipeline] = useState<number | null>(null);
+  
+  // ✅ Usar filtros globais ao invés de estados locais
+  const selectedPipeline = filters.pipelineId;
+  const salesChartPipelineFilter = filters.pipelineId;
+  const rankingPipelineFilter = filters.pipelineId;
+  
+  // ✅ Converter dateRange global para formatos esperados
+  const salesPeriod = {
+    start: filters.dateRange.from.toISOString().split('T')[0],
+    end: filters.dateRange.to.toISOString().split('T')[0]
+  };
+  
+  const rankingDateRange = {
+    startDate: filters.dateRange.from,
+    endDate: filters.dateRange.to
+  };
   
   // Granular loading states
   const [loadingStates, setLoadingStates] = useState<LoadingStates>({
@@ -152,26 +171,16 @@ export const useKommoApi = () => {
   const [salesData, setSalesData] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [salesRanking, setSalesRanking] = useState<SalesRankingData[]>([]);
-  const [rankingPipelineFilter, setRankingPipelineFilter] = useState<number | null>(null);
   const [customFields, setCustomFields] = useState<any[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
-  const [salesChartPipelineFilter, setSalesChartPipelineFilter] = useState<number | null>(null);
   
-  // Sales chart period filtering states
-  const [salesPeriod, setSalesPeriod] = useState<{ start: string; end: string }>({
-    start: new Date(new Date().getFullYear(), new Date().getMonth() - 6, 1).toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0]
-  });
+  // Sales chart comparison mode (local state, não precisa ser global)
   const [salesComparisonMode, setSalesComparisonMode] = useState(false);
   const [salesComparisonPeriod, setSalesComparisonPeriod] = useState<{ start: string; end: string }>({
     start: new Date(new Date().getFullYear() - 1, new Date().getMonth() - 6, 1).toISOString().split('T')[0],
     end: new Date(new Date().getFullYear() - 1, new Date().getMonth(), 0).toISOString().split('T')[0]
   });
   
-  const [rankingDateRange, setRankingDateRangeState] = useState<DateRange>({
-    startDate: null,
-    endDate: null
-  });
   const [investmentConfig, setInvestmentConfig] = useState<InvestmentConfig>(() => {
     const saved = localStorage.getItem('kommo-investment-config');
     return saved ? JSON.parse(saved) : { monthlyInvestment: 10000, roiGoal: 300, monthlySalesGoal: 50000 };
@@ -655,13 +664,31 @@ export const useKommoApi = () => {
     };
   }, [generalStats, investmentConfig]);
 
+  // ✅ Wrappers para atualizar filtros globais
+  const setSelectedPipeline = useCallback((id: number | null) => {
+    console.log('🔄 Filtro Global: Pipeline alterado para', id);
+    setPipelineId(id);
+  }, [setPipelineId]);
+  
+  const setSalesChartPipelineFilter = useCallback((id: number | null) => {
+    console.log('🔄 Filtro Global: Sales Chart Pipeline alterado para', id);
+    setPipelineId(id);
+  }, [setPipelineId]);
+  
+  const setSalesPeriod = useCallback((period: { start: string; end: string }) => {
+    console.log('🔄 Filtro Global: Período alterado para', period);
+    setDateRange(new Date(period.start), new Date(period.end));
+  }, [setDateRange]);
+
   // Debounced functions for performance
   const debouncedSetRankingPipeline = useDebouncedCallback((pipelineId: number | null) => {
-    setRankingPipelineFilter(pipelineId);
+    setPipelineId(pipelineId);
   }, 300);
 
   const debouncedSetRankingDateRange = useDebouncedCallback((dateRange: DateRange) => {
-    setRankingDateRangeState(dateRange);
+    if (dateRange.startDate && dateRange.endDate) {
+      setDateRange(dateRange.startDate, dateRange.endDate);
+    }
   }, 500);
 
   // Progressive loading effect - Priority: Pipelines → Stats → Leads → Users → CustomFields
@@ -690,10 +717,10 @@ export const useKommoApi = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedPipeline) {
-      fetchPipelineStats(selectedPipeline);
+    if (filters.pipelineId) {
+      fetchPipelineStats(filters.pipelineId);
     }
-  }, [selectedPipeline]);
+  }, [filters.pipelineId]);
 
   // Sales ranking is now handled by the memoized calculation
 
@@ -706,9 +733,10 @@ export const useKommoApi = () => {
       if (cachedPipelines) {
         console.log('📦 Loading pipelines from cache');
         setPipelines(cachedPipelines);
+        // ✅ Atualizar filtro global ao invés de estado local
         const mainPipeline = cachedPipelines.find((p: Pipeline) => p.is_main) || cachedPipelines[0];
-        if (mainPipeline) {
-          setSelectedPipeline(mainPipeline.id);
+        if (mainPipeline && !filters.pipelineId) {
+          setPipelineId(mainPipeline.id);
         }
         updateLoadingState('pipelines', false);
         return;
@@ -733,9 +761,10 @@ export const useKommoApi = () => {
       setPipelines(transformedPipelines);
       cache.setCache('pipelines', transformedPipelines, 10 * 60 * 1000);
       
+      // ✅ Atualizar filtro global ao invés de estado local
       const mainPipeline = transformedPipelines.find(p => p.is_main) || transformedPipelines[0];
-      if (mainPipeline) {
-        setSelectedPipeline(mainPipeline.id);
+      if (mainPipeline && !filters.pipelineId) {
+        setPipelineId(mainPipeline.id);
       }
     } catch (err: any) {
       const errorMsg = `Erro ao carregar pipelines: ${err.message}`;

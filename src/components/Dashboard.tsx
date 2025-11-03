@@ -203,77 +203,20 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 />
               )}
               
-              <div className="space-y-4">
-                <Card className="bg-gradient-card border-border/50 shadow-card">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Filtro de Vendas</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <Select 
-                      value={kommoApi.salesChartPipelineFilter?.toString() || "all"} 
-                      onValueChange={(value) => {
-                        const pipelineId = value === "all" ? null : Number(value);
-                        kommoApi.setSalesChartPipelineFilter(pipelineId);
-                        
-                        // Sync with pipeline chart - when "all" is selected, use main pipeline
-                        if (pipelineId === null) {
-                          const mainPipeline = kommoApi.pipelines.find(p => p.is_main);
-                          if (mainPipeline) {
-                            kommoApi.setSelectedPipeline(mainPipeline.id);
-                          } else if (kommoApi.pipelines.length > 0) {
-                            kommoApi.setSelectedPipeline(kommoApi.pipelines[0].id);
-                          }
-                        } else {
-                          kommoApi.setSelectedPipeline(pipelineId);
-                        }
-                      }}
-                      disabled={kommoApi.loadingStates.pipelines}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecione uma pipeline" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todas as pipelines</SelectItem>
-                        {kommoApi.pipelines.map((pipeline) => (
-                          <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
-                            {pipeline.name} {pipeline.is_main && "(Principal)"}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </CardContent>
-                </Card>
-                
-                {kommoApi.loadingStates.leads ? (
-                  <ChartSkeleton title="Vendas" />
-                ) : (
-                  <SalesChart 
-                    salesData={kommoApi.salesData} 
-                    loading={kommoApi.loadingStates.leads}
-                    pipelineName={kommoApi.salesChartPipelineFilter ? 
-                      kommoApi.pipelines.find(p => p.id === kommoApi.salesChartPipelineFilter)?.name : 
-                      undefined
-                    }
-                    wonLeadsCount={(() => {
-                      return kommoApi.allLeads.filter(lead => {
-                        if (lead.status_id !== 142) return false;
-                        if (kommoApi.salesChartPipelineFilter && lead.pipeline_id !== kommoApi.salesChartPipelineFilter) return false;
-                        if (!lead.closed_at) return false;
-                        const leadDate = new Date(lead.closed_at * 1000);
-                        const periodStart = new Date(kommoApi.salesPeriod.start);
-                        const periodEnd = new Date(kommoApi.salesPeriod.end);
-                        return leadDate >= periodStart && leadDate <= periodEnd;
-                      }).length;
-                    })()}
-                    onPeriodChange={kommoApi.setSalesPeriod}
-                    onComparisonToggle={kommoApi.setSalesComparisonMode}
-                    onComparisonPeriodChange={kommoApi.setSalesComparisonPeriod}
-                    comparisonMode={kommoApi.salesComparisonMode}
-                    currentPeriod={kommoApi.salesPeriod}
-                    comparisonPeriod={kommoApi.salesComparisonPeriod}
-                  />
-                )}
-              </div>
+              {kommoApi.loadingStates.leads ? (
+                <ChartSkeleton title="Vendas" />
+              ) : (
+                <SalesChart 
+                  salesData={kommoApi.salesData} 
+                  loading={kommoApi.loadingStates.leads}
+                  pipelines={kommoApi.pipelines}
+                  allLeads={kommoApi.allLeads}
+                  onComparisonToggle={kommoApi.setSalesComparisonMode}
+                  onComparisonPeriodChange={kommoApi.setSalesComparisonPeriod}
+                  comparisonMode={kommoApi.salesComparisonMode}
+                  comparisonPeriod={kommoApi.salesComparisonPeriod}
+                />
+              )}
             </div>
             
             <Suspense fallback={<ChartSkeleton title="Análise de Campos Personalizados" height="h-64" />}>
@@ -305,33 +248,6 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
           </TabsContent>
 
           <TabsContent value="pipelines" className="space-y-6">
-            <Card className="bg-gradient-card border-border/50 shadow-card">
-              <CardHeader>
-                <CardTitle>Selecionar Pipeline</CardTitle>
-                <CardDescription>
-                  Escolha o pipeline para visualizar as estatísticas
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Select 
-                  value={kommoApi.selectedPipeline?.toString()} 
-                  onValueChange={(value) => kommoApi.setSelectedPipeline(Number(value))}
-                  disabled={kommoApi.loadingStates.pipelines}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione um pipeline" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {kommoApi.pipelines.map((pipeline) => (
-                      <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
-                        {pipeline.name} {pipeline.is_main && "(Principal)"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </CardContent>
-            </Card>
-            
             {kommoApi.selectedPipeline && (
               <>
                 <Suspense fallback={<ChartSkeleton title="Estatísticas do Pipeline" />}>
@@ -372,26 +288,11 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                   <LazySalesChart 
                     salesData={kommoApi.salesData} 
                     loading={kommoApi.loadingStates.leads}
-                    wonLeadsCount={(() => {
-                      const currentDate = new Date();
-                      const currentMonth = currentDate.getMonth();
-                      const currentYear = currentDate.getFullYear();
-                      
-                      return kommoApi.allLeads.filter(lead => {
-                        // Filter by status (won leads)
-                        if (lead.status_id !== 142) return false;
-                        
-                        // Filter by current month using closed_at
-                        if (!lead.closed_at) return false;
-                        const leadDate = new Date(lead.closed_at * 1000);
-                        return leadDate.getFullYear() === currentYear && leadDate.getMonth() === currentMonth;
-                      }).length;
-                    })()}
-                    onPeriodChange={kommoApi.setSalesPeriod}
+                    pipelines={kommoApi.pipelines}
+                    allLeads={kommoApi.allLeads}
                     onComparisonToggle={kommoApi.setSalesComparisonMode}
                     onComparisonPeriodChange={kommoApi.setSalesComparisonPeriod}
                     comparisonMode={kommoApi.salesComparisonMode}
-                    currentPeriod={kommoApi.salesPeriod}
                     comparisonPeriod={kommoApi.salesComparisonPeriod}
                   />
                 )}

@@ -113,21 +113,11 @@ const BottleneckCard = ({ step }: { step: ConversionStep }) => {
 };
 
 export const FunnelAnalysis = ({ allLeads, pipelines, selectedPipeline }: FunnelAnalysisProps) => {
-  console.log('🎯 FunnelAnalysis renderizado:', {
-    allLeadsCount: allLeads?.length || 0,
-    pipelinesCount: pipelines?.length || 0,
-    selectedPipeline
-  });
-
   const filteredLeads = useFilteredLeads(allLeads);
-  console.log('✅ Leads filtrados:', filteredLeads.length);
-
   const { identifyBottlenecks, calculateStepConversions } = useFunnelAnalytics(filteredLeads, pipelines);
 
   const activePipelineId = selectedPipeline || pipelines[0]?.id;
   const pipeline = pipelines.find(p => p.id === activePipelineId);
-  
-  console.log('📍 Pipeline ativo:', { activePipelineId, pipelineName: pipeline?.name });
   
   if (!activePipelineId || !pipeline) {
     return (

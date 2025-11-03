@@ -39,12 +39,6 @@ const getPerformanceStatus = (ratio: number): 'excellent' | 'good' | 'attention'
 };
 
 export const useFunnelAnalytics = (leads: Lead[], pipelines: Pipeline[]) => {
-  console.log('🔧 useFunnelAnalytics chamado:', {
-    leadsCount: leads.length,
-    pipelinesCount: pipelines.length,
-    leads: leads.slice(0, 2), // Mostrar 2 primeiros leads
-    pipelines: pipelines.map(p => ({ id: p.id, name: p.name, statusCount: p.statuses?.length }))
-  });
 
   const calculateStepConversions = useMemo(() => {
     return (pipelineId: number): ConversionStep[] => {
