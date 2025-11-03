@@ -136,8 +136,8 @@ export const BehaviorMetrics = ({
     });
   }, [allLeads, pipelines, selectedPipeline, selectedUser, timeFrame]);
 
-  // Calculate engagement scatter plot data
-  const engagementData = useMemo(() => {
+  // Calculate leads at risk (no activity for too long)
+  const leadsAtRiskData = useMemo(() => {
     const now = Date.now();
     const timeFrameMs = parseInt(timeFrame) * 24 * 60 * 60 * 1000;
     const startTime = now - timeFrameMs;
@@ -147,25 +147,44 @@ export const BehaviorMetrics = ({
       if (leadTime < startTime) return false;
       if (selectedPipeline && lead.pipeline_id !== selectedPipeline) return false;
       if (selectedUser && lead.responsible_user_id !== selectedUser) return false;
-      return true; // Include all leads (active and closed)
+      return !lead.closed_at; // Only open leads
     });
 
-    return filteredLeads.map(lead => {
-      const daysSinceCreated = Math.max(0, (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000));
+    // Calculate days without activity for each lead
+    const leadsWithInactivity = filteredLeads.map(lead => {
       const daysSinceUpdate = typeof lead.updated_at === 'number'
-        ? Math.max(0, (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000))
-        : daysSinceCreated;
-      const value = Math.max(1000, lead.price || 1000); // Minimum value for visibility
+        ? (now - (lead.updated_at * 1000)) / (24 * 60 * 60 * 1000)
+        : (now - (lead.created_at * 1000)) / (24 * 60 * 60 * 1000);
       
       return {
-        x: Math.round(daysSinceCreated * 10) / 10, // Round for better grouping
-        y: Math.round(daysSinceUpdate * 10) / 10,
-        z: value,
-        name: lead.name,
-        status: lead.status_id,
-        isClosed: !!lead.closed_at
+        ...lead,
+        daysSinceUpdate: Math.round(daysSinceUpdate * 10) / 10
       };
     });
+
+    // Group by inactivity periods
+    const riskCategories = [
+      { label: '3-7 dias', min: 3, max: 7, color: 'hsl(var(--warning))' },
+      { label: '7-14 dias', min: 7, max: 14, color: 'hsl(var(--destructive))' },
+      { label: '14-30 dias', min: 14, max: 30, color: '#ef4444' },
+      { label: '30+ dias', min: 30, max: Infinity, color: '#991b1b' }
+    ];
+
+    return riskCategories.map(category => {
+      const leadsInCategory = leadsWithInactivity.filter(
+        lead => lead.daysSinceUpdate >= category.min && lead.daysSinceUpdate < category.max
+      );
+      
+      const totalValue = leadsInCategory.reduce((sum, lead) => sum + (lead.price || 0), 0);
+      
+      return {
+        name: category.label,
+        count: leadsInCategory.length,
+        value: totalValue,
+        color: category.color,
+        leads: leadsInCategory
+      };
+    }).filter(cat => cat.count > 0);
   }, [allLeads, selectedPipeline, selectedUser, timeFrame]);
 
   // Calculate time analysis by day of week with detailed lead tracking
@@ -461,82 +480,85 @@ export const BehaviorMetrics = ({
         </CardContent>
       </Card>
 
-      {/* Engagement Analysis */}
+      {/* Leads at Risk */}
       <Card className="bg-gradient-card border-border/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5" />
-            Análise de Engajamento
+            Leads em Risco
           </CardTitle>
           <CardDescription>
-            Relação entre idade do lead, última atividade e valor (tamanho da bolha)
+            Leads sem atividade recente que precisam de atenção • Clique nas barras para ver os leads
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  type="number" 
-                  dataKey="x" 
-                  name="Dias desde criação" 
-                  stroke="hsl(var(--muted-foreground))" 
-                  fontSize={12}
-                />
-                <YAxis 
-                  type="number" 
-                  dataKey="y" 
-                  name="Dias desde última atividade" 
-                  stroke="hsl(var(--muted-foreground))" 
-                  fontSize={12}
-                />
-                <Tooltip 
-                  cursor={{ strokeDasharray: '3 3' }}
-                  formatter={(value, name, props) => {
-                    if (name === 'x') return [`${value} dias`, 'Dias desde criação'];
-                    if (name === 'y') return [`${value} dias`, 'Dias desde última atividade'];
-                    return [value, name];
-                  }}
-                  labelFormatter={(label, payload) => {
-                    if (payload && payload[0]) {
-                      const data = payload[0].payload;
-                      return `${data.name} - R$ ${(data.z / 1000).toFixed(0)}k ${data.isClosed ? '(Fechado)' : '(Ativo)'}`;
-                    }
-                    return label;
-                  }}
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '6px'
-                  }}
-                />
-                <Scatter data={engagementData}>
-                  {engagementData.map((entry, index) => {
-                    // Calculate bubble size based on value (z)
-                    const minSize = 4;
-                    const maxSize = 20;
-                    const maxValue = Math.max(...engagementData.map(d => d.z));
-                    const size = minSize + ((entry.z / maxValue) * (maxSize - minSize));
-                    
-                    return (
-                      <Cell 
-                        key={`cell-${index}`}
-                        r={size}
-                        fill={
-                          entry.isClosed ? "hsl(var(--muted-foreground))" :
-                          entry.y <= 2 ? "hsl(var(--success))" : 
-                          entry.y <= 7 ? "hsl(var(--warning))" : 
-                          "hsl(var(--destructive))"
+          {leadsAtRiskData.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-80 text-center">
+              <Zap className="h-12 w-12 text-success mb-4" />
+              <p className="text-lg font-medium">Excelente trabalho!</p>
+              <p className="text-muted-foreground">Todos os leads estão sendo acompanhados adequadamente</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-lg bg-muted/50">
+                  <p className="text-sm text-muted-foreground">Total de Leads em Risco</p>
+                  <p className="text-2xl font-bold">
+                    {leadsAtRiskData.reduce((sum, cat) => sum + cat.count, 0)}
+                  </p>
+                </div>
+                <div className="p-4 rounded-lg bg-muted/50">
+                  <p className="text-sm text-muted-foreground">Valor Potencial em Risco</p>
+                  <p className="text-2xl font-bold">
+                    R$ {leadsAtRiskData.reduce((sum, cat) => sum + cat.value, 0).toLocaleString('pt-BR')}
+                  </p>
+                </div>
+              </div>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={leadsAtRiskData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="hsl(var(--muted-foreground))" 
+                      fontSize={12}
+                    />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px'
+                      }}
+                      formatter={(value: number, name: string) => [
+                        name === 'count' ? `${value} leads` : `R$ ${value.toLocaleString('pt-BR')}`,
+                        name === 'count' ? 'Quantidade' : 'Valor Total'
+                      ]}
+                    />
+                    <Bar 
+                      dataKey="count" 
+                      name="count" 
+                      radius={[4, 4, 0, 0]}
+                      cursor="pointer"
+                      onClick={(data) => {
+                        if (data && data.leads) {
+                          setSelectedActivity({
+                            day: data.name,
+                            type: 'updated',
+                            leads: data.leads
+                          });
                         }
-                        fillOpacity={entry.isClosed ? 0.4 : 0.8}
-                      />
-                    );
-                  })}
-                </Scatter>
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
+                      }}
+                    >
+                      {leadsAtRiskData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
