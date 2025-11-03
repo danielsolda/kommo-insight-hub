@@ -27,6 +27,7 @@ import {
 import { NomenclaturesModal } from "@/components/NomenclaturesModal";
 import { InvestmentSettingsModal } from "@/components/InvestmentSettingsModal";
 import { GlobalFilters } from "@/components/GlobalFilters";
+import { AIChatBot } from "@/components/AIChatBot";
 import { useToast } from "@/hooks/use-toast";
 import { useKommoApi } from "@/hooks/useKommoApi";
 import { APP_VERSION } from "@/version";
@@ -401,6 +402,22 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
       <NomenclaturesModal 
         open={nomenclaturesOpen} 
         onOpenChange={setNomenclaturesOpen} 
+      />
+
+      <AIChatBot 
+        dashboardContext={{
+          generalStats: kommoApi.filteredGeneralStats,
+          pipelines: kommoApi.pipelines?.map(p => ({ 
+            id: p.id, 
+            name: p.name 
+          })),
+          leadsCount: kommoApi.allLeads?.length || 0,
+          openLeadsCount: kommoApi.allLeads?.filter(l => !l.closed_at).length || 0,
+          users: kommoApi.users?.map(u => ({ 
+            id: u.id, 
+            name: u.name 
+          })),
+        }}
       />
     </div>
   );
