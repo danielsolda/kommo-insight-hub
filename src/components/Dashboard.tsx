@@ -26,6 +26,7 @@ import {
 } from "@/components/LazyComponents";
 import { NomenclaturesModal } from "@/components/NomenclaturesModal";
 import { InvestmentSettingsModal } from "@/components/InvestmentSettingsModal";
+import { AIConfigModal } from "@/components/AIConfigModal";
 import { GlobalFilters } from "@/components/GlobalFilters";
 import { AIChatBot } from "@/components/AIChatBot";
 import { useToast } from "@/hooks/use-toast";
@@ -112,6 +113,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 config={kommoApi.investmentConfig}
                 onConfigChange={kommoApi.updateInvestmentConfig}
               />
+              <AIConfigModal />
               <Button
                 variant="outline"
                 size="sm"

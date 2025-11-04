@@ -36,11 +36,23 @@ export const AIChatBot = ({ dashboardContext }: AIChatBotProps) => {
     setInput('');
     setIsLoading(true);
 
+    // Load AI config from localStorage
+    let aiConfig = null;
+    try {
+      const saved = localStorage.getItem('ai-config');
+      if (saved) {
+        aiConfig = JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Erro ao carregar configurações da IA:', e);
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke('ai-chat', {
         body: {
           messages: newMessages,
           dashboardContext,
+          aiConfig,
         },
       });
 

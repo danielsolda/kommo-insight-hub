@@ -12,27 +12,42 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, dashboardContext } = await req.json();
+    const { messages, dashboardContext, aiConfig } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY não configurada');
     }
 
-    const systemPrompt = `Você é um assistente de análise de dados do Kommo CRM. 
+    // Build tone instructions based on config
+    const toneInstructions: Record<string, string> = {
+      formal: 'Use linguagem profissional e corporativa. Seja formal e técnico.',
+      casual: 'Use comunicação amigável e direta. Seja acessível e conversacional.',
+      technical: 'Foque em métricas detalhadas e análises técnicas. Use terminologia precisa.',
+    };
+
+    const tone = aiConfig?.tone || 'casual';
+    const businessContext = aiConfig?.businessContext || '';
+    const specialInstructions = aiConfig?.specialInstructions || '';
+
+    let systemPrompt = `Você é um assistente de análise de dados do Kommo CRM. 
 Você ajuda usuários a entender suas métricas de vendas, leads e performance.
 
-Contexto do Dashboard:
+${businessContext ? `CONTEXTO DO NEGÓCIO:\n${businessContext}\n` : ''}
+
+DADOS DO DASHBOARD:
 ${dashboardContext ? JSON.stringify(dashboardContext, null, 2) : 'Nenhum contexto fornecido'}
 
-Diretrizes:
+DIRETRIZES:
+- ${toneInstructions[tone]}
 - Seja objetivo e direto nas respostas
 - Use os dados fornecidos no contexto para dar insights específicos
 - Quando não tiver dados suficientes, deixe claro
 - Sugira ações práticas baseadas nos dados
 - Formate números como moeda quando apropriado (R$)
 - Use percentuais para taxas de conversão
-- Seja proativo em identificar problemas e oportunidades`;
+- Seja proativo em identificar problemas e oportunidades
+${specialInstructions ? `\nINSTRUÇÕES ESPECIAIS:\n${specialInstructions}` : ''}`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
