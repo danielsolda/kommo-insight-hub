@@ -34,7 +34,7 @@ export const AIChatBot = ({ dashboardContext }: AIChatBotProps) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowTooltip(false);
-    }, 5000);
+    }, 60000);
     return () => clearTimeout(timer);
   }, []);
 
