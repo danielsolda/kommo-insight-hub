@@ -150,7 +150,7 @@ export const AIChatBot = ({ dashboardContext }: AIChatBotProps) => {
         )}
         <Button
           onClick={() => setIsOpen(!isOpen)}
-          className="h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90"
+          className={`h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 ${showTooltip && !isOpen ? 'animate-pulse' : ''}`}
           size="icon"
         >
           {isOpen ? <Minimize2 className="h-6 w-6" /> : <Bot className="h-6 w-6" />}
