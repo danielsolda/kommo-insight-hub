@@ -21,6 +21,7 @@ export const AIChatBot = ({ dashboardContext }: AIChatBotProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -29,6 +30,13 @@ export const AIChatBot = ({ dashboardContext }: AIChatBotProps) => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowTooltip(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const streamChat = async (userMessage: string) => {
     const newMessages = [...messages, { role: 'user' as const, content: userMessage }];
@@ -132,14 +140,22 @@ export const AIChatBot = ({ dashboardContext }: AIChatBotProps) => {
 
   return (
     <>
-      {/* Floating Button */}
-      <Button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary hover:bg-primary/90"
-        size="icon"
-      >
-        {isOpen ? <Minimize2 className="h-6 w-6" /> : <Bot className="h-6 w-6" />}
-      </Button>
+      {/* Floating Button with Tooltip */}
+      <div className="fixed bottom-6 right-6 z-50">
+        {showTooltip && !isOpen && (
+          <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-popover text-popover-foreground text-sm rounded-lg shadow-lg border whitespace-nowrap animate-in fade-in-0 slide-in-from-bottom-2">
+            Pergunte para o agente
+            <div className="absolute top-full right-4 -mt-1 border-4 border-transparent border-t-popover" />
+          </div>
+        )}
+        <Button
+          onClick={() => setIsOpen(!isOpen)}
+          className="h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90"
+          size="icon"
+        >
+          {isOpen ? <Minimize2 className="h-6 w-6" /> : <Bot className="h-6 w-6" />}
+        </Button>
+      </div>
 
       {/* Chat Window */}
       {isOpen && (
