@@ -51,10 +51,10 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
   const { filters } = useGlobalFilters();
   const filteredLeads = useFilteredLeads(kommoApi.allLeads);
 
-  // Carregar notes quando entrar na aba de performance
+  // Carregar events quando entrar na aba de performance
   useEffect(() => {
-    if (activeTab === 'performance' && kommoApi.notes.length === 0 && !kommoApi.loadingStates.notes) {
-      kommoApi.fetchNotes();
+    if (activeTab === 'performance' && kommoApi.events.length === 0 && !kommoApi.loadingStates.events) {
+      kommoApi.fetchEvents();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -404,9 +404,9 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
           <TabsContent value="performance" className="space-y-6">
             <ResponseTimeAnalysis
               leads={filteredLeads}
-              notes={kommoApi.notes}
+              events={kommoApi.events}
               users={kommoApi.users}
-              loading={kommoApi.loadingStates.notes}
+              loading={kommoApi.loadingStates.events}
             />
           </TabsContent>
 

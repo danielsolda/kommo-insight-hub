@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { KommoApiService, Pipeline, Tag } from "@/services/kommoApi";
+import { KommoApiService, Pipeline, Tag, Event } from "@/services/kommoApi";
 import { KommoAuthService } from "@/services/kommoAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocalCache } from "@/hooks/useLocalCache";
@@ -115,6 +115,7 @@ interface LoadingStates {
   pipelineStats: boolean;
   tags: boolean;
   notes: boolean;
+  events: boolean;
 }
 
 // Progress tracking interface
@@ -155,7 +156,8 @@ export const useKommoApi = () => {
     customFields: true,
     pipelineStats: false,
     tags: true,
-    notes: false
+    notes: false,
+    events: false
   });
   
   // Legacy loading state for backward compatibility
@@ -176,6 +178,7 @@ export const useKommoApi = () => {
   const [customFields, setCustomFields] = useState<any[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [notes, setNotes] = useState<any[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   
   // Sales chart comparison mode (local state, não precisa ser global)
   const [salesComparisonMode, setSalesComparisonMode] = useState(false);
@@ -1280,6 +1283,60 @@ export const useKommoApi = () => {
     }
   }, [updateLoadingState, cache, allLeads]);
 
+  const fetchEvents = useCallback(async () => {
+    updateLoadingState('events', true);
+    
+    try {
+      const cachedEvents = cache.getCache('events') as Event[] | null;
+      if (cachedEvents) {
+        console.log('📦 Loading events from cache');
+        setEvents(cachedEvents);
+        updateLoadingState('events', false);
+        return;
+      }
+
+      console.log('🔄 Buscando eventos de interação (WhatsApp, ligações, e-mails, SMS)...');
+      const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
+      const authService = new KommoAuthService(kommoConfig);
+      const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
+
+      // Tipos de eventos que representam respostas ativas
+      const RESPONSE_EVENT_TYPES = [
+        'outgoing_chat_message',  // WhatsApp, chat
+        'call_out',               // Ligações feitas
+        'sms_out',                // SMS enviados
+        'mail_out'                // E-mails enviados
+      ];
+
+      // Buscar eventos do período filtrado
+      const startTimestamp = Math.floor(new Date(filters.dateRange.from).getTime() / 1000);
+      const endTimestamp = Math.floor(new Date(filters.dateRange.to).getTime() / 1000);
+
+      const response = await apiService.getEvents({
+        filter: {
+          entity: ['leads'],
+          type: RESPONSE_EVENT_TYPES,
+          created_at: {
+            from: startTimestamp,
+            to: endTimestamp
+          }
+        },
+        limit: 250
+      });
+
+      const fetchedEvents = response._embedded?.events || [];
+      console.log(`✅ ${fetchedEvents.length} eventos carregados`);
+      
+      setEvents(fetchedEvents);
+      cache.setCache('events', fetchedEvents, 5 * 60 * 1000); // 5 minutos de cache
+    } catch (err: any) {
+      console.error('❌ Erro ao buscar eventos:', err);
+      setEvents([]);
+    } finally {
+      updateLoadingState('events', false);
+    }
+  }, [updateLoadingState, cache, filters.dateRange]);
+
   // Sales ranking calculation is now handled by memoized version above
 
   const refreshData = useCallback(async () => {
@@ -1362,6 +1419,8 @@ export const useKommoApi = () => {
     tags,
     notes,
     fetchNotes,
+    events,
+    fetchEvents,
     
     // Conversion time analysis
     calculateConversionTimeData: useCallback((pipelineId?: number | null): ConversionTimeData | null => {
