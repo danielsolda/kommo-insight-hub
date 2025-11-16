@@ -1327,6 +1327,31 @@ export const useKommoApi = () => {
       const fetchedEvents = response._embedded?.events || [];
       console.log(`✅ ${fetchedEvents.length} eventos carregados`);
       
+      // 🔍 DEBUG: Inspecionar estrutura completa de eventos de chat
+      const chatEvents = fetchedEvents.filter(e => e.type === 'outgoing_chat_message');
+      if (chatEvents.length > 0) {
+        console.log('🔍 DEBUG - Estrutura de outgoing_chat_message:', {
+          totalChatEvents: chatEvents.length,
+          primeiroEvento: chatEvents[0],
+          value_after_sample: chatEvents[0]?.value_after,
+          campos_disponiveis: Object.keys(chatEvents[0] || {}),
+          todos_tipos_evento: [...new Set(fetchedEvents.map(e => e.type))]
+        });
+        
+        // Mostrar amostra de 3 eventos para análise
+        console.log('📋 Amostra de eventos (primeiros 3):', chatEvents.slice(0, 3).map(e => ({
+          id: e.id,
+          type: e.type,
+          entity_id: e.entity_id,
+          created_by: e.created_by,
+          created_at: new Date(e.created_at * 1000).toLocaleString(),
+          value_after: e.value_after
+        })));
+      } else {
+        console.log('⚠️ Nenhum evento do tipo outgoing_chat_message encontrado');
+        console.log('📊 Tipos de eventos disponíveis:', [...new Set(fetchedEvents.map(e => e.type))]);
+      }
+      
       setEvents(fetchedEvents);
       cache.setCache('events', fetchedEvents, 5 * 60 * 1000); // 5 minutos de cache
     } catch (err: any) {
