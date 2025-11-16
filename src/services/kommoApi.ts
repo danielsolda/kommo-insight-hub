@@ -83,6 +83,18 @@ export interface Note {
   };
 }
 
+export interface Event {
+  id: string;
+  type: string;
+  entity_id: number;
+  entity_type: string;
+  created_by: number;
+  created_at: number;
+  value_after?: any;
+  value_before?: any;
+  account_id?: number;
+}
+
 export class KommoApiService {
   private authService: KommoAuthService;
   private accountUrl: string;
@@ -564,5 +576,36 @@ export class KommoApiService {
     
     const query = queryParams.toString() ? `?${queryParams}` : '';
     return this.makeRequest(`/api/v4/leads/notes${query}`);
+  }
+
+  // Buscar eventos (mensagens, ligações, e-mails, SMS)
+  async getEvents(params: {
+    filter?: {
+      entity?: string[];
+      type?: string[];
+      created_at?: { from: number; to: number };
+    };
+    limit?: number;
+    page?: number;
+  } = {}): Promise<{ _embedded: { events: Event[] }, _page?: any }> {
+    const queryParams = new URLSearchParams();
+    if (params.limit) queryParams.set('limit', params.limit.toString());
+    if (params.page) queryParams.set('page', params.page.toString());
+    
+    if (params.filter?.entity) {
+      params.filter.entity.forEach(e => queryParams.append('filter[entity][]', e));
+    }
+    
+    if (params.filter?.type) {
+      params.filter.type.forEach(t => queryParams.append('filter[type][]', t));
+    }
+    
+    if (params.filter?.created_at) {
+      queryParams.set('filter[created_at][from]', params.filter.created_at.from.toString());
+      queryParams.set('filter[created_at][to]', params.filter.created_at.to.toString());
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams}` : '';
+    return this.makeRequest(`/api/v4/events${query}`);
   }
 }

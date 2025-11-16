@@ -4,21 +4,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Clock, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
 import { useResponseTimeAnalysis } from "@/hooks/useResponseTimeAnalysis";
-import { Lead, Note, User } from "@/services/kommoApi";
+import { Lead, Event, User } from "@/services/kommoApi";
 import { ChartSkeleton } from "@/components/ui/ChartSkeleton";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
 
 interface ResponseTimeAnalysisProps {
   leads: Lead[];
-  notes: Note[];
+  events: Event[];
   users: User[];
   loading: boolean;
 }
 
-export const ResponseTimeAnalysis = ({ leads, notes, users, loading }: ResponseTimeAnalysisProps) => {
+export const ResponseTimeAnalysis = ({ leads, events, users, loading }: ResponseTimeAnalysisProps) => {
   const { responseMetricsByUser, overallMetrics, leadsWithResponseTime } = useResponseTimeAnalysis(
     leads,
-    notes,
+    events,
     users
   );
 

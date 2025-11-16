@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Lead, Note, User } from '@/services/kommoApi';
+import { Lead, Event, User } from '@/services/kommoApi';
 
 export interface ResponseTimeMetrics {
   userId: number;
@@ -24,39 +24,44 @@ export interface LeadResponseData {
 
 export const useResponseTimeAnalysis = (
   leads: Lead[],
-  notes: Note[],
+  events: Event[],
   users: User[]
 ) => {
-  // Calcular tempo de resposta por lead
+  // Calcular tempo de resposta por lead usando Events API
   const leadsWithResponseTime = useMemo(() => {
     return leads.map(lead => {
-      // Filtrar notas do lead que foram criadas pelo vendedor responsável
-      // Considerar apenas notas relevantes (não automáticas)
-      const relevantNoteTypes = ['call_out', 'call_in', 'sms_out', 'common', 'mail_out'];
+      // Tipos de eventos que representam respostas ativas do vendedor
+      const RESPONSE_EVENT_TYPES = [
+        'outgoing_chat_message',  // Mensagem enviada (WhatsApp, chat)
+        'call_out',               // Ligação feita
+        'sms_out',                // SMS enviado
+        'mail_out'                // E-mail enviado
+      ];
       
-      const leadNotes = notes
-        .filter(note => note.entity_id === lead.id)
-        .filter(note => note.created_by === lead.responsible_user_id)
-        .filter(note => relevantNoteTypes.includes(note.note_type))
+      const responseEvents = events
+        .filter(e => e.entity_id === lead.id)
+        .filter(e => e.entity_type === 'lead')
+        .filter(e => e.created_by === lead.responsible_user_id)
+        .filter(e => RESPONSE_EVENT_TYPES.includes(e.type))
         .sort((a, b) => a.created_at - b.created_at);
       
-      const firstNote = leadNotes[0];
-      const hasResponse = !!firstNote;
+      const firstResponse = responseEvents[0];
+      const hasResponse = !!firstResponse;
       const responseTime = hasResponse 
-        ? (firstNote.created_at - lead.created_at) / 3600 // converter para horas
+        ? (firstResponse.created_at - lead.created_at) / 3600 // converter para horas
         : null;
       
       return {
         leadId: lead.id,
         leadName: lead.name,
         createdAt: lead.created_at,
-        firstResponseAt: firstNote?.created_at || null,
+        firstResponseAt: firstResponse?.created_at || null,
         responseTime,
         responsibleUserId: lead.responsible_user_id,
         hasResponse
       } as LeadResponseData;
     });
-  }, [leads, notes]);
+  }, [leads, events]);
 
   // Calcular métricas por vendedor
   const responseMetricsByUser = useMemo(() => {
