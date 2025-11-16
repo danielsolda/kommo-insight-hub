@@ -56,7 +56,8 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
     if (activeTab === 'performance' && kommoApi.notes.length === 0 && !kommoApi.loadingStates.notes) {
       kommoApi.fetchNotes();
     }
-  }, [activeTab, kommoApi.notes.length, kommoApi.loadingStates.notes, kommoApi.fetchNotes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const handleRefresh = async () => {
     setLoading(true);
