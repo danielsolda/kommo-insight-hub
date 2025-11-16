@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { BarChart3, Settings, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen, Crown, Brain } from "lucide-react";
+import { BarChart3, Settings, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen, Crown, Brain, Clock } from "lucide-react";
 import { MetricsCards } from "@/components/MetricsCards";
 import { MetricsSkeleton } from "@/components/ui/MetricsSkeleton";
 import { ChartSkeleton } from "@/components/ui/ChartSkeleton";
@@ -14,7 +14,8 @@ import { LeadsTable } from "@/components/LeadsTable";
 import { SalesChart } from "@/components/SalesChart";
 import { SalesRanking } from "@/components/SalesRanking";
 import { CustomFieldAnalysis } from "@/components/CustomFieldAnalysis";
-import { 
+import { ResponseTimeAnalysis } from "@/components/ResponseTimeAnalysis";
+import {
   LazyPipelineChart, 
   LazyLeadsTable, 
   LazySalesChart, 
@@ -49,6 +50,13 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
   const kommoApi = useKommoApi();
   const { filters } = useGlobalFilters();
   const filteredLeads = useFilteredLeads(kommoApi.allLeads);
+
+  // Carregar notes quando entrar na aba de performance
+  useEffect(() => {
+    if (activeTab === 'performance' && kommoApi.notes.length === 0 && !kommoApi.loadingStates.notes) {
+      kommoApi.fetchNotes();
+    }
+  }, [activeTab, kommoApi.notes.length, kommoApi.loadingStates.notes, kommoApi.fetchNotes]);
 
   const handleRefresh = async () => {
     setLoading(true);
@@ -168,7 +176,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-muted/30">
+          <TabsList className="grid w-full grid-cols-6 bg-muted/30">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Visão Geral
@@ -184,6 +192,10 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
             <TabsTrigger value="sales" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Vendas
+            </TabsTrigger>
+            <TabsTrigger value="performance" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Performance
             </TabsTrigger>
             <TabsTrigger value="behavior" className="flex items-center gap-2">
               <Brain className="h-4 w-4" />
@@ -386,6 +398,15 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 />
               )}
             </Suspense>
+          </TabsContent>
+
+          <TabsContent value="performance" className="space-y-6">
+            <ResponseTimeAnalysis
+              leads={filteredLeads}
+              notes={kommoApi.notes}
+              users={kommoApi.users}
+              loading={kommoApi.loadingStates.notes}
+            />
           </TabsContent>
 
           <TabsContent value="behavior" className="space-y-6">

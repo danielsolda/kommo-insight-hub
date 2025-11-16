@@ -67,6 +67,22 @@ export interface User {
   name: string;
 }
 
+export interface Note {
+  id: number;
+  entity_id: number;
+  created_by: number;
+  updated_by: number;
+  created_at: number;
+  updated_at: number;
+  responsible_user_id: number;
+  note_type: string;
+  params?: {
+    text?: string;
+    duration?: number;
+    phone?: string;
+  };
+}
+
 export class KommoApiService {
   private authService: KommoAuthService;
   private accountUrl: string;
@@ -513,5 +529,40 @@ export class KommoApiService {
       pipelines: pipelineStats,
       leads: leads.slice(0, 50) // Limitar para performance
     };
+  }
+
+  // Buscar notas de um lead específico
+  async getLeadNotes(leadId: number, params: {
+    limit?: number;
+    page?: number;
+  } = {}): Promise<{ _embedded: { notes: Note[] }, _page?: any }> {
+    const queryParams = new URLSearchParams();
+    if (params.limit) queryParams.set('limit', params.limit.toString());
+    if (params.page) queryParams.set('page', params.page.toString());
+    queryParams.set('filter[entity_id]', leadId.toString());
+    
+    const query = queryParams.toString() ? `?${queryParams}` : '';
+    return this.makeRequest(`/api/v4/leads/notes${query}`);
+  }
+
+  // Buscar todas as notas com filtro
+  async getNotes(params: {
+    limit?: number;
+    page?: number;
+    filter?: {
+      entity_id?: number[];
+      created_at?: { from: number; to: number };
+    };
+  } = {}): Promise<{ _embedded: { notes: Note[] }, _page?: any }> {
+    const queryParams = new URLSearchParams();
+    if (params.limit) queryParams.set('limit', params.limit.toString());
+    if (params.page) queryParams.set('page', params.page.toString());
+    
+    if (params.filter?.entity_id) {
+      queryParams.set('filter[entity_id]', params.filter.entity_id.join(','));
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams}` : '';
+    return this.makeRequest(`/api/v4/leads/notes${query}`);
   }
 }
