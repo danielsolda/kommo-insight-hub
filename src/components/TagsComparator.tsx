@@ -4,6 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { Tag, BarChart3, PieChart as PieChartIcon } from "lucide-react";
 
@@ -17,6 +19,7 @@ interface TagsComparatorProps {
 export const TagsComparator = ({ tags, allLeads, pipelines, loading }: TagsComparatorProps) => {
   const [selectedPipeline, setSelectedPipeline] = useState<string>("all");
   const [chartType, setChartType] = useState<"bar" | "pie">("pie");
+  const [showUntagged, setShowUntagged] = useState<boolean>(true);
 
   // Color palette for pie chart
   const getTagColor = (color: string | null, index: number) => {
@@ -110,8 +113,8 @@ export const TagsComparator = ({ tags, allLeads, pipelines, loading }: TagsCompa
       }
     });
 
-    // Convert to array and sort by count
-    return Object.values(tagData)
+    // Convert to array
+    let analysisArray = Object.values(tagData)
       .map((data, index) => ({
         tagName: data.tag.name.length > 20 ? data.tag.name.substring(0, 20) + "..." : data.tag.name,
         fullName: data.tag.name,
@@ -119,9 +122,24 @@ export const TagsComparator = ({ tags, allLeads, pipelines, loading }: TagsCompa
         count: data.count,
         totalValue: data.totalValue,
         averageValue: data.count > 0 ? data.totalValue / data.count : 0,
-        percentage: filteredLeads.length > 0 ? (data.count / filteredLeads.length) * 100 : 0,
+        percentage: 0, // Will be recalculated after filtering
         fillColor: getTagColor(data.tag.color, index)
-      }))
+      }));
+
+    // Filter out "Sem Tags" if showUntagged is false
+    if (!showUntagged) {
+      analysisArray = analysisArray.filter(item => item.fullName !== "Sem Tags");
+    }
+
+    // Recalculate percentages based on filtered data
+    const totalCount = analysisArray.reduce((sum, item) => sum + item.count, 0);
+    analysisArray = analysisArray.map(item => ({
+      ...item,
+      percentage: totalCount > 0 ? (item.count / totalCount) * 100 : 0
+    }));
+
+    // Sort and limit
+    return analysisArray
       .sort((a, b) => b.count - a.count)
       .slice(0, chartType === "pie" ? 10 : 20); // Limit to 10 for pie chart visibility
   };
@@ -185,25 +203,38 @@ export const TagsComparator = ({ tags, allLeads, pipelines, loading }: TagsCompa
               </div>
             </div>
             
-            <div className="flex gap-2">
-              <Button
-                variant={chartType === "pie" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setChartType("pie")}
-                className="flex items-center gap-2"
-              >
-                <PieChartIcon className="h-4 w-4" />
-                Pizza
-              </Button>
-              <Button
-                variant={chartType === "bar" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setChartType("bar")}
-                className="flex items-center gap-2"
-              >
-                <BarChart3 className="h-4 w-4" />
-                Barras
-              </Button>
+            <div className="flex items-center gap-6">
+              <div className="flex gap-2">
+                <Button
+                  variant={chartType === "pie" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setChartType("pie")}
+                  className="flex items-center gap-2"
+                >
+                  <PieChartIcon className="h-4 w-4" />
+                  Pizza
+                </Button>
+                <Button
+                  variant={chartType === "bar" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setChartType("bar")}
+                  className="flex items-center gap-2"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Barras
+                </Button>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="show-untagged"
+                  checked={showUntagged}
+                  onCheckedChange={setShowUntagged}
+                />
+                <Label htmlFor="show-untagged" className="text-sm cursor-pointer">
+                  Exibir "Sem Tags"
+                </Label>
+              </div>
             </div>
           </div>
 
