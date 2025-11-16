@@ -114,6 +114,7 @@ interface LoadingStates {
   customFields: boolean;
   pipelineStats: boolean;
   tags: boolean;
+  notes: boolean;
 }
 
 // Progress tracking interface
@@ -153,7 +154,8 @@ export const useKommoApi = () => {
     users: true,
     customFields: true,
     pipelineStats: false,
-    tags: true
+    tags: true,
+    notes: false
   });
   
   // Legacy loading state for backward compatibility
@@ -173,6 +175,7 @@ export const useKommoApi = () => {
   const [salesRanking, setSalesRanking] = useState<SalesRankingData[]>([]);
   const [customFields, setCustomFields] = useState<any[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [notes, setNotes] = useState<any[]>([]);
   
   // Sales chart comparison mode (local state, não precisa ser global)
   const [salesComparisonMode, setSalesComparisonMode] = useState(false);
@@ -1232,6 +1235,51 @@ export const useKommoApi = () => {
     }
   }, [updateLoadingState, cache]);
 
+  const fetchNotes = useCallback(async () => {
+    updateLoadingState('notes', true);
+    
+    try {
+      const cachedNotes = cache.getCache('notes') as any[] | null;
+      if (cachedNotes) {
+        console.log('📦 Loading notes from cache');
+        setNotes(cachedNotes);
+        updateLoadingState('notes', false);
+        return;
+      }
+
+      console.log('🔄 Buscando notes dos leads...');
+      const kommoConfig = JSON.parse(localStorage.getItem('kommoConfig') || '{}');
+      const authService = new KommoAuthService(kommoConfig);
+      const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
+
+      // Buscar notes em lotes de 100 leads por vez
+      const leadIds = allLeads.map(l => l.id);
+      const notesPromises = [];
+      
+      for (let i = 0; i < leadIds.length; i += 100) {
+        const batch = leadIds.slice(i, i + 100);
+        notesPromises.push(
+          apiService.getNotes({ 
+            filter: { entity_id: batch },
+            limit: 250 
+          })
+        );
+      }
+      
+      const notesResponses = await Promise.all(notesPromises);
+      const allNotes = notesResponses.flatMap(r => r._embedded?.notes || []);
+      
+      console.log(`✅ ${allNotes.length} notes carregadas`);
+      setNotes(allNotes);
+      cache.setCache('notes', allNotes, 5 * 60 * 1000); // 5 minutos de cache
+    } catch (err: any) {
+      console.error('❌ Erro ao buscar notes:', err);
+      setNotes([]);
+    } finally {
+      updateLoadingState('notes', false);
+    }
+  }, [updateLoadingState, cache, allLeads]);
+
   // Sales ranking calculation is now handled by memoized version above
 
   const refreshData = useCallback(async () => {
@@ -1312,6 +1360,8 @@ export const useKommoApi = () => {
     }, [users, allLeads, salesRanking, cache]),
     customFields,
     tags,
+    notes,
+    fetchNotes,
     
     // Conversion time analysis
     calculateConversionTimeData: useCallback((pipelineId?: number | null): ConversionTimeData | null => {
