@@ -16,11 +16,22 @@ import { ptBR } from "date-fns/locale";
 
 interface SpreadsheetComparisonProps {
   spreadsheets: ParsedSpreadsheet[];
+  onSelectionChange?: (idA: string, idB: string) => void;
 }
 
-export const SpreadsheetComparison = ({ spreadsheets }: SpreadsheetComparisonProps) => {
+export const SpreadsheetComparison = ({ spreadsheets, onSelectionChange }: SpreadsheetComparisonProps) => {
   const [selectedA, setSelectedA] = useState<string>("");
   const [selectedB, setSelectedB] = useState<string>("");
+
+  const handleSelectA = (value: string) => {
+    setSelectedA(value);
+    onSelectionChange?.(value, selectedB);
+  };
+
+  const handleSelectB = (value: string) => {
+    setSelectedB(value);
+    onSelectionChange?.(selectedA, value);
+  };
 
   const spreadsheetA = spreadsheets.find((s) => s.id === selectedA) || null;
   const spreadsheetB = spreadsheets.find((s) => s.id === selectedB) || null;
@@ -62,7 +73,7 @@ export const SpreadsheetComparison = ({ spreadsheets }: SpreadsheetComparisonPro
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Período A (Base)</label>
-              <Select value={selectedA} onValueChange={setSelectedA}>
+              <Select value={selectedA} onValueChange={handleSelectA}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a primeira planilha" />
                 </SelectTrigger>
@@ -84,7 +95,7 @@ export const SpreadsheetComparison = ({ spreadsheets }: SpreadsheetComparisonPro
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Período B (Comparação)</label>
-              <Select value={selectedB} onValueChange={setSelectedB}>
+              <Select value={selectedB} onValueChange={handleSelectB}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a segunda planilha" />
                 </SelectTrigger>

@@ -15,6 +15,11 @@ export const ComparisonDashboard = () => {
   const spreadsheetA = spreadsheets.find((s) => s.id === selectedA) || null;
   const spreadsheetB = spreadsheets.find((s) => s.id === selectedB) || null;
 
+  const handleSelectionChange = (idA: string, idB: string) => {
+    setSelectedA(idA);
+    setSelectedB(idB);
+  };
+
   return (
     <div className="space-y-6 pb-8">
       <Alert>
@@ -35,7 +40,10 @@ export const ComparisonDashboard = () => {
 
       {spreadsheets.length >= 2 && (
         <>
-          <SpreadsheetComparison spreadsheets={spreadsheets} />
+          <SpreadsheetComparison 
+            spreadsheets={spreadsheets} 
+            onSelectionChange={handleSelectionChange}
+          />
 
           {spreadsheetA && spreadsheetB && (
             <>
