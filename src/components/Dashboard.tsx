@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { BarChart3, Settings, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen, Crown, Brain, Clock } from "lucide-react";
+import { BarChart3, Settings, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen, Crown, Brain, Clock, FileSpreadsheet } from "lucide-react";
 import { MetricsCards } from "@/components/MetricsCards";
 import { MetricsSkeleton } from "@/components/ui/MetricsSkeleton";
 import { ChartSkeleton } from "@/components/ui/ChartSkeleton";
@@ -30,6 +30,7 @@ import { InvestmentSettingsModal } from "@/components/InvestmentSettingsModal";
 import { AIConfigModal } from "@/components/AIConfigModal";
 import { GlobalFilters } from "@/components/GlobalFilters";
 import { AIChatBot } from "@/components/AIChatBot";
+import { ComparisonDashboard } from "@/components/comparison/ComparisonDashboard";
 import { useToast } from "@/hooks/use-toast";
 import { useKommoApi } from "@/hooks/useKommoApi";
 import { useFilteredLeads } from "@/hooks/useFilteredData";
@@ -177,7 +178,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 bg-muted/30">
+          <TabsList className="grid w-full grid-cols-7 bg-muted/30">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Visão Geral
@@ -201,6 +202,10 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
             <TabsTrigger value="behavior" className="flex items-center gap-2">
               <Brain className="h-4 w-4" />
               Comportamento
+            </TabsTrigger>
+            <TabsTrigger value="comparison" className="flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4" />
+              Comparação
             </TabsTrigger>
           </TabsList>
 
@@ -423,6 +428,10 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 />
               )}
             </Suspense>
+          </TabsContent>
+
+          <TabsContent value="comparison" className="space-y-6">
+            <ComparisonDashboard />
           </TabsContent>
         </Tabs>
       </div>
