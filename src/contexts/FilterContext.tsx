@@ -8,6 +8,7 @@ export interface GlobalFilters {
   };
   pipelineId: number | null;
   userId: number | null;
+  statusId: number | null;
 }
 
 interface FilterContextType {
@@ -15,6 +16,7 @@ interface FilterContextType {
   setDateRange: (from: Date, to: Date) => void;
   setPipelineId: (id: number | null) => void;
   setUserId: (id: number | null) => void;
+  setStatusId: (id: number | null) => void;
   resetFilters: () => void;
 }
 
@@ -30,7 +32,8 @@ const getDefaultFilters = (): GlobalFilters => {
       to: endOfMonth(now)
     },
     pipelineId: null,
-    userId: null
+    userId: null,
+    statusId: null
   };
 };
 
@@ -45,7 +48,8 @@ const loadFiltersFromStorage = (): GlobalFilters => {
           to: new Date(parsed.dateRange.to)
         },
         pipelineId: parsed.pipelineId,
-        userId: parsed.userId
+        userId: parsed.userId,
+        statusId: parsed.statusId || null
       };
     }
   } catch (error) {
@@ -64,7 +68,8 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
         to: filters.dateRange.to.toISOString()
       },
       pipelineId: filters.pipelineId,
-      userId: filters.userId
+      userId: filters.userId,
+      statusId: filters.statusId
     }));
   }, [filters]);
 
@@ -89,6 +94,13 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
+  const setStatusId = (id: number | null) => {
+    setFilters(prev => ({
+      ...prev,
+      statusId: id
+    }));
+  };
+
   const resetFilters = () => {
     setFilters(getDefaultFilters());
   };
@@ -99,6 +111,7 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       setDateRange,
       setPipelineId,
       setUserId,
+      setStatusId,
       resetFilters
     }}>
       {children}
