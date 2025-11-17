@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ParsedSpreadsheet, detectCustomFields } from "@/utils/spreadsheetParser";
 import { useComparisonAnalytics } from "@/hooks/useComparisonAnalytics";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -14,6 +15,7 @@ interface CustomFieldsComparisonProps {
 
 export const CustomFieldsComparison = ({ spreadsheetA, spreadsheetB }: CustomFieldsComparisonProps) => {
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
+  const [timeAnalysisType, setTimeAnalysisType] = useState<'hour' | 'dayOfWeek' | 'dayOfMonth' | 'month'>('hour');
 
   const allColumns = useMemo(() => {
     if (!spreadsheetA || !spreadsheetB) return [];
@@ -40,9 +42,85 @@ export const CustomFieldsComparison = ({ spreadsheetA, spreadsheetB }: CustomFie
     setSelectedFields(newSelected);
   };
 
+  const isDateField = (fieldName: string) => {
+    const dateLikeNames = ['created_at', 'data_criada', 'date', 'data', 'created', 'timestamp', 'criado_em'];
+    return dateLikeNames.some(name => fieldName.toLowerCase().includes(name));
+  };
+
+  const getTemporalDistribution = (spreadsheet: ParsedSpreadsheet, fieldName: string, type: string) => {
+    const dist: Record<string, number> = {};
+    
+    spreadsheet.data.forEach(row => {
+      const value = row[fieldName];
+      if (!value) return;
+      
+      try {
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return;
+        
+        let key: string;
+        switch (type) {
+          case 'hour':
+            key = `${date.getHours()}h`;
+            break;
+          case 'dayOfWeek':
+            const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+            key = days[date.getDay()];
+            break;
+          case 'dayOfMonth':
+            key = `Dia ${date.getDate()}`;
+            break;
+          case 'month':
+            const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            key = months[date.getMonth()];
+            break;
+          default:
+            key = value;
+        }
+        
+        dist[key] = (dist[key] || 0) + 1;
+      } catch (e) {
+        // Skip invalid dates
+      }
+    });
+    
+    return dist;
+  };
+
   const getChartData = (fieldName: string) => {
     if (!spreadsheetA || !spreadsheetB) return [];
 
+    const isDate = isDateField(fieldName);
+    
+    if (isDate) {
+      const distA = getTemporalDistribution(spreadsheetA, fieldName, timeAnalysisType);
+      const distB = getTemporalDistribution(spreadsheetB, fieldName, timeAnalysisType);
+      
+      const allValues = new Set([...Object.keys(distA), ...Object.keys(distB)]);
+      
+      const data = Array.from(allValues).map(value => ({
+        name: value,
+        [spreadsheetA.name]: distA[value] || 0,
+        [spreadsheetB.name]: distB[value] || 0,
+      }));
+
+      // Sort based on analysis type
+      if (timeAnalysisType === 'hour') {
+        return data.sort((a, b) => parseInt(a.name) - parseInt(b.name));
+      } else if (timeAnalysisType === 'dayOfWeek') {
+        const dayOrder = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        return data.sort((a, b) => dayOrder.indexOf(a.name) - dayOrder.indexOf(b.name));
+      } else if (timeAnalysisType === 'dayOfMonth') {
+        return data.sort((a, b) => parseInt(a.name.replace('Dia ', '')) - parseInt(b.name.replace('Dia ', '')));
+      } else if (timeAnalysisType === 'month') {
+        const monthOrder = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        return data.sort((a, b) => monthOrder.indexOf(a.name) - monthOrder.indexOf(b.name));
+      }
+      
+      return data;
+    }
+
+    // For non-date fields, use original logic
     const comparison = getFieldComparison(fieldName);
     if (!comparison) return [];
 
@@ -130,16 +208,36 @@ export const CustomFieldsComparison = ({ spreadsheetA, spreadsheetB }: CustomFie
       </Card>
 
       {selectedFields.size > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid gap-6 mt-6">
           {Array.from(selectedFields).map((field) => {
             const chartData = getChartData(field);
+            const isDate = isDateField(field);
             if (chartData.length === 0) return null;
 
             return (
               <Card key={field}>
                 <CardHeader>
-                  <CardTitle className="text-base">{field}</CardTitle>
-                  <CardDescription>Distribuição entre períodos</CardDescription>
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div>
+                      <CardTitle className="text-lg">{field}</CardTitle>
+                      <CardDescription>
+                        {isDate ? 'Análise temporal' : 'Distribuição entre períodos'}
+                      </CardDescription>
+                    </div>
+                    {isDate && (
+                      <Select value={timeAnalysisType} onValueChange={(value: any) => setTimeAnalysisType(value)}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="hour">Por Hora do Dia</SelectItem>
+                          <SelectItem value="dayOfWeek">Por Dia da Semana</SelectItem>
+                          <SelectItem value="dayOfMonth">Por Dia do Mês</SelectItem>
+                          <SelectItem value="month">Por Mês</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="h-[300px] w-full">
@@ -148,23 +246,24 @@ export const CustomFieldsComparison = ({ spreadsheetA, spreadsheetB }: CustomFie
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis
                           dataKey="name"
-                          className="text-xs"
+                          className="text-xs fill-muted-foreground"
                           angle={-45}
                           textAnchor="end"
                           height={80}
                         />
-                        <YAxis className="text-xs" />
+                        <YAxis className="text-xs fill-muted-foreground" />
                         <Tooltip
                           contentStyle={{
-                            backgroundColor: "hsl(var(--background))",
+                            backgroundColor: "hsl(var(--card))",
                             border: "1px solid hsl(var(--border))",
                             borderRadius: "var(--radius)",
+                            color: "hsl(var(--card-foreground))"
                           }}
                         />
-                        <Legend />
+                        <Legend wrapperStyle={{ color: "hsl(var(--foreground))" }} />
                         <Bar
                           dataKey={spreadsheetA.name}
-                          fill="hsl(var(--primary))"
+                          fill="hsl(var(--chart-1))"
                           radius={[4, 4, 0, 0]}
                         />
                         <Bar
