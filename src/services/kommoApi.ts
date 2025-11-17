@@ -606,6 +606,6 @@ export class KommoApiService {
     }
     
     const query = queryParams.toString() ? `?${queryParams}` : '';
-    return this.makeRequest(`/api/v4/events${query}`);
+    return this.makeRequest(`/events${query}`);
   }
 }
