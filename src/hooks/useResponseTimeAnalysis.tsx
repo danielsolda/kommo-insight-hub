@@ -33,9 +33,9 @@ export const useResponseTimeAnalysis = (
       // Tipos de eventos que representam respostas ativas do vendedor
       const RESPONSE_EVENT_TYPES = [
         'outgoing_chat_message',  // Mensagem enviada (WhatsApp, chat)
-        'call_out',               // Ligação feita
-        'sms_out',                // SMS enviado
-        'mail_out'                // E-mail enviado
+        'outgoing_call',          // Ligação feita
+        'outgoing_sms',           // SMS enviado
+        'outgoing_mail'           // E-mail enviado
       ];
       
       const responseEvents = events
