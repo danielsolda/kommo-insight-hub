@@ -38,6 +38,11 @@ export const useFilteredLeads = (leads: Lead[] | undefined) => {
         return false;
       }
       
+      // Filter by status
+      if (filters.statusId !== null && lead.status_id !== filters.statusId) {
+        return false;
+      }
+      
       return true;
     });
   }, [leads, filters]);

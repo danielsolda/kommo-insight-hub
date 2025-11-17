@@ -42,19 +42,37 @@ export const SalesChart = ({
   comparisonMode = false,
   comparisonPeriod
 }: SalesChartProps) => {
-  const { filters, setDateRange } = useGlobalFilters();
+  const { filters, setDateRange, setPipelineId, setStatusId } = useGlobalFilters();
   const filteredLeads = useFilteredLeads(allLeads);
   const [selectedPeriod, setSelectedPeriod] = useState("custom");
   
-  // ✅ Calcular pipelineName e wonLeadsCount internamente
+  // ✅ Calcular pipelineName, statusName e wonLeadsCount internamente
   const pipelineName = useMemo(() => {
     if (!filters.pipelineId) return undefined;
     return pipelines.find(p => p.id === filters.pipelineId)?.name;
   }, [filters.pipelineId, pipelines]);
+
+  const statusName = useMemo(() => {
+    if (!filters.pipelineId || !filters.statusId) return undefined;
+    const pipeline = pipelines.find(p => p.id === filters.pipelineId);
+    return pipeline?.statuses?.find(s => s.id === filters.statusId)?.name;
+  }, [filters.pipelineId, filters.statusId, pipelines]);
+
+  const availableStatuses = useMemo(() => {
+    if (!filters.pipelineId) return [];
+    const pipeline = pipelines.find(p => p.id === filters.pipelineId);
+    return pipeline?.statuses || [];
+  }, [filters.pipelineId, pipelines]);
   
   const wonLeadsCount = useMemo(() => {
-    return filteredLeads.filter(lead => lead.status_id === 142).length;
-  }, [filteredLeads]);
+    let filtered = filteredLeads;
+    if (filters.statusId) {
+      filtered = filtered.filter(lead => lead.status_id === filters.statusId);
+    } else {
+      filtered = filtered.filter(lead => lead.status_id === 142);
+    }
+    return filtered.length;
+  }, [filteredLeads, filters.statusId]);
   
   const currentPeriod = {
     start: filters.dateRange.from.toISOString().split('T')[0],
@@ -166,15 +184,54 @@ export const SalesChart = ({
       <Card className="bg-gradient-card border-border/50 shadow-card">
       <CardHeader>
         <div className="flex items-center justify-between mb-2">
-          <div>
+          <div className="flex-1">
             <CardTitle>Evolução de Vendas</CardTitle>
             <CardDescription>
               {pipelineName 
-                ? `Vendas fechadas da pipeline: ${pipelineName}` 
+                ? `Vendas fechadas da pipeline: ${pipelineName}${statusName ? ` - ${statusName}` : ''}` 
                 : "Acompanhe o desempenho de vendas ao longo do ano"}
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select 
+              value={filters.pipelineId?.toString() || "all"} 
+              onValueChange={(value) => {
+                setPipelineId(value === "all" ? null : Number(value));
+                setStatusId(null); // Reset status when pipeline changes
+              }}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Selecionar funil" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os funis</SelectItem>
+                {pipelines.map(pipeline => (
+                  <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
+                    {pipeline.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {filters.pipelineId && availableStatuses.length > 0 && (
+              <Select 
+                value={filters.statusId?.toString() || "all"} 
+                onValueChange={(value) => setStatusId(value === "all" ? null : Number(value))}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Selecionar etapa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as etapas</SelectItem>
+                  {availableStatuses.map(status => (
+                    <SelectItem key={status.id} value={status.id.toString()}>
+                      {status.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
             <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
               <SelectTrigger className="w-[140px]">
                 <Calendar className="h-4 w-4 mr-2" />
@@ -359,7 +416,12 @@ export const SalesChart = ({
                   </div>
                 )}
                 <div className="text-xs text-muted-foreground">
-                  {comparisonMode ? `vs ${comparisonLeads} leads` : 'Status 142 - Venda ganha'}
+                  {comparisonMode 
+                    ? `vs ${comparisonLeads} leads` 
+                    : filters.statusId 
+                      ? `Status: ${statusName || filters.statusId}` 
+                      : 'Status 142 - Venda ganha'
+                  }
                 </div>
               </div>
             </div>
