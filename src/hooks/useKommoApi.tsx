@@ -1303,9 +1303,9 @@ export const useKommoApi = () => {
       // Tipos de eventos que representam respostas ativas
       const RESPONSE_EVENT_TYPES = [
         'outgoing_chat_message',  // WhatsApp, chat
-        'call_out',               // Ligações feitas
-        'sms_out',                // SMS enviados
-        'mail_out'                // E-mails enviados
+        'outgoing_call',          // Ligações feitas
+        'outgoing_sms',           // SMS enviados
+        'outgoing_mail'           // E-mails enviados
       ];
 
       // Buscar eventos do período filtrado
