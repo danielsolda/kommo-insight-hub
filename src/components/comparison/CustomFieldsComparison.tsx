@@ -11,19 +11,14 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 interface CustomFieldsComparisonProps {
   spreadsheetA: ParsedSpreadsheet | null;
   spreadsheetB: ParsedSpreadsheet | null;
-  onFieldsChange?: (fields: string[]) => void;
-  onChartRefsChange?: (refs: Map<string, HTMLElement | null>) => void;
 }
 
 export const CustomFieldsComparison = ({ 
   spreadsheetA, 
-  spreadsheetB,
-  onFieldsChange,
-  onChartRefsChange 
+  spreadsheetB
 }: CustomFieldsComparisonProps) => {
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
   const [timeAnalysisType, setTimeAnalysisType] = useState<'hour' | 'dayOfWeek' | 'dayOfMonth' | 'month'>('hour');
-  const chartRefs = useRef<Map<string, HTMLElement | null>>(new Map());
 
   const allColumns = useMemo(() => {
     if (!spreadsheetA || !spreadsheetB) return [];
@@ -48,16 +43,6 @@ export const CustomFieldsComparison = ({
       newSelected.add(field);
     }
     setSelectedFields(newSelected);
-    
-    // Notify parent of field changes
-    if (onFieldsChange) {
-      onFieldsChange(Array.from(newSelected));
-    }
-    
-    // Notify parent of chart refs
-    if (onChartRefsChange) {
-      onChartRefsChange(chartRefs.current);
-    }
   };
 
   const isDateField = (fieldName: string) => {
@@ -259,7 +244,6 @@ export const CustomFieldsComparison = ({
                 </CardHeader>
                 <CardContent>
                   <div 
-                    ref={(el) => chartRefs.current.set(field, el)}
                     className="h-[300px] w-full"
                   >
                     <ResponsiveContainer width="100%" height="100%">
