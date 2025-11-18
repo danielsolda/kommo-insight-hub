@@ -15,6 +15,7 @@ import { SalesChart } from "@/components/SalesChart";
 import { SalesRanking } from "@/components/SalesRanking";
 import { CustomFieldAnalysis } from "@/components/CustomFieldAnalysis";
 import { ResponseTimeAnalysis } from "@/components/ResponseTimeAnalysis";
+import { LeadTemporalAnalysis } from "@/components/LeadTemporalAnalysis";
 import {
   LazyPipelineChart, 
   LazyLeadsTable, 
@@ -244,11 +245,20 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
               )}
             </div>
             
+            {kommoApi.loadingStates.leads ? (
+              <ChartSkeleton title="Análise Temporal de Leads" height="h-80" />
+            ) : (
+              <LeadTemporalAnalysis 
+                leads={filteredLeads}
+                loading={kommoApi.loadingStates.leads}
+              />
+            )}
+            
             <Suspense fallback={<ChartSkeleton title="Análise de Campos Personalizados" height="h-64" />}>
               {kommoApi.loadingStates.customFields ? (
                 <ChartSkeleton title="Análise de Campos Personalizados" height="h-64" />
               ) : (
-                <LazyCustomFieldAnalysis 
+                <LazyCustomFieldAnalysis
                   customFields={kommoApi.customFields}
                   allLeads={kommoApi.allLeads}
                   pipelines={kommoApi.pipelines}
