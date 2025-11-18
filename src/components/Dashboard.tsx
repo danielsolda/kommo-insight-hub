@@ -52,6 +52,11 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
   const kommoApi = useKommoApi();
   const { filters } = useGlobalFilters();
   const filteredLeads = useFilteredLeads(kommoApi.allLeads);
+  
+  // Filtrar eventos apenas dos leads filtrados
+  const filteredEvents = kommoApi.events.filter(event => {
+    return filteredLeads.some(lead => lead.id === event.entity_id && event.entity_type === 'lead');
+  });
 
   // Carregar events quando entrar na aba de performance
   useEffect(() => {
@@ -411,7 +416,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
           <TabsContent value="performance" className="space-y-6">
             <ResponseTimeAnalysis
               leads={filteredLeads}
-              events={kommoApi.events}
+              events={filteredEvents}
               users={kommoApi.users}
               loading={kommoApi.loadingStates.events}
             />
