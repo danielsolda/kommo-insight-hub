@@ -9,10 +9,12 @@ import {
 } from "@/components/ui/select";
 import { ParsedSpreadsheet } from "@/utils/spreadsheetParser";
 import { useComparisonAnalytics } from "@/hooks/useComparisonAnalytics";
-import { ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { ArrowUp, ArrowDown, Minus, FileDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 interface SpreadsheetComparisonProps {
   spreadsheets: ParsedSpreadsheet[];
@@ -119,75 +121,87 @@ export const SpreadsheetComparison = ({ spreadsheets, onSelectionChange }: Sprea
       </Card>
 
       {metrics && spreadsheetA && spreadsheetB && (
-        <div className="grid md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription>Total de Leads</CardDescription>
-              <CardTitle className="text-3xl">{metrics.totalLeads.value}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                {getChangeIcon(metrics.totalLeads.change)}
-                <span className={`text-sm font-medium ${getChangeColor(metrics.totalLeads.change)}`}>
-                  {metrics.totalLeads.change > 0 ? "+" : ""}
-                  {metrics.totalLeads.change} leads
-                </span>
-                <Badge variant="secondary" className="ml-auto">
-                  {metrics.totalLeads.changePercent > 0 ? "+" : ""}
-                  {metrics.totalLeads.changePercent.toFixed(1)}%
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription>Taxa de Conversão</CardDescription>
-              <CardTitle className="text-3xl">{metrics.conversionRate.value.toFixed(1)}%</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                {getChangeIcon(metrics.conversionRate.change)}
-                <span className={`text-sm font-medium ${getChangeColor(metrics.conversionRate.change)}`}>
-                  {metrics.conversionRate.change > 0 ? "+" : ""}
-                  {metrics.conversionRate.change.toFixed(1)}%
-                </span>
-                <Badge variant="secondary" className="ml-auto">
-                  {metrics.conversionRate.changePercent > 0 ? "+" : ""}
-                  {metrics.conversionRate.changePercent.toFixed(1)}%
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription>Tempo Médio de Fechamento</CardDescription>
-              <CardTitle className="text-3xl">
-                {metrics.avgClosingTime.value > 0
-                  ? `${metrics.avgClosingTime.value.toFixed(1)}d`
-                  : "N/A"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {metrics.avgClosingTime.value > 0 ? (
+        <>
+          <div className="grid md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription>Total de Leads</CardDescription>
+                <CardTitle className="text-3xl">{metrics.totalLeads.value}</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="flex items-center gap-2">
-                  {getChangeIcon(metrics.avgClosingTime.change)}
-                  <span className={`text-sm font-medium ${getChangeColor(-metrics.avgClosingTime.change)}`}>
-                    {metrics.avgClosingTime.change > 0 ? "+" : ""}
-                    {metrics.avgClosingTime.change.toFixed(1)} dias
+                  {getChangeIcon(metrics.totalLeads.change)}
+                  <span className={`text-sm font-medium ${getChangeColor(metrics.totalLeads.change)}`}>
+                    {metrics.totalLeads.change > 0 ? "+" : ""}
+                    {metrics.totalLeads.change} leads
                   </span>
                   <Badge variant="secondary" className="ml-auto">
-                    {metrics.avgClosingTime.changePercent > 0 ? "+" : ""}
-                    {metrics.avgClosingTime.changePercent.toFixed(1)}%
+                    {metrics.totalLeads.changePercent > 0 ? "+" : ""}
+                    {metrics.totalLeads.changePercent.toFixed(1)}%
                   </Badge>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Dados insuficientes</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription>Taxa de Conversão</CardDescription>
+                <CardTitle className="text-3xl">{metrics.conversionRate.value.toFixed(1)}%</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  {getChangeIcon(metrics.conversionRate.change)}
+                  <span className={`text-sm font-medium ${getChangeColor(metrics.conversionRate.change)}`}>
+                    {metrics.conversionRate.change > 0 ? "+" : ""}
+                    {metrics.conversionRate.change.toFixed(1)}%
+                  </span>
+                  <Badge variant="secondary" className="ml-auto">
+                    {metrics.conversionRate.changePercent > 0 ? "+" : ""}
+                    {metrics.conversionRate.changePercent.toFixed(1)}%
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription>Tempo Médio de Fechamento</CardDescription>
+                <CardTitle className="text-3xl">
+                  {metrics.avgClosingTime.value > 0
+                    ? `${metrics.avgClosingTime.value.toFixed(1)}d`
+                    : "N/A"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {metrics.avgClosingTime.value > 0 ? (
+                  <div className="flex items-center gap-2">
+                    {getChangeIcon(metrics.avgClosingTime.change)}
+                    <span className={`text-sm font-medium ${getChangeColor(-metrics.avgClosingTime.change)}`}>
+                      {metrics.avgClosingTime.change > 0 ? "+" : ""}
+                      {metrics.avgClosingTime.change.toFixed(1)} dias
+                    </span>
+                    <Badge variant="secondary" className="ml-auto">
+                      {metrics.avgClosingTime.changePercent > 0 ? "+" : ""}
+                      {metrics.avgClosingTime.changePercent.toFixed(1)}%
+                    </Badge>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Dados insuficientes</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex justify-center">
+            <Button
+              onClick={() => toast.info("Funcionalidade de exportação em desenvolvimento")}
+              className="gap-2"
+            >
+              <FileDown className="h-4 w-4" />
+              Exportar Relatório em PDF
+            </Button>
+          </div>
+        </>
       )}
     </div>
   );
