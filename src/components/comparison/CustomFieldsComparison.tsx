@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -13,12 +13,16 @@ interface CustomFieldsComparisonProps {
   spreadsheetB: ParsedSpreadsheet | null;
 }
 
-export const CustomFieldsComparison = ({ 
-  spreadsheetA, 
-  spreadsheetB
-}: CustomFieldsComparisonProps) => {
+export interface CustomFieldsComparisonRef {
+  getChartRefs: () => Map<string, HTMLElement | null>;
+  getSelectedFields: () => string[];
+}
+
+export const CustomFieldsComparison = forwardRef<CustomFieldsComparisonRef, CustomFieldsComparisonProps>(
+  ({ spreadsheetA, spreadsheetB }, ref) => {
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
   const [timeAnalysisType, setTimeAnalysisType] = useState<'hour' | 'dayOfWeek' | 'dayOfMonth' | 'month'>('hour');
+  const chartRefs = useRef<Map<string, HTMLElement | null>>(new Map());
 
   const allColumns = useMemo(() => {
     if (!spreadsheetA || !spreadsheetB) return [];
@@ -34,6 +38,12 @@ export const CustomFieldsComparison = ({
   }, [spreadsheetA, spreadsheetB]);
 
   const { getFieldComparison } = useComparisonAnalytics(spreadsheetA, spreadsheetB);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    getChartRefs: () => chartRefs.current,
+    getSelectedFields: () => Array.from(selectedFields),
+  }));
 
   const toggleField = (field: string) => {
     const newSelected = new Set(selectedFields);
@@ -244,6 +254,7 @@ export const CustomFieldsComparison = ({
                 </CardHeader>
                 <CardContent>
                   <div 
+                    ref={(el) => chartRefs.current.set(field, el)}
                     className="h-[300px] w-full"
                   >
                     <ResponsiveContainer width="100%" height="100%">
@@ -287,4 +298,6 @@ export const CustomFieldsComparison = ({
       )}
     </div>
   );
-};
+});
+
+CustomFieldsComparison.displayName = 'CustomFieldsComparison';
