@@ -179,7 +179,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 bg-muted/30">
+          <TabsList className="grid w-full grid-cols-5 bg-muted/30">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Visão Geral
@@ -187,14 +187,6 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
             <TabsTrigger value="ranking" className="flex items-center gap-2">
               <Crown className="h-4 w-4" />
               Ranking
-            </TabsTrigger>
-            <TabsTrigger value="pipelines" className="flex items-center gap-2">
-              <Target className="h-4 w-4" />
-              Pipelines
-            </TabsTrigger>
-            <TabsTrigger value="sales" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Vendas
             </TabsTrigger>
             <TabsTrigger value="performance" className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
