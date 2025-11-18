@@ -17,21 +17,52 @@ interface ExportOptions {
 // Detectar se um campo contém dados de data
 const isDateField = (fieldName: string, values: string[]): boolean => {
   const dateKeywords = ['data', 'date', 'criada', 'created', 'criado', 'at', 'em'];
-  const hasDateKeyword = dateKeywords.some(kw => 
+  const hasDateKeyword = dateKeywords.some(kw =>
     fieldName.toLowerCase().includes(kw)
   );
-  
-  if (!hasDateKeyword) return false;
-  
-  // Verificar se os valores são datas válidas
-  const sample = values.slice(0, 20);
+
+  // Amostragem robusta, ignorando vazios
+  const sample = values.filter(v => v && v !== '(vazio)').slice(0, 30);
+  if (sample.length === 0) return false;
+
   const dateCount = sample.filter(v => {
-    if (!v || v === '(vazio)') return false;
-    const date = new Date(v);
-    return !isNaN(date.getTime()) && date.getFullYear() > 1900;
+    const d = parsePossibleDate(v);
+    return !!d;
   }).length;
-  
-  return dateCount / sample.length > 0.7;
+  const ratio = dateCount / sample.length;
+
+  // Se o nome sugere data, use limiar mais permissivo; caso contrário, exija alta confiança
+  if (hasDateKeyword) return ratio > 0.4;
+  return ratio > 0.8;
+};
+
+// Utilitário robusto para parsear datas em múltiplos formatos
+const parsePossibleDate = (value: string): Date | null => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  const formats = [
+    "dd.MM.yyyy HH:mm:ss",
+    "dd.MM.yyyy HH:mm",
+    "dd.MM.yyyy",
+    "dd/MM/yyyy HH:mm:ss",
+    "dd/MM/yyyy HH:mm",
+    "dd/MM/yyyy",
+    "yyyy-MM-dd HH:mm:ss",
+    "yyyy-MM-dd'T'HH:mm:ssXXX",
+    "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+  ];
+
+  for (const fmt of formats) {
+    try {
+      const d = parse(trimmed, fmt, new Date());
+      if (!isNaN(d.getTime()) && d.getFullYear() > 1900) return d;
+    } catch (_) {}
+  }
+
+  // Fallback nativo
+  const native = new Date(trimmed);
+  if (!isNaN(native.getTime()) && native.getFullYear() > 1900) return native;
+  return null;
 };
 
 // Determinar granularidade ideal baseada no período
@@ -70,8 +101,8 @@ const aggregateDateData = (
   
   // Agregar distribuição A
   Object.entries(distA).forEach(([dateStr, count]) => {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return;
+    const date = parsePossibleDate(dateStr);
+    if (!date) return;
     
     let key: Date;
     if (granularity === 'hour') {
@@ -89,8 +120,8 @@ const aggregateDateData = (
   
   // Agregar distribuição B
   Object.entries(distB).forEach(([dateStr, count]) => {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return;
+    const date = parsePossibleDate(dateStr);
+    if (!date) return;
     
     let key: Date;
     if (granularity === 'hour') {
@@ -116,9 +147,9 @@ const aggregateDateData = (
       return [period, counts.a, counts.b, variation];
     });
   
-  // Limitar a 15 linhas mais relevantes
-  if (result.length > 15) {
-    return result.slice(0, 15);
+  // Limitar a 10 linhas mais relevantes
+  if (result.length > 10) {
+    return result.slice(0, 10);
   }
   
   return result;
@@ -183,12 +214,12 @@ export const exportComparisonToPDF = async ({
       // Verificar se é campo de data
       const isDate = isDateField(field, allCategories);
 
-      if (isDate && allCategories.length > 15) {
+      if (isDate) {
         // Processar como campo de data - mostrar resumo agregado
         const allDates = allCategories
           .filter(cat => cat && cat !== '(vazio)')
-          .map(cat => new Date(cat))
-          .filter(d => !isNaN(d.getTime()));
+          .map(cat => parsePossibleDate(cat))
+          .filter((d): d is Date => !!d);
 
         const granularity = determineGranularity(allDates);
         const aggregatedData = aggregateDateData(distA, distB, granularity);
