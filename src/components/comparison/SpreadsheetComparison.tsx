@@ -194,7 +194,7 @@ export const SpreadsheetComparison = ({ spreadsheets, onSelectionChange }: Sprea
 
           <div className="flex justify-center">
             <Button
-              onClick={() => toast.info("Funcionalidade de exportação em desenvolvimento")}
+              onClick={() => toast.info("Exportação em desenvolvimento - será implementada em breve")}
               className="gap-2"
             >
               <FileDown className="h-4 w-4" />
