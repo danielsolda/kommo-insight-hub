@@ -40,7 +40,7 @@ export const useResponseTimeAnalysis = (
       
       const responseEvents = events
         .filter(e => e.entity_id === lead.id)
-        .filter(e => e.entity_type === 'lead')
+        .filter(e => e.entity_type === 'leads')
         .filter(e => e.created_by === lead.responsible_user_id)
         .filter(e => RESPONSE_EVENT_TYPES.includes(e.type))
         .sort((a, b) => a.created_at - b.created_at);

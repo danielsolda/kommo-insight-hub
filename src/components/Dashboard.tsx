@@ -55,7 +55,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
   
   // Filtrar eventos apenas dos leads filtrados
   const filteredEvents = kommoApi.events.filter(event => {
-    return filteredLeads.some(lead => lead.id === event.entity_id && event.entity_type === 'lead');
+    return filteredLeads.some(lead => lead.id === event.entity_id && event.entity_type === 'leads');
   });
 
   // Carregar events quando entrar na aba de performance
