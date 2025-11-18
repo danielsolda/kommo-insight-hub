@@ -15,7 +15,7 @@ export const useFilteredLeads = (leads: Lead[] | undefined) => {
         try {
           const leadDate = typeof lead.created_at === 'string' 
             ? parseISO(lead.created_at) 
-            : new Date(lead.created_at);
+            : new Date(lead.created_at * 1000); // Unix timestamp is in seconds, need to convert to ms
           
           if (!isWithinInterval(leadDate, {
             start: filters.dateRange.from,
@@ -83,7 +83,7 @@ export const isDateInFilterRange = (dateString: string | number | Date | undefin
   try {
     const date = typeof dateString === 'string' 
       ? parseISO(dateString) 
-      : new Date(dateString);
+      : new Date(typeof dateString === 'number' ? dateString * 1000 : dateString); // Unix timestamp conversion
     
     return isWithinInterval(date, {
       start: dateRange.from,
