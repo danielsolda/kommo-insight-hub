@@ -8,6 +8,49 @@ import { ParsedSpreadsheet, detectCustomFields } from "@/utils/spreadsheetParser
 import { useComparisonAnalytics } from "@/hooks/useComparisonAnalytics";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
+// Utility function to parse dates in various formats
+const parsePossibleDate = (value: any): Date | null => {
+  if (!value) return null;
+  
+  const str = String(value).trim();
+  
+  // Try dd.MM.yyyy HH:mm:ss format (Brazilian with dots)
+  const dotMatch = str.match(/^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
+  if (dotMatch) {
+    const [, day, month, year, hour, minute, second] = dotMatch;
+    const date = new Date(
+      parseInt(year),
+      parseInt(month) - 1,
+      parseInt(day),
+      parseInt(hour),
+      parseInt(minute),
+      parseInt(second)
+    );
+    if (!isNaN(date.getTime())) return date;
+  }
+  
+  // Try dd/MM/yyyy HH:mm:ss format (Brazilian with slashes)
+  const slashMatch = str.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
+  if (slashMatch) {
+    const [, day, month, year, hour, minute, second] = slashMatch;
+    const date = new Date(
+      parseInt(year),
+      parseInt(month) - 1,
+      parseInt(day),
+      parseInt(hour),
+      parseInt(minute),
+      parseInt(second)
+    );
+    if (!isNaN(date.getTime())) return date;
+  }
+  
+  // Fallback to standard Date parsing (ISO format, etc.)
+  const date = new Date(value);
+  if (!isNaN(date.getTime())) return date;
+  
+  return null;
+};
+
 interface CustomFieldsComparisonProps {
   spreadsheetA: ParsedSpreadsheet | null;
   spreadsheetB: ParsedSpreadsheet | null;
@@ -68,8 +111,8 @@ export const CustomFieldsComparison = forwardRef<CustomFieldsComparisonRef, Cust
       if (!value) return;
       
       try {
-        const date = new Date(value);
-        if (isNaN(date.getTime())) return;
+        const date = parsePossibleDate(value);
+        if (!date) return;
         
         let key: string;
         switch (type) {
