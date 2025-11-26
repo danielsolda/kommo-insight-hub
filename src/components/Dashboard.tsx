@@ -507,13 +507,27 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
             type: cf.type 
           })),
           tags: kommoApi.tags?.map(t => ({ id: t.id, name: t.name })),
+          investmentConfig: {
+            monthlyInvestment: kommoApi.investmentConfig.monthlyInvestment,
+            roiGoal: kommoApi.investmentConfig.roiGoal,
+            monthlySalesGoal: kommoApi.investmentConfig.monthlySalesGoal
+          },
+          weeklyMetricsConfig: weeklyMetricsConfig ? {
+            trafficSourceField: weeklyMetricsConfig.trafficField.fieldId,
+            trafficSourceFieldName: weeklyMetricsConfig.trafficField.fieldName,
+            trafficSourceValues: weeklyMetricsConfig.trafficField.values,
+            appointmentStatuses: weeklyMetricsConfig.appointmentStatusIds,
+            attendanceStatuses: weeklyMetricsConfig.attendanceStatusIds,
+            closureStatuses: weeklyMetricsConfig.closedWonStatusIds
+          } : null,
           currentFilters: {
             dateRange: {
               from: filters.dateRange.from.toLocaleDateString('pt-BR'),
               to: filters.dateRange.to.toLocaleDateString('pt-BR')
             },
             pipelineId: filters.pipelineId,
-            userId: filters.userId
+            userId: filters.userId,
+            statusId: filters.statusId
           }
         }}
       />
