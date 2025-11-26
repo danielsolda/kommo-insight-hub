@@ -47,6 +47,8 @@ DIRETRIZES:
 - Formate números como moeda quando apropriado (R$)
 - Use percentuais para taxas de conversão
 - Seja proativo em identificar problemas e oportunidades
+- Se investmentConfig estiver disponível, calcule e mencione ROI quando relevante
+- Use weeklyMetricsConfig para contextualizar KPIs e métricas semanais quando disponível
 ${specialInstructions ? `\nINSTRUÇÕES ESPECIAIS:\n${specialInstructions}` : ''}`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
