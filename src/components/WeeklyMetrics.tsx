@@ -1,11 +1,14 @@
-import { useMemo } from "react";
+import { useMemo, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Settings, TrendingUp, TrendingDown, Minus, Download, ChevronDown, ChevronUp } from "lucide-react";
 import { format, startOfWeek, endOfWeek, subWeeks } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 import type { Lead } from "@/services/kommoApi";
 import type { WeeklyMetricsConfig } from "./WeeklyMetricsConfig";
+import { WeeklyTrendChart } from "./WeeklyTrendChart";
+import { exportWeeklyMetricsToPDF } from "@/utils/weeklyPdfExporter";
 
 interface WeeklyMetricsProps {
   leads: Lead[];
@@ -34,6 +37,10 @@ const isLeadInWeek = (lead: Lead, start: Date, end: Date) => {
 };
 
 export const WeeklyMetrics = ({ leads, config, onConfigClick }: WeeklyMetricsProps) => {
+  const [showTrendChart, setShowTrendChart] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const chartRef = useRef<HTMLDivElement>(null);
+
   const metrics = useMemo(() => {
     const now = new Date();
     const currentWeek = getWeekRange(now);
@@ -107,7 +114,30 @@ export const WeeklyMetrics = ({ leads, config, onConfigClick }: WeeklyMetricsPro
     };
   }, [leads, config]);
 
-  const MetricCard = ({ 
+  const handleExportPdf = async () => {
+    if (!config) {
+      toast.error("Configure o resumo semanal antes de exportar");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      await exportWeeklyMetricsToPDF({
+        leads,
+        config,
+        numberOfWeeks: 4,
+        chartRef: chartRef.current,
+      });
+      toast.success("PDF exportado com sucesso!");
+    } catch (error) {
+      console.error("Error exporting PDF:", error);
+      toast.error("Erro ao exportar PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const MetricCard = ({
     icon, 
     label, 
     value, 
@@ -170,9 +200,28 @@ export const WeeklyMetrics = ({ leads, config, onConfigClick }: WeeklyMetricsPro
             {format(metrics.weekRange.start, "dd/MM", { locale: ptBR })} - {format(metrics.weekRange.end, "dd/MM/yyyy", { locale: ptBR })}
           </p>
         </div>
-        <Button onClick={onConfigClick} variant="outline" size="sm">
-          <Settings className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setShowTrendChart(!showTrendChart)} 
+            variant="outline" 
+            size="sm"
+            title="Mostrar/ocultar gráfico de tendência"
+          >
+            {showTrendChart ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+          <Button 
+            onClick={handleExportPdf} 
+            variant="outline" 
+            size="sm"
+            disabled={isExporting}
+            title="Exportar para PDF"
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+          <Button onClick={onConfigClick} variant="outline" size="sm" title="Configurar métricas">
+            <Settings className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -217,6 +266,17 @@ export const WeeklyMetrics = ({ leads, config, onConfigClick }: WeeklyMetricsPro
           gradient="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900"
         />
       </div>
+
+      {showTrendChart && config && (
+        <div className="mt-4">
+          <WeeklyTrendChart
+            ref={chartRef}
+            leads={leads}
+            config={config}
+            numberOfWeeks={4}
+          />
+        </div>
+      )}
     </div>
   );
 };
