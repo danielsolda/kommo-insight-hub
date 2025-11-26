@@ -126,15 +126,18 @@ export const WeeklyMetricsConfigModal = ({
         <DialogHeader>
           <DialogTitle>Configurar Resumo Semanal</DialogTitle>
           <DialogDescription>
-            Configure os critérios para calcular suas métricas semanais
+            Configure os campos e status para calcular as métricas semanais do seu funil de vendas
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[60vh] pr-4">
-          <div className="space-y-6">
+          <div className="space-y-6 py-2">
             {/* Campo de Tráfego */}
             <div className="space-y-3">
               <Label>📊 Campo "Fonte do Lead" (Tráfego)</Label>
+              <p className="text-xs text-muted-foreground">
+                Selecione o campo customizado que identifica a origem dos leads de tráfego pago
+              </p>
               <Select 
                 value={config.trafficField.fieldId?.toString() || ""} 
                 onValueChange={handleFieldChange}
@@ -177,68 +180,134 @@ export const WeeklyMetricsConfigModal = ({
 
             {/* Status de Agendamento */}
             <div className="space-y-3">
-              <Label>📅 Status de Agendamento</Label>
-              <div className="space-y-2">
-                {allStatuses.map(status => (
-                  <div key={status.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`appt-${status.id}`}
-                      checked={config.appointmentStatusIds.includes(status.id)}
-                      onCheckedChange={() => toggleStatus(status.id, 'appointment')}
-                    />
-                    <label
-                      htmlFor={`appt-${status.id}`}
-                      className="text-sm cursor-pointer flex-1"
+              <div className="flex items-center justify-between">
+                <Label>📅 Status de Agendamento</Label>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    {config.appointmentStatusIds.length} selecionado{config.appointmentStatusIds.length !== 1 ? 's' : ''}
+                  </Badge>
+                  {config.appointmentStatusIds.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => setConfig({ ...config, appointmentStatusIds: [] })}
                     >
-                      {status.name} <span className="text-muted-foreground">({status.pipelineName})</span>
-                    </label>
-                  </div>
-                ))}
+                      Limpar
+                    </Button>
+                  )}
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Status que indicam que uma consulta foi agendada
+              </p>
+              <ScrollArea className="h-32 border rounded-md p-2">
+                <div className="space-y-2">
+                  {allStatuses.map(status => (
+                    <div key={status.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`appt-${status.id}`}
+                        checked={config.appointmentStatusIds.includes(status.id)}
+                        onCheckedChange={() => toggleStatus(status.id, 'appointment')}
+                      />
+                      <label
+                        htmlFor={`appt-${status.id}`}
+                        className="text-sm cursor-pointer flex-1"
+                      >
+                        {status.name} <span className="text-muted-foreground text-xs">({status.pipelineName})</span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
 
             {/* Status de Comparecimento */}
             <div className="space-y-3">
-              <Label>✅ Status de Comparecimento</Label>
-              <div className="space-y-2">
-                {allStatuses.map(status => (
-                  <div key={status.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`att-${status.id}`}
-                      checked={config.attendanceStatusIds.includes(status.id)}
-                      onCheckedChange={() => toggleStatus(status.id, 'attendance')}
-                    />
-                    <label
-                      htmlFor={`att-${status.id}`}
-                      className="text-sm cursor-pointer flex-1"
+              <div className="flex items-center justify-between">
+                <Label>✅ Status de Comparecimento</Label>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    {config.attendanceStatusIds.length} selecionado{config.attendanceStatusIds.length !== 1 ? 's' : ''}
+                  </Badge>
+                  {config.attendanceStatusIds.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => setConfig({ ...config, attendanceStatusIds: [] })}
                     >
-                      {status.name} <span className="text-muted-foreground">({status.pipelineName})</span>
-                    </label>
-                  </div>
-                ))}
+                      Limpar
+                    </Button>
+                  )}
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Status que indicam que o cliente compareceu à consulta
+              </p>
+              <ScrollArea className="h-32 border rounded-md p-2">
+                <div className="space-y-2">
+                  {allStatuses.map(status => (
+                    <div key={status.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`att-${status.id}`}
+                        checked={config.attendanceStatusIds.includes(status.id)}
+                        onCheckedChange={() => toggleStatus(status.id, 'attendance')}
+                      />
+                      <label
+                        htmlFor={`att-${status.id}`}
+                        className="text-sm cursor-pointer flex-1"
+                      >
+                        {status.name} <span className="text-muted-foreground text-xs">({status.pipelineName})</span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
 
             {/* Status de Fechamento */}
             <div className="space-y-3">
-              <Label>💰 Status de Fechamento (Venda Ganha)</Label>
-              <div className="space-y-2">
-                {allStatuses.map(status => (
-                  <div key={status.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`closed-${status.id}`}
-                      checked={config.closedWonStatusIds.includes(status.id)}
-                      onCheckedChange={() => toggleStatus(status.id, 'closed')}
-                    />
-                    <label
-                      htmlFor={`closed-${status.id}`}
-                      className="text-sm cursor-pointer flex-1"
+              <div className="flex items-center justify-between">
+                <Label>💰 Status de Fechamento (Venda Ganha)</Label>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    {config.closedWonStatusIds.length} selecionado{config.closedWonStatusIds.length !== 1 ? 's' : ''}
+                  </Badge>
+                  {config.closedWonStatusIds.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => setConfig({ ...config, closedWonStatusIds: [] })}
                     >
-                      {status.name} <span className="text-muted-foreground">({status.pipelineName})</span>
-                    </label>
-                  </div>
-                ))}
+                      Limpar
+                    </Button>
+                  )}
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Status que indicam que a venda foi fechada com sucesso
+              </p>
+              <ScrollArea className="h-32 border rounded-md p-2">
+                <div className="space-y-2">
+                  {allStatuses.map(status => (
+                    <div key={status.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`closed-${status.id}`}
+                        checked={config.closedWonStatusIds.includes(status.id)}
+                        onCheckedChange={() => toggleStatus(status.id, 'closed')}
+                      />
+                      <label
+                        htmlFor={`closed-${status.id}`}
+                        className="text-sm cursor-pointer flex-1"
+                      >
+                        {status.name} <span className="text-muted-foreground text-xs">({status.pipelineName})</span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
           </div>
         </ScrollArea>

@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings, TrendingUp, TrendingDown, Minus, Download, ChevronDown, ChevronUp } from "lucide-react";
+import { Settings, TrendingUp, TrendingDown, Minus, Download, ChevronDown, ChevronUp, Users, Target, CheckCircle, UserCheck, DollarSign } from "lucide-react";
 import { format, startOfWeek, endOfWeek, subWeeks } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -143,32 +143,37 @@ export const WeeklyMetrics = ({ leads, config, onConfigClick }: WeeklyMetricsPro
     value, 
     change, 
     previousValue,
-    gradient 
+    iconColor,
+    iconBg
   }: { 
-    icon: string; 
+    icon: React.ComponentType<any>; 
     label: string; 
     value: number; 
     change: number;
     previousValue: number;
-    gradient: string;
+    iconColor: string;
+    iconBg: string;
   }) => {
     const TrendIcon = change > 0 ? TrendingUp : change < 0 ? TrendingDown : Minus;
-    const trendColor = change > 0 ? "text-green-600" : change < 0 ? "text-red-600" : "text-muted-foreground";
+    const trendColor = change > 0 ? "text-success" : change < 0 ? "text-destructive" : "text-muted-foreground";
+    const Icon = icon;
 
     return (
-      <Card className={`${gradient} border-none shadow-sm`}>
+      <Card className="bg-gradient-card border-border/50 shadow-card hover:shadow-elegant transition-all duration-300">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-2xl">{icon}</span>
+          <div className="flex items-center justify-between mb-3">
+            <div className={`p-2 rounded-lg ${iconBg}`}>
+              <Icon className={`h-4 w-4 ${iconColor}`} />
+            </div>
             <TrendIcon className={`h-4 w-4 ${trendColor}`} />
           </div>
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground">{label}</p>
-            <p className="text-3xl font-bold">{value}</p>
-            <p className={`text-xs ${trendColor} flex items-center gap-1`}>
-              {change > 0 ? '+' : ''}{change}% vs semana anterior
-              <span className="text-muted-foreground">({previousValue})</span>
-            </p>
+            <p className="text-2xl font-bold mb-1">{value}</p>
+            <div className={`text-xs ${trendColor} flex items-center gap-1`}>
+              <span className="font-medium">{change > 0 ? '+' : ''}{change}%</span>
+              <span className="text-muted-foreground">vs {previousValue}</span>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -192,91 +197,108 @@ export const WeeklyMetrics = ({ leads, config, onConfigClick }: WeeklyMetricsPro
   }
 
   return (
-    <div className="space-y-4 mb-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold">📅 Resumo Semanal</h2>
-          <p className="text-sm text-muted-foreground">
-            {format(metrics.weekRange.start, "dd/MM", { locale: ptBR })} - {format(metrics.weekRange.end, "dd/MM/yyyy", { locale: ptBR })}
-          </p>
+    <Card className="mb-6 bg-gradient-card border-border/50 shadow-card">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              📅 Resumo Semanal
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {format(metrics.weekRange.start, "dd/MM", { locale: ptBR })} - {format(metrics.weekRange.end, "dd/MM/yyyy", { locale: ptBR })}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => setShowTrendChart(!showTrendChart)} 
+              variant="ghost" 
+              size="icon"
+              className="h-8 w-8"
+              title="Mostrar/ocultar gráfico de tendência"
+            >
+              {showTrendChart ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+            <Button 
+              onClick={handleExportPdf} 
+              variant="ghost" 
+              size="icon"
+              className="h-8 w-8"
+              disabled={isExporting}
+              title="Exportar para PDF"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+            <Button 
+              onClick={onConfigClick} 
+              variant="ghost" 
+              size="icon"
+              className="h-8 w-8"
+              title="Configurar métricas"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            onClick={() => setShowTrendChart(!showTrendChart)} 
-            variant="outline" 
-            size="sm"
-            title="Mostrar/ocultar gráfico de tendência"
-          >
-            {showTrendChart ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-          <Button 
-            onClick={handleExportPdf} 
-            variant="outline" 
-            size="sm"
-            disabled={isExporting}
-            title="Exportar para PDF"
-          >
-            <Download className="h-4 w-4" />
-          </Button>
-          <Button onClick={onConfigClick} variant="outline" size="sm" title="Configurar métricas">
-            <Settings className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <MetricCard
-          icon="📋"
-          label="Total de Leads"
-          value={metrics.current.total}
-          change={metrics.changes.total}
-          previousValue={metrics.previous.total}
-          gradient="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900"
-        />
-        <MetricCard
-          icon="🎯"
-          label="Leads de Tráfego"
-          value={metrics.current.traffic}
-          change={metrics.changes.traffic}
-          previousValue={metrics.previous.traffic}
-          gradient="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900"
-        />
-        <MetricCard
-          icon="📅"
-          label="Agendamentos"
-          value={metrics.current.appointments}
-          change={metrics.changes.appointments}
-          previousValue={metrics.previous.appointments}
-          gradient="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900"
-        />
-        <MetricCard
-          icon="✅"
-          label="Comparecimentos"
-          value={metrics.current.attendances}
-          change={metrics.changes.attendances}
-          previousValue={metrics.previous.attendances}
-          gradient="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900"
-        />
-        <MetricCard
-          icon="💰"
-          label="Fechamentos"
-          value={metrics.current.closures}
-          change={metrics.changes.closures}
-          previousValue={metrics.previous.closures}
-          gradient="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900"
-        />
-      </div>
-
-      {showTrendChart && config && (
-        <div className="mt-4">
-          <WeeklyTrendChart
-            ref={chartRef}
-            leads={leads}
-            config={config}
-            numberOfWeeks={4}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <MetricCard
+            icon={Users}
+            label="Total de Leads"
+            value={metrics.current.total}
+            change={metrics.changes.total}
+            previousValue={metrics.previous.total}
+            iconColor="text-info"
+            iconBg="bg-info/10"
+          />
+          <MetricCard
+            icon={Target}
+            label="Leads de Tráfego"
+            value={metrics.current.traffic}
+            change={metrics.changes.traffic}
+            previousValue={metrics.previous.traffic}
+            iconColor="text-primary-glow"
+            iconBg="bg-primary/10"
+          />
+          <MetricCard
+            icon={CheckCircle}
+            label="Agendamentos"
+            value={metrics.current.appointments}
+            change={metrics.changes.appointments}
+            previousValue={metrics.previous.appointments}
+            iconColor="text-warning"
+            iconBg="bg-warning/10"
+          />
+          <MetricCard
+            icon={UserCheck}
+            label="Comparecimentos"
+            value={metrics.current.attendances}
+            change={metrics.changes.attendances}
+            previousValue={metrics.previous.attendances}
+            iconColor="text-success"
+            iconBg="bg-success/10"
+          />
+          <MetricCard
+            icon={DollarSign}
+            label="Fechamentos"
+            value={metrics.current.closures}
+            change={metrics.changes.closures}
+            previousValue={metrics.previous.closures}
+            iconColor="text-success-light"
+            iconBg="bg-success/10"
           />
         </div>
-      )}
-    </div>
+
+        {showTrendChart && config && (
+          <div className="mt-6">
+            <WeeklyTrendChart
+              ref={chartRef}
+              leads={leads}
+              config={config}
+              numberOfWeeks={4}
+            />
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
