@@ -16,6 +16,7 @@ import { SalesRanking } from "@/components/SalesRanking";
 import { CustomFieldAnalysis } from "@/components/CustomFieldAnalysis";
 import { ResponseTimeAnalysis } from "@/components/ResponseTimeAnalysis";
 import { LeadTemporalAnalysis } from "@/components/LeadTemporalAnalysis";
+import { GoalsDashboard } from "@/components/GoalsDashboard";
 import {
   LazyPipelineChart, 
   LazyLeadsTable, 
@@ -196,10 +197,14 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-muted/30">
+          <TabsList className="grid w-full grid-cols-6 bg-muted/30">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Visão Geral
+            </TabsTrigger>
+            <TabsTrigger value="goals" className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Metas
             </TabsTrigger>
             <TabsTrigger value="ranking" className="flex items-center gap-2">
               <Crown className="h-4 w-4" />
@@ -430,6 +435,15 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 />
               )}
             </Suspense>
+          </TabsContent>
+
+          <TabsContent value="goals" className="space-y-6">
+            <GoalsDashboard
+              leads={filteredLeads}
+              pipelines={kommoApi.pipelines}
+              sellers={kommoApi.users?.map(u => ({ id: u.id, name: u.name })) || []}
+              customFields={kommoApi.customFields || []}
+            />
           </TabsContent>
 
           <TabsContent value="performance" className="space-y-6">
