@@ -37,6 +37,8 @@ import { useKommoApi } from "@/hooks/useKommoApi";
 import { useFilteredLeads } from "@/hooks/useFilteredData";
 import { useGlobalFilters } from "@/contexts/FilterContext";
 import { APP_VERSION } from "@/version";
+import { WeeklyMetrics } from "@/components/WeeklyMetrics";
+import { WeeklyMetricsConfigModal, WeeklyMetricsConfig } from "@/components/WeeklyMetricsConfig";
 
 interface DashboardProps {
   config: any;
@@ -48,10 +50,20 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [nomenclaturesOpen, setNomenclaturesOpen] = useState(false);
+  const [weeklyMetricsConfigOpen, setWeeklyMetricsConfigOpen] = useState(false);
+  const [weeklyMetricsConfig, setWeeklyMetricsConfig] = useState<WeeklyMetricsConfig | null>(null);
   const { toast } = useToast();
   const kommoApi = useKommoApi();
   const { filters } = useGlobalFilters();
   const filteredLeads = useFilteredLeads(kommoApi.allLeads);
+
+  // Load weekly metrics config from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('weekly-metrics-config');
+    if (stored) {
+      setWeeklyMetricsConfig(JSON.parse(stored));
+    }
+  }, []);
   
   // Filtrar eventos apenas dos leads filtrados
   const filteredEvents = kommoApi.events.filter(event => {
@@ -208,6 +220,13 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
+            {/* Weekly Metrics Summary */}
+            <WeeklyMetrics
+              leads={filteredLeads}
+              config={weeklyMetricsConfig}
+              onConfigClick={() => setWeeklyMetricsConfigOpen(true)}
+            />
+
             {kommoApi.loadingStates.stats ? (
               <MetricsSkeleton />
             ) : (
@@ -483,6 +502,14 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
             userId: filters.userId
           }
         }}
+      />
+
+      <WeeklyMetricsConfigModal
+        open={weeklyMetricsConfigOpen}
+        onOpenChange={setWeeklyMetricsConfigOpen}
+        customFields={kommoApi.customFields}
+        pipelines={kommoApi.pipelines}
+        onSave={setWeeklyMetricsConfig}
       />
     </div>
   );
