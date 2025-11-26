@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      goals: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          end_date: string
+          id: string
+          is_active: boolean | null
+          name: string
+          period: Database["public"]["Enums"]["goal_period"]
+          pipeline_ids: number[] | null
+          product_name: string | null
+          seller_id: number | null
+          seller_name: string | null
+          start_date: string
+          status_ids: number[] | null
+          target_type: Database["public"]["Enums"]["goal_target_type"]
+          target_value: number
+          type: Database["public"]["Enums"]["goal_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          period: Database["public"]["Enums"]["goal_period"]
+          pipeline_ids?: number[] | null
+          product_name?: string | null
+          seller_id?: number | null
+          seller_name?: string | null
+          start_date: string
+          status_ids?: number[] | null
+          target_type: Database["public"]["Enums"]["goal_target_type"]
+          target_value: number
+          type: Database["public"]["Enums"]["goal_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          period?: Database["public"]["Enums"]["goal_period"]
+          pipeline_ids?: number[] | null
+          product_name?: string | null
+          seller_id?: number | null
+          seller_name?: string | null
+          start_date?: string
+          status_ids?: number[] | null
+          target_type?: Database["public"]["Enums"]["goal_target_type"]
+          target_value?: number
+          type?: Database["public"]["Enums"]["goal_type"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       kommo_logs: {
         Row: {
           action: string
@@ -46,6 +106,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_goal_progress: {
+        Args: { goal_id: string; leads_data: Json }
+        Returns: Json
+      }
       log_kommo_request: {
         Args: {
           action: string
@@ -57,7 +121,9 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      goal_period: "weekly" | "monthly" | "quarterly" | "yearly" | "custom"
+      goal_target_type: "quantity" | "value"
+      goal_type: "product" | "seller" | "team"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -184,6 +250,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      goal_period: ["weekly", "monthly", "quarterly", "yearly", "custom"],
+      goal_target_type: ["quantity", "value"],
+      goal_type: ["product", "seller", "team"],
+    },
   },
 } as const
