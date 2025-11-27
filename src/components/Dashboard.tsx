@@ -47,9 +47,10 @@ import { WeeklyMetricsConfigModal, WeeklyMetricsConfig } from "@/components/Week
 interface DashboardProps {
   config: any;
   onReset: () => void;
+  activeAccountName?: string;
 }
 
-export const Dashboard = ({ config, onReset }: DashboardProps) => {
+export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps) => {
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
@@ -185,7 +186,7 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
                 className="flex items-center gap-2"
               >
                 <User className="h-4 w-4" />
-                Kommo
+                {activeAccountName || 'Kommo'}
               </Button>
               <Button
                 variant="outline"

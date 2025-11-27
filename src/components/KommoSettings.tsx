@@ -4,10 +4,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, KommoCredentials } from "@/hooks/useAuth";
 import { KommoAuthService } from "@/services/kommoAuth";
-import { Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { Loader2, RefreshCw, Trash2, Plus, Check, Edit2, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 interface KommoSettingsProps {
   open: boolean;
@@ -15,41 +18,80 @@ interface KommoSettingsProps {
   onCredentialsUpdated?: () => void;
 }
 
+type ViewMode = "list" | "add" | "edit";
+
 export const KommoSettings = ({ open, onOpenChange, onCredentialsUpdated }: KommoSettingsProps) => {
+  const [accounts, setAccounts] = useState<KommoCredentials[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [editingAccount, setEditingAccount] = useState<KommoCredentials | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [switchingAccount, setSwitchingAccount] = useState<string | null>(null);
+  
+  // Form fields
+  const [accountName, setAccountName] = useState("");
   const [integrationId, setIntegrationId] = useState("");
   const [secretKey, setSecretKey] = useState("");
   const [redirectUri, setRedirectUri] = useState("");
   const [accountUrl, setAccountUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  
   const { toast } = useToast();
-  const { loadKommoCredentials, saveKommoCredentials, deleteKommoCredentials } = useAuth();
+  const { 
+    loadAllKommoAccounts, 
+    addKommoAccount, 
+    updateKommoAccount, 
+    deleteKommoAccount,
+    setActiveAccount 
+  } = useAuth();
 
   useEffect(() => {
     if (open) {
-      loadCredentials();
+      loadAccounts();
     }
   }, [open]);
 
-  const loadCredentials = async () => {
+  const loadAccounts = async () => {
     try {
-      const credentials = await loadKommoCredentials();
-      if (credentials) {
-        setIntegrationId(credentials.integration_id);
-        setSecretKey(credentials.secret_key);
-        setRedirectUri(credentials.redirect_uri || "");
-        setAccountUrl(credentials.account_url || "");
-      }
+      const data = await loadAllKommoAccounts();
+      setAccounts(data);
     } catch (error) {
-      console.error("Error loading credentials:", error);
+      console.error("Error loading accounts:", error);
     }
   };
 
+  const resetForm = () => {
+    setAccountName("");
+    setIntegrationId("");
+    setSecretKey("");
+    setRedirectUri("");
+    setAccountUrl("");
+    setEditingAccount(null);
+  };
+
+  const handleAddClick = () => {
+    resetForm();
+    setViewMode("add");
+  };
+
+  const handleEditClick = (account: KommoCredentials) => {
+    setEditingAccount(account);
+    setAccountName(account.account_name);
+    setIntegrationId(account.integration_id);
+    setSecretKey(account.secret_key);
+    setRedirectUri(account.redirect_uri || "");
+    setAccountUrl(account.account_url || "");
+    setViewMode("edit");
+  };
+
+  const handleCancel = () => {
+    resetForm();
+    setViewMode("list");
+  };
+
   const handleSave = async () => {
-    if (!integrationId || !secretKey) {
+    if (!accountName || !integrationId || !secretKey) {
       toast({
         title: "Campos obrigatórios",
-        description: "Integration ID e Secret Key são obrigatórios.",
+        description: "Nome da conta, Integration ID e Secret Key são obrigatórios.",
         variant: "destructive"
       });
       return;
@@ -58,28 +100,39 @@ export const KommoSettings = ({ open, onOpenChange, onCredentialsUpdated }: Komm
     setLoading(true);
 
     try {
-      await saveKommoCredentials({
-        integration_id: integrationId,
-        secret_key: secretKey,
-        redirect_uri: redirectUri || null,
-        account_url: accountUrl || null
-      });
-
-      toast({
-        title: "Credenciais atualizadas!",
-        description: "Suas configurações foram salvas com sucesso."
-      });
-
-      if (onCredentialsUpdated) {
-        onCredentialsUpdated();
+      if (viewMode === "add") {
+        await addKommoAccount({
+          account_name: accountName,
+          integration_id: integrationId,
+          secret_key: secretKey,
+          redirect_uri: redirectUri || null,
+          account_url: accountUrl || null,
+        });
+        toast({
+          title: "Conta adicionada!",
+          description: "Nova conta Kommo foi adicionada com sucesso."
+        });
+      } else if (viewMode === "edit" && editingAccount) {
+        await updateKommoAccount(editingAccount.id, {
+          account_name: accountName,
+          integration_id: integrationId,
+          secret_key: secretKey,
+          redirect_uri: redirectUri || null,
+          account_url: accountUrl || null,
+        });
+        toast({
+          title: "Conta atualizada!",
+          description: "As alterações foram salvas com sucesso."
+        });
       }
 
-      onOpenChange(false);
+      await loadAccounts();
+      handleCancel();
     } catch (error: any) {
-      console.error("Error saving credentials:", error);
+      console.error("Error saving account:", error);
       toast({
         title: "Erro ao salvar",
-        description: error.message || "Não foi possível salvar as credenciais.",
+        description: error.message || "Não foi possível salvar a conta.",
         variant: "destructive"
       });
     } finally {
@@ -87,25 +140,112 @@ export const KommoSettings = ({ open, onOpenChange, onCredentialsUpdated }: Komm
     }
   };
 
-  const handleReconnect = () => {
-    if (!integrationId || !secretKey) {
+  const handleDelete = async (account: KommoCredentials) => {
+    if (!confirm(`Tem certeza que deseja remover a conta "${account.account_name}"?`)) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await deleteKommoAccount(account.id);
+      
+      // Clear localStorage if deleting active account
+      if (account.is_active) {
+        localStorage.removeItem('kommoConfig');
+        localStorage.removeItem('kommoTokens');
+      }
+
+      toast({
+        title: "Conta removida",
+        description: "A conta foi removida com sucesso."
+      });
+
+      await loadAccounts();
+      
+      // If deleted the active account, reload page
+      if (account.is_active && onCredentialsUpdated) {
+        onCredentialsUpdated();
+      }
+    } catch (error: any) {
+      console.error("Error deleting account:", error);
+      toast({
+        title: "Erro ao remover",
+        description: error.message || "Não foi possível remover a conta.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSwitchAccount = async (account: KommoCredentials) => {
+    if (account.is_active) return;
+    
+    setSwitchingAccount(account.id);
+
+    try {
+      await setActiveAccount(account.id);
+      
+      // Update localStorage with new account config
+      const config = {
+        integrationId: account.integration_id,
+        secretKey: account.secret_key,
+        redirectUri: account.redirect_uri || `${window.location.origin}/oauth/callback`,
+        accountUrl: account.account_url || ""
+      };
+      localStorage.setItem('kommoConfig', JSON.stringify(config));
+      
+      if (account.access_token) {
+        const tokens = {
+          accessToken: account.access_token,
+          refreshToken: account.refresh_token,
+          expiresAt: account.token_expires_at
+        };
+        localStorage.setItem('kommoTokens', JSON.stringify(tokens));
+      } else {
+        localStorage.removeItem('kommoTokens');
+      }
+
+      toast({
+        title: "Conta alterada!",
+        description: `Trocando para "${account.account_name}"...`
+      });
+
+      // Reload page to apply new account
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (error: any) {
+      console.error("Error switching account:", error);
+      toast({
+        title: "Erro ao trocar conta",
+        description: error.message || "Não foi possível trocar de conta.",
+        variant: "destructive"
+      });
+      setSwitchingAccount(null);
+    }
+  };
+
+  const handleReconnectOAuth = (account: KommoCredentials) => {
+    if (!account.integration_id || !account.secret_key) {
       toast({
         title: "Configuração incompleta",
-        description: "Salve as credenciais antes de reconectar.",
+        description: "Complete as credenciais da conta antes de reconectar.",
         variant: "destructive"
       });
       return;
     }
 
     const config = {
-      integrationId,
-      secretKey,
-      redirectUri: redirectUri || `${window.location.origin}/oauth/callback`,
-      accountUrl: accountUrl || ""
+      integrationId: account.integration_id,
+      secretKey: account.secret_key,
+      redirectUri: account.redirect_uri || `${window.location.origin}/oauth/callback`,
+      accountUrl: account.account_url || ""
     };
 
-    // Save to localStorage temporarily for OAuth flow
     localStorage.setItem('kommoConfig', JSON.stringify(config));
+    localStorage.setItem('kommoReconnectAccountId', account.id);
 
     const authService = new KommoAuthService(config);
     const state = Math.random().toString(36).substring(7);
@@ -115,42 +255,182 @@ export const KommoSettings = ({ open, onOpenChange, onCredentialsUpdated }: Komm
     window.location.href = authUrl;
   };
 
-  const handleDelete = async () => {
-    if (!confirm("Tem certeza que deseja remover suas credenciais da Kommo? Você precisará configurar tudo novamente.")) {
-      return;
-    }
+  const renderAccountsList = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Suas Contas</h3>
+        <Button size="sm" onClick={handleAddClick} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          Adicionar
+        </Button>
+      </div>
 
-    setDeleting(true);
+      {accounts.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          Nenhuma conta configurada. Clique em "Adicionar" para começar.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {accounts.map((account) => (
+            <Card key={account.id} className={`${account.is_active ? 'border-primary' : 'border-border'}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{account.account_name}</span>
+                      {account.is_active && (
+                        <Badge variant="default" className="text-xs">Ativa</Badge>
+                      )}
+                      {account.access_token ? (
+                        <Badge variant="outline" className="text-xs text-green-600">Conectada</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs text-yellow-600">OAuth Pendente</Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {account.account_url || "URL não configurada"}
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    {!account.is_active && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSwitchAccount(account)}
+                        disabled={switchingAccount === account.id || loading}
+                        className="flex items-center gap-1"
+                      >
+                        {switchingAccount === account.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Check className="h-4 w-4" />
+                        )}
+                        Usar
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleReconnectOAuth(account)}
+                      disabled={loading}
+                      title="Reconectar OAuth"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEditClick(account)}
+                      disabled={loading}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(account)}
+                      disabled={loading || accounts.length === 1}
+                      title={accounts.length === 1 ? "Não é possível remover a única conta" : "Remover conta"}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
-    try {
-      await deleteKommoCredentials();
-      
-      // Clear localStorage
-      localStorage.removeItem('kommoConfig');
-      localStorage.removeItem('kommoTokens');
-      localStorage.removeItem('kommoOAuthState');
+  const renderForm = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">
+          {viewMode === "add" ? "Nova Conta" : "Editar Conta"}
+        </h3>
+        <Button variant="ghost" size="icon" onClick={handleCancel}>
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
 
-      toast({
-        title: "Credenciais removidas",
-        description: "Você precisará configurar a integração novamente."
-      });
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="accountName">Nome da Conta *</Label>
+          <Input
+            id="accountName"
+            value={accountName}
+            onChange={(e) => setAccountName(e.target.value)}
+            placeholder="Ex: Empresa Principal, Cliente XYZ"
+            disabled={loading}
+          />
+        </div>
 
-      if (onCredentialsUpdated) {
-        onCredentialsUpdated();
-      }
+        <div className="space-y-2">
+          <Label htmlFor="integrationId">Integration ID *</Label>
+          <Input
+            id="integrationId"
+            value={integrationId}
+            onChange={(e) => setIntegrationId(e.target.value)}
+            placeholder="00000000-0000-0000-0000-000000000000"
+            disabled={loading}
+          />
+        </div>
 
-      onOpenChange(false);
-    } catch (error: any) {
-      console.error("Error deleting credentials:", error);
-      toast({
-        title: "Erro ao remover",
-        description: error.message || "Não foi possível remover as credenciais.",
-        variant: "destructive"
-      });
-    } finally {
-      setDeleting(false);
-    }
-  };
+        <div className="space-y-2">
+          <Label htmlFor="secretKey">Secret Key *</Label>
+          <Input
+            id="secretKey"
+            type="password"
+            value={secretKey}
+            onChange={(e) => setSecretKey(e.target.value)}
+            placeholder="••••••••••••••••"
+            disabled={loading}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="redirectUri">Redirect URI</Label>
+          <Input
+            id="redirectUri"
+            value={redirectUri}
+            onChange={(e) => setRedirectUri(e.target.value)}
+            placeholder={`${window.location.origin}/oauth/callback`}
+            disabled={loading}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="accountUrl">Account URL</Label>
+          <Input
+            id="accountUrl"
+            value={accountUrl}
+            onChange={(e) => setAccountUrl(e.target.value)}
+            placeholder="https://seudominio.kommo.com"
+            disabled={loading}
+          />
+        </div>
+
+        <div className="flex gap-2 pt-4">
+          <Button variant="outline" onClick={handleCancel} disabled={loading} className="flex-1">
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={loading} className="flex-1">
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              viewMode === "add" ? "Adicionar Conta" : "Salvar Alterações"
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -158,96 +438,19 @@ export const KommoSettings = ({ open, onOpenChange, onCredentialsUpdated }: Komm
         <DialogHeader>
           <DialogTitle>Configurações da Kommo</DialogTitle>
           <DialogDescription>
-            Ajuste suas credenciais de integração com a Kommo CRM
+            Gerencie suas contas de integração com a Kommo CRM
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <Alert>
-            <AlertDescription>
-              Suas credenciais são armazenadas de forma segura no banco de dados e criptografadas em trânsito.
-            </AlertDescription>
-          </Alert>
+        <Separator className="my-4" />
 
-          <div className="space-y-2">
-            <Label htmlFor="integrationId">Integration ID *</Label>
-            <Input
-              id="integrationId"
-              value={integrationId}
-              onChange={(e) => setIntegrationId(e.target.value)}
-              placeholder="00000000-0000-0000-0000-000000000000"
-              disabled={loading || deleting}
-            />
-          </div>
+        <Alert className="mb-4">
+          <AlertDescription>
+            Você pode gerenciar múltiplas contas Kommo e alternar entre elas rapidamente.
+          </AlertDescription>
+        </Alert>
 
-          <div className="space-y-2">
-            <Label htmlFor="secretKey">Secret Key *</Label>
-            <Input
-              id="secretKey"
-              type="password"
-              value={secretKey}
-              onChange={(e) => setSecretKey(e.target.value)}
-              placeholder="••••••••••••••••"
-              disabled={loading || deleting}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="redirectUri">Redirect URI</Label>
-            <Input
-              id="redirectUri"
-              value={redirectUri}
-              onChange={(e) => setRedirectUri(e.target.value)}
-              placeholder={`${window.location.origin}/oauth/callback`}
-              disabled={loading || deleting}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="accountUrl">Account URL</Label>
-            <Input
-              id="accountUrl"
-              value={accountUrl}
-              onChange={(e) => setAccountUrl(e.target.value)}
-              placeholder="https://seudominio.kommo.com"
-              disabled={loading || deleting}
-            />
-          </div>
-
-          <div className="flex gap-2 pt-4">
-            <Button onClick={handleSave} disabled={loading || deleting} className="flex-1">
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                "Salvar Alterações"
-              )}
-            </Button>
-
-            <Button 
-              variant="outline" 
-              onClick={handleReconnect}
-              disabled={loading || deleting}
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Reconectar OAuth
-            </Button>
-
-            <Button 
-              variant="destructive" 
-              onClick={handleDelete}
-              disabled={loading || deleting}
-            >
-              {deleting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        </div>
+        {viewMode === "list" ? renderAccountsList() : renderForm()}
       </DialogContent>
     </Dialog>
   );

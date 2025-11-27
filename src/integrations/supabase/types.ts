@@ -104,10 +104,12 @@ export type Database = {
       user_kommo_credentials: {
         Row: {
           access_token: string | null
+          account_name: string
           account_url: string | null
           created_at: string | null
           id: string
           integration_id: string
+          is_active: boolean | null
           redirect_uri: string | null
           refresh_token: string | null
           secret_key: string
@@ -117,10 +119,12 @@ export type Database = {
         }
         Insert: {
           access_token?: string | null
+          account_name?: string
           account_url?: string | null
           created_at?: string | null
           id?: string
           integration_id: string
+          is_active?: boolean | null
           redirect_uri?: string | null
           refresh_token?: string | null
           secret_key: string
@@ -130,10 +134,12 @@ export type Database = {
         }
         Update: {
           access_token?: string | null
+          account_name?: string
           account_url?: string | null
           created_at?: string | null
           id?: string
           integration_id?: string
+          is_active?: boolean | null
           redirect_uri?: string | null
           refresh_token?: string | null
           secret_key?: string

@@ -11,7 +11,7 @@ const OAuthCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, saveKommoCredentials, loading: authLoading } = useAuth();
+  const { user, saveKommoCredentials, updateKommoAccount, loading: authLoading } = useAuth();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('Processando autorização...');
 
@@ -66,23 +66,48 @@ const OAuthCallback = () => {
         // Se usuário autenticado, salvar no banco de dados
         if (user) {
           try {
-            await saveKommoCredentials({
-              integration_id: config.integrationId,
-              secret_key: config.secretKey,
-              redirect_uri: config.redirectUri || null,
-              account_url: config.accountUrl || null,
-              access_token: tokens.accessToken,
-              refresh_token: tokens.refreshToken,
-              token_expires_at: new Date(tokens.expiresAt).toISOString()
-            });
+            // Check if this is a reconnect for a specific account
+            const reconnectAccountId = localStorage.getItem('kommoReconnectAccountId');
+            
+            if (reconnectAccountId) {
+              // Update existing account with new tokens
+              await updateKommoAccount(reconnectAccountId, {
+                access_token: tokens.accessToken,
+                refresh_token: tokens.refreshToken,
+                token_expires_at: new Date(tokens.expiresAt).toISOString(),
+                account_url: config.accountUrl || null,
+              });
+              
+              // Clear the reconnect flag
+              localStorage.removeItem('kommoReconnectAccountId');
+              
+              setStatus('success');
+              setMessage('Conta reconectada com sucesso!');
 
-            setStatus('success');
-            setMessage('Credenciais salvas com sucesso!');
+              toast({
+                title: "Reconexão bem-sucedida!",
+                description: "Sua conta Kommo foi reconectada.",
+              });
+            } else {
+              // Save as new or update active account
+              await saveKommoCredentials({
+                integration_id: config.integrationId,
+                secret_key: config.secretKey,
+                redirect_uri: config.redirectUri || null,
+                account_url: config.accountUrl || null,
+                access_token: tokens.accessToken,
+                refresh_token: tokens.refreshToken,
+                token_expires_at: new Date(tokens.expiresAt).toISOString()
+              });
 
-            toast({
-              title: "Autorização bem-sucedida!",
-              description: "Sua conta Kommo foi conectada e salva.",
-            });
+              setStatus('success');
+              setMessage('Credenciais salvas com sucesso!');
+
+              toast({
+                title: "Autorização bem-sucedida!",
+                description: "Sua conta Kommo foi conectada e salva.",
+              });
+            }
 
             // Redirecionar para o dashboard após 2 segundos
             setTimeout(() => {
@@ -92,6 +117,7 @@ const OAuthCallback = () => {
             console.error("Error saving to database:", dbError);
             setStatus('error');
             setMessage('Erro ao salvar credenciais no banco de dados');
+            localStorage.removeItem('kommoReconnectAccountId');
             toast({
               title: "Erro ao salvar",
               description: "Não foi possível salvar as credenciais.",
@@ -139,7 +165,7 @@ const OAuthCallback = () => {
     };
 
     handleCallback();
-  }, [searchParams, navigate, toast, user, authLoading, saveKommoCredentials]);
+  }, [searchParams, navigate, toast, user, authLoading, saveKommoCredentials, updateKommoAccount]);
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
