@@ -10,9 +10,10 @@ import { KommoAuthService } from "@/services/kommoAuth";
 const Index = () => {
   const [isConfigured, setIsConfigured] = useState(false);
   const [kommoConfig, setKommoConfig] = useState<any>(null);
+  const [activeAccountName, setActiveAccountName] = useState<string>("");
   const [checkingAuth, setCheckingAuth] = useState(true);
   const hasInitialized = useRef(false);
-  const { user, loading: authLoading, loadKommoCredentials } = useAuth();
+  const { user, loading: authLoading, loadActiveKommoAccount } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -30,9 +31,9 @@ const Index = () => {
 
       hasInitialized.current = true;
 
-      // User is authenticated, load Kommo credentials from database
+      // User is authenticated, load active Kommo account from database
       try {
-        const credentials = await loadKommoCredentials();
+        const credentials = await loadActiveKommoAccount();
         
         if (credentials) {
           // Has credentials in database
@@ -46,6 +47,9 @@ const Index = () => {
           setKommoConfig(config);
 
           // Check if tokens are valid
+          // Save account name for display
+          setActiveAccountName(credentials.account_name || 'Conta Principal');
+
           if (credentials.access_token && credentials.refresh_token) {
             const tokens = {
               accessToken: credentials.access_token,
@@ -64,7 +68,7 @@ const Index = () => {
               setIsConfigured(true);
               toast({
                 title: "Bem-vindo de volta!",
-                description: "Sua sessão da Kommo ainda está ativa."
+                description: `Conectado à conta "${credentials.account_name || 'Conta Principal'}".`
               });
             }
           }
@@ -77,7 +81,7 @@ const Index = () => {
     };
 
     initializeAuth();
-  }, [user, authLoading, loadKommoCredentials, navigate, toast]);
+  }, [user, authLoading, loadActiveKommoAccount, navigate, toast]);
   const handleConfigSave = (config: any) => {
     // Esta função agora é chamada apenas quando o OAuth é bem-sucedido
     setKommoConfig(config);
@@ -137,8 +141,10 @@ const Index = () => {
       </div>
     );
   }
-  return <div className="min-h-screen bg-gradient-subtle">
-      <Dashboard config={kommoConfig} onReset={handleReset} />
-    </div>;
+  return (
+    <div className="min-h-screen bg-gradient-subtle">
+      <Dashboard config={kommoConfig} onReset={handleReset} activeAccountName={activeAccountName} />
+    </div>
+  );
 };
 export default Index;
