@@ -4,17 +4,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, XCircle, ArrowLeft } from "lucide-react";
 import { KommoAuthService } from "@/services/kommoAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
 const OAuthCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, saveKommoCredentials, loading: authLoading } = useAuth();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('Processando autorização...');
 
   useEffect(() => {
     const handleCallback = async () => {
+      // Wait for auth to load
+      if (authLoading) return;
       try {
         const code = searchParams.get('code');
         const error = searchParams.get('error');
@@ -56,21 +60,58 @@ const OAuthCallback = () => {
         // Trocar código por tokens
         const tokens = await authService.exchangeCodeForTokens(code);
         
-        // Salvar tokens
+        // Salvar tokens no localStorage temporariamente
         authService.saveTokens(tokens);
 
-        setStatus('success');
-        setMessage('Autorização concluída com sucesso!');
+        // Se usuário autenticado, salvar no banco de dados
+        if (user) {
+          try {
+            await saveKommoCredentials({
+              integration_id: config.integrationId,
+              secret_key: config.secretKey,
+              redirect_uri: config.redirectUri || null,
+              account_url: config.accountUrl || null,
+              access_token: tokens.accessToken,
+              refresh_token: tokens.refreshToken,
+              token_expires_at: new Date(tokens.expiresAt).toISOString()
+            });
 
-        toast({
-          title: "Autorização bem-sucedida!",
-          description: "Sua conta Kommo foi conectada com sucesso.",
-        });
+            setStatus('success');
+            setMessage('Credenciais salvas com sucesso!');
 
-        // Redirecionar para o dashboard após 2 segundos
-        setTimeout(() => {
-          navigate('/', { replace: true });
-        }, 2000);
+            toast({
+              title: "Autorização bem-sucedida!",
+              description: "Sua conta Kommo foi conectada e salva.",
+            });
+
+            // Redirecionar para o dashboard após 2 segundos
+            setTimeout(() => {
+              navigate('/', { replace: true });
+            }, 2000);
+          } catch (dbError) {
+            console.error("Error saving to database:", dbError);
+            setStatus('error');
+            setMessage('Erro ao salvar credenciais no banco de dados');
+            toast({
+              title: "Erro ao salvar",
+              description: "Não foi possível salvar as credenciais.",
+              variant: "destructive"
+            });
+          }
+        } else {
+          // Usuário não autenticado, redirecionar para criar conta
+          setStatus('success');
+          setMessage('Redirecionando para criar conta...');
+
+          toast({
+            title: "Autorização concluída!",
+            description: "Agora crie sua conta para salvar as credenciais.",
+          });
+
+          setTimeout(() => {
+            navigate('/auth?mode=signup&from=kommo', { replace: true });
+          }, 2000);
+        }
 
       } catch (error) {
         console.error('OAuth Callback Error:', error);
@@ -98,7 +139,7 @@ const OAuthCallback = () => {
     };
 
     handleCallback();
-  }, [searchParams, navigate, toast]);
+  }, [searchParams, navigate, toast, user, authLoading, saveKommoCredentials]);
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">

@@ -101,6 +101,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_kommo_credentials: {
+        Row: {
+          access_token: string | null
+          account_url: string | null
+          created_at: string | null
+          id: string
+          integration_id: string
+          redirect_uri: string | null
+          refresh_token: string | null
+          secret_key: string
+          token_expires_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          account_url?: string | null
+          created_at?: string | null
+          id?: string
+          integration_id: string
+          redirect_uri?: string | null
+          refresh_token?: string | null
+          secret_key: string
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          account_url?: string | null
+          created_at?: string | null
+          id?: string
+          integration_id?: string
+          redirect_uri?: string | null
+          refresh_token?: string | null
+          secret_key?: string
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

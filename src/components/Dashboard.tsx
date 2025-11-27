@@ -1,10 +1,11 @@
 import { useState, useEffect, Suspense } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { BarChart3, Settings, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen, Crown, Brain, Clock, FileSpreadsheet } from "lucide-react";
+import { BarChart3, Settings, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen, Crown, Brain, Clock, FileSpreadsheet, User } from "lucide-react";
 import { MetricsCards } from "@/components/MetricsCards";
 import { MetricsSkeleton } from "@/components/ui/MetricsSkeleton";
 import { ChartSkeleton } from "@/components/ui/ChartSkeleton";
@@ -33,10 +34,12 @@ import { AIConfigModal } from "@/components/AIConfigModal";
 import { GlobalFilters } from "@/components/GlobalFilters";
 import { AIChatBot } from "@/components/AIChatBot";
 import { ComparisonDashboard } from "@/components/comparison/ComparisonDashboard";
+import { KommoSettings } from "@/components/KommoSettings";
 import { useToast } from "@/hooks/use-toast";
 import { useKommoApi } from "@/hooks/useKommoApi";
 import { useFilteredLeads } from "@/hooks/useFilteredData";
 import { useGlobalFilters } from "@/contexts/FilterContext";
+import { useAuth } from "@/hooks/useAuth";
 import { APP_VERSION } from "@/version";
 import { WeeklyMetrics } from "@/components/WeeklyMetrics";
 import { WeeklyMetricsConfigModal, WeeklyMetricsConfig } from "@/components/WeeklyMetricsConfig";
@@ -53,7 +56,10 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
   const [nomenclaturesOpen, setNomenclaturesOpen] = useState(false);
   const [weeklyMetricsConfigOpen, setWeeklyMetricsConfigOpen] = useState(false);
   const [weeklyMetricsConfig, setWeeklyMetricsConfig] = useState<WeeklyMetricsConfig | null>(null);
+  const [showKommoSettings, setShowKommoSettings] = useState(false);
   const { toast } = useToast();
+  const { signOut, user } = useAuth();
+  const navigate = useNavigate();
   const kommoApi = useKommoApi();
   const { filters } = useGlobalFilters();
   const filteredLeads = useFilteredLeads(kommoApi.allLeads);
@@ -97,6 +103,26 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleReset = () => {
+    if (window.confirm("Tem certeza que deseja resetar a configuração? Você precisará configurar novamente.")) {
+      onReset();
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate("/auth");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+  const handleCredentialsUpdated = () => {
+    // Reload the page to fetch updated credentials
+    window.location.reload();
   };
 
   // Calculate overall progress for display
@@ -155,7 +181,16 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={onReset}
+                onClick={() => setShowKommoSettings(true)}
+                className="flex items-center gap-2"
+              >
+                <User className="h-4 w-4" />
+                Kommo
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSignOut}
                 className="flex items-center gap-2"
               >
                 <LogOut className="h-4 w-4" />
@@ -538,6 +573,12 @@ export const Dashboard = ({ config, onReset }: DashboardProps) => {
         customFields={kommoApi.customFields}
         pipelines={kommoApi.pipelines}
         onSave={setWeeklyMetricsConfig}
+      />
+
+      <KommoSettings
+        open={showKommoSettings}
+        onOpenChange={setShowKommoSettings}
+        onCredentialsUpdated={handleCredentialsUpdated}
       />
     </div>
   );
