@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -45,7 +45,7 @@ export const useAuth = () => {
     }
   };
 
-  const loadKommoCredentials = async (): Promise<KommoCredentials | null> => {
+  const loadKommoCredentials = useCallback(async (): Promise<KommoCredentials | null> => {
     if (!user) return null;
 
     const { data, error } = await supabase
@@ -60,9 +60,9 @@ export const useAuth = () => {
     }
 
     return data;
-  };
+  }, [user]);
 
-  const saveKommoCredentials = async (credentials: Partial<KommoCredentials>) => {
+  const saveKommoCredentials = useCallback(async (credentials: Partial<KommoCredentials>) => {
     if (!user) throw new Error("User not authenticated");
 
     const { data: existing } = await supabase
@@ -72,7 +72,6 @@ export const useAuth = () => {
       .maybeSingle();
 
     if (existing) {
-      // Update existing credentials
       const { error } = await supabase
         .from("user_kommo_credentials")
         .update({
@@ -89,7 +88,6 @@ export const useAuth = () => {
 
       if (error) throw error;
     } else {
-      // Insert new credentials - integration_id and secret_key are required
       if (!credentials.integration_id || !credentials.secret_key) {
         throw new Error("integration_id and secret_key are required");
       }
@@ -109,9 +107,9 @@ export const useAuth = () => {
 
       if (error) throw error;
     }
-  };
+  }, [user]);
 
-  const deleteKommoCredentials = async () => {
+  const deleteKommoCredentials = useCallback(async () => {
     if (!user) throw new Error("User not authenticated");
 
     const { error } = await supabase
@@ -120,7 +118,7 @@ export const useAuth = () => {
       .eq("user_id", user.id);
 
     if (error) throw error;
-  };
+  }, [user]);
 
   return {
     user,

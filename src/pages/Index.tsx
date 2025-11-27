@@ -1,31 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart3, Loader2 } from "lucide-react";
 import { KommoConfig } from "@/components/KommoConfig";
 import { Dashboard } from "@/components/Dashboard";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { KommoAuthService } from "@/services/kommoAuth";
+
 const Index = () => {
   const [isConfigured, setIsConfigured] = useState(false);
   const [kommoConfig, setKommoConfig] = useState<any>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const hasInitialized = useRef(false);
   const { user, loading: authLoading, loadKommoCredentials } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      // Wait for auth to load
-      if (authLoading) return;
+    // Prevent running multiple times
+    if (hasInitialized.current) return;
+    if (authLoading) return;
 
+    const initializeAuth = async () => {
       // If not authenticated, redirect to auth page
       if (!user) {
         navigate("/auth");
         return;
       }
+
+      hasInitialized.current = true;
 
       // User is authenticated, load Kommo credentials from database
       try {
