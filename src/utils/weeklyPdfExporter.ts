@@ -148,9 +148,9 @@ const generateInsights = (weeklyStats: WeeklyStats[], config: WeeklyMetricsConfi
     : '0';
   
   if (totalChange > 0) {
-    insights.push(`Crescimento de ${totalChangePercent}% em leads totais vs semana anterior (${previousWeek.data.total} → ${currentWeek.data.total})`);
+    insights.push(`Crescimento de ${totalChangePercent}% em leads totais vs semana anterior (${previousWeek.data.total} -> ${currentWeek.data.total})`);
   } else if (totalChange < 0) {
-    insights.push(`Queda de ${Math.abs(parseFloat(totalChangePercent))}% em leads totais vs semana anterior (${previousWeek.data.total} → ${currentWeek.data.total})`);
+    insights.push(`Queda de ${Math.abs(parseFloat(totalChangePercent))}% em leads totais vs semana anterior (${previousWeek.data.total} -> ${currentWeek.data.total})`);
   }
   
   // Taxa de comparecimento
@@ -236,7 +236,7 @@ export const exportWeeklyMetricsToPDF = async ({
   // SEÇÃO 1: Métricas da Semana Atual
   pdf.setFontSize(14);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('📊 MÉTRICAS DA SEMANA ATUAL', margin, yPosition);
+  pdf.text('METRICAS DA SEMANA ATUAL', margin, yPosition);
   yPosition += 8;
 
   const metricsData = [
@@ -306,7 +306,7 @@ export const exportWeeklyMetricsToPDF = async ({
     try {
       pdf.setFontSize(14);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('📈 GRÁFICO DE TENDÊNCIA', margin, yPosition);
+      pdf.text('GRAFICO DE TENDENCIA', margin, yPosition);
       yPosition += 8;
 
       const canvas = await html2canvas(chartRef, {
@@ -340,7 +340,7 @@ export const exportWeeklyMetricsToPDF = async ({
 
   pdf.setFontSize(14);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('📋 HISTÓRICO DETALHADO', margin, yPosition);
+  pdf.text('HISTORICO DETALHADO', margin, yPosition);
   yPosition += 8;
 
   const historyData = weeklyStats.map(week => [
@@ -379,15 +379,15 @@ export const exportWeeklyMetricsToPDF = async ({
 
   pdf.setFontSize(14);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('🎯 FUNIL DE CONVERSÃO (semana atual)', margin, yPosition);
+  pdf.text('FUNIL DE CONVERSAO (semana atual)', margin, yPosition);
   yPosition += 8;
 
   const conversions = calculateConversionRates(currentWeek.data);
   const funnelData = [
-    ['Tráfego → Agendamento', `${conversions.trafficToAppointment} (${currentWeek.data.traffic} → ${currentWeek.data.appointments})`],
-    ['Agendamento → Comparecimento', `${conversions.appointmentToAttendance} (${currentWeek.data.appointments} → ${currentWeek.data.attendances})`],
-    ['Comparecimento → Fechamento', `${conversions.attendanceToClosures} (${currentWeek.data.attendances} → ${currentWeek.data.closures})`],
-    ['Conversão Total', `${conversions.totalConversion} (${currentWeek.data.traffic} → ${currentWeek.data.closures})`],
+    ['Trafego -> Agendamento', `${conversions.trafficToAppointment} (${currentWeek.data.traffic} -> ${currentWeek.data.appointments})`],
+    ['Agendamento -> Comparecimento', `${conversions.appointmentToAttendance} (${currentWeek.data.appointments} -> ${currentWeek.data.attendances})`],
+    ['Comparecimento -> Fechamento', `${conversions.attendanceToClosures} (${currentWeek.data.attendances} -> ${currentWeek.data.closures})`],
+    ['Conversao Total', `${conversions.totalConversion} (${currentWeek.data.traffic} -> ${currentWeek.data.closures})`],
   ];
 
   autoTable(pdf, {
@@ -420,26 +420,28 @@ export const exportWeeklyMetricsToPDF = async ({
 
     pdf.setFontSize(14);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('💡 INSIGHTS AUTOMÁTICOS', margin, yPosition);
+    pdf.text('INSIGHTS AUTOMATICOS', margin, yPosition);
     yPosition += 8;
 
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'normal');
 
     for (const insight of insights) {
-      const lines = pdf.splitTextToSize(`• ${insight}`, pageWidth - 2 * margin);
+      // Replace special characters that jsPDF can't render
+      const cleanInsight = insight
+        .replace(/→/g, '->')
+        .replace(/←/g, '<-')
+        .replace(/•/g, '-');
       
-      if (yPosition + lines.length * 6 > pageHeight - margin) {
+      const textLine = `- ${cleanInsight}`;
+      
+      if (yPosition + 8 > pageHeight - margin) {
         pdf.addPage();
         yPosition = margin;
       }
 
-      for (let i = 0; i < lines.length; i++) {
-        pdf.text(lines[i], margin + (i > 0 ? 5 : 0), yPosition);
-        yPosition += 6;
-      }
-
-      yPosition += 2;
+      pdf.text(textLine, margin, yPosition, { maxWidth: pageWidth - 2 * margin });
+      yPosition += 8;
     }
   }
 
