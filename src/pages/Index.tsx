@@ -6,6 +6,7 @@ import { Dashboard } from "@/components/Dashboard";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { KommoAuthService } from "@/services/kommoAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [isConfigured, setIsConfigured] = useState(false);
@@ -45,13 +46,10 @@ const Index = () => {
           };
 
           setKommoConfig(config);
-
-          // Check if tokens are valid
-          // Save account name for display
           setActiveAccountName(credentials.account_name || 'Conta Principal');
 
           if (credentials.access_token && credentials.refresh_token) {
-            const tokens = {
+            let tokens = {
               accessToken: credentials.access_token,
               refreshToken: credentials.refresh_token,
               expiresIn: 0,
@@ -59,18 +57,44 @@ const Index = () => {
               expiresAt: new Date(credentials.token_expires_at || 0).getTime()
             };
 
+            const authService = new KommoAuthService(config);
+            
+            // If token expired, try to refresh it automatically
+            if (!authService.isTokenValid(tokens)) {
+              console.log("Token expired, attempting refresh...");
+              try {
+                const newTokens = await authService.refreshAccessToken(tokens.refreshToken);
+                tokens = newTokens;
+                
+                // Update tokens in database
+                await supabase
+                  .from("user_kommo_credentials")
+                  .update({
+                    access_token: newTokens.accessToken,
+                    refresh_token: newTokens.refreshToken,
+                    token_expires_at: new Date(newTokens.expiresAt).toISOString(),
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", credentials.id);
+                  
+                console.log("Token refreshed successfully");
+              } catch (refreshError) {
+                console.error("Failed to refresh token:", refreshError);
+                // Token refresh failed, user needs to re-authenticate
+                setCheckingAuth(false);
+                return;
+              }
+            }
+
             // Save tokens to localStorage for KommoAuthService
             localStorage.setItem('kommoTokens', JSON.stringify(tokens));
             localStorage.setItem('kommoConfig', JSON.stringify(config));
 
-            const authService = new KommoAuthService(config);
-            if (authService.isTokenValid(tokens)) {
-              setIsConfigured(true);
-              toast({
-                title: "Bem-vindo de volta!",
-                description: `Conectado à conta "${credentials.account_name || 'Conta Principal'}".`
-              });
-            }
+            setIsConfigured(true);
+            toast({
+              title: "Bem-vindo de volta!",
+              description: `Conectado à conta "${credentials.account_name || 'Conta Principal'}".`
+            });
           }
         }
       } catch (error) {
