@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { BarChart3, Settings, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen, Crown, Brain, Clock, FileSpreadsheet, User } from "lucide-react";
+import { TokenExpirationIndicator } from "@/components/TokenExpirationIndicator";
 import { MetricsCards } from "@/components/MetricsCards";
 import { MetricsSkeleton } from "@/components/ui/MetricsSkeleton";
 import { ChartSkeleton } from "@/components/ui/ChartSkeleton";
@@ -121,6 +122,18 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
     }
   };
 
+  const handleSessionExpired = useCallback(() => {
+    // Clear tokens and redirect to reconfigure
+    localStorage.removeItem('kommoTokens');
+    localStorage.removeItem('kommoConfig');
+    toast({
+      title: "Sessão expirada",
+      description: "Não foi possível renovar sua sessão. Por favor, reconecte sua conta Kommo.",
+      variant: "destructive",
+    });
+    onReset();
+  }, [toast, onReset]);
+
   const handleCredentialsUpdated = () => {
     // Reload the page to fetch updated credentials
     window.location.reload();
@@ -179,6 +192,7 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
                 <BookOpen className="h-4 w-4" />
                 Nomenclaturas
               </Button>
+              <TokenExpirationIndicator onSessionExpired={handleSessionExpired} />
               <Button
                 variant="outline"
                 size="sm"
