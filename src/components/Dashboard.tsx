@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { BarChart3, Settings, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen, Crown, Brain, Clock, FileSpreadsheet, User } from "lucide-react";
+import { BarChart3, Settings, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen, Crown, Brain, FileSpreadsheet, User } from "lucide-react";
 import { TokenExpirationIndicator } from "@/components/TokenExpirationIndicator";
 import { MetricsCards } from "@/components/MetricsCards";
 import { MetricsSkeleton } from "@/components/ui/MetricsSkeleton";
@@ -19,6 +19,7 @@ import { CustomFieldAnalysis } from "@/components/CustomFieldAnalysis";
 import { ResponseTimeAnalysis } from "@/components/ResponseTimeAnalysis";
 import { LeadTemporalAnalysis } from "@/components/LeadTemporalAnalysis";
 import { GoalsDashboard } from "@/components/GoalsDashboard";
+import { LeadJourneyMap } from "@/components/LeadJourneyMap";
 import {
   LazyPipelineChart, 
   LazyLeadsTable, 
@@ -247,7 +248,7 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 bg-muted/30">
+          <TabsList className="grid w-full grid-cols-5 bg-muted/30">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Visão Geral
@@ -260,13 +261,9 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
               <Crown className="h-4 w-4" />
               Ranking
             </TabsTrigger>
-            <TabsTrigger value="performance" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Performance
-            </TabsTrigger>
-            <TabsTrigger value="behavior" className="flex items-center gap-2">
+            <TabsTrigger value="journey" className="flex items-center gap-2">
               <Brain className="h-4 w-4" />
-              Comportamento
+              Jornada de Leads
             </TabsTrigger>
             <TabsTrigger value="comparison" className="flex items-center gap-2">
               <FileSpreadsheet className="h-4 w-4" />
@@ -496,28 +493,16 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
             />
           </TabsContent>
 
-          <TabsContent value="performance" className="space-y-6">
-            <ResponseTimeAnalysis
-              leads={filteredLeads}
-              events={filteredEvents}
-              users={kommoApi.users}
-              loading={kommoApi.loadingStates.events}
-            />
-          </TabsContent>
-
-          <TabsContent value="behavior" className="space-y-6">
-            <Suspense fallback={<ChartSkeleton title="Análise Comportamental" height="h-96" />}>
-              {kommoApi.loadingStates.leads ? (
-                <ChartSkeleton title="Análise Comportamental" height="h-96" />
-              ) : (
-                <LazyLeadBehaviorAnalysis 
-                  allLeads={kommoApi.allLeads}
-                  pipelines={kommoApi.pipelines}
-                  users={kommoApi.users}
-                  loading={kommoApi.loadingStates.leads}
-                />
-              )}
-            </Suspense>
+          <TabsContent value="journey" className="space-y-6">
+            {kommoApi.loadingStates.leads ? (
+              <ChartSkeleton title="Jornada de Leads" height="h-96" />
+            ) : (
+              <LeadJourneyMap 
+                allLeads={filteredLeads}
+                pipelines={kommoApi.pipelines}
+                selectedPipeline={filters.pipelineId}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="comparison" className="space-y-6">
