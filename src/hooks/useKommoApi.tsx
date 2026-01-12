@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { KommoApiService, Pipeline, Tag, Event } from "@/services/kommoApi";
 import { KommoAuthService } from "@/services/kommoAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useLocalCache } from "@/hooks/useLocalCache";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { useGlobalFilters } from "@/contexts/FilterContext";
+import { checkAndClearCacheIfAccountChanged, getActiveAccountId } from "@/utils/cacheManager";
 
 // Interface for the raw API response
 interface RawPipeline {
@@ -697,10 +698,23 @@ export const useKommoApi = () => {
     }
   }, 500);
 
+  // Track current account to detect changes
+  const currentAccountId = useRef<string | null>(null);
+
   // Progressive loading effect - Priority: Pipelines → Stats → Leads → Users → CustomFields
   useEffect(() => {
     const loadProgressively = async () => {
       try {
+        // Check if account changed and clear cache if needed
+        const accountChanged = checkAndClearCacheIfAccountChanged();
+        const newAccountId = getActiveAccountId();
+        
+        if (accountChanged) {
+          console.log('🔄 Account changed - reloading all data with fresh cache');
+        }
+        
+        currentAccountId.current = newAccountId;
+
         // Phase 1: Load pipelines first (highest priority)
         await fetchPipelines();
         

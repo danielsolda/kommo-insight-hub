@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { clearAllKommoCache, setStoredAccountId } from "@/utils/cacheManager";
 
 interface KommoSettingsProps {
   open: boolean;
@@ -185,6 +186,10 @@ export const KommoSettings = ({ open, onOpenChange, onCredentialsUpdated }: Komm
     setSwitchingAccount(account.id);
 
     try {
+      // Clear ALL Kommo cache before switching
+      console.log('🔄 Switching account - clearing all cache...');
+      clearAllKommoCache();
+      
       await setActiveAccount(account.id);
       
       // Update localStorage with new account config
@@ -195,6 +200,10 @@ export const KommoSettings = ({ open, onOpenChange, onCredentialsUpdated }: Komm
         accountUrl: account.account_url || ""
       };
       localStorage.setItem('kommoConfig', JSON.stringify(config));
+      
+      // Store the new account ID for change detection
+      const newAccountId = `${account.integration_id}-${account.account_url || 'default'}`;
+      setStoredAccountId(newAccountId);
       
       if (account.access_token) {
         const tokens = {
@@ -212,10 +221,10 @@ export const KommoSettings = ({ open, onOpenChange, onCredentialsUpdated }: Komm
         description: `Trocando para "${account.account_name}"...`
       });
 
-      // Reload page to apply new account
+      // Reload page to apply new account with clean state
       setTimeout(() => {
         window.location.reload();
-      }, 500);
+      }, 300);
     } catch (error: any) {
       console.error("Error switching account:", error);
       toast({
