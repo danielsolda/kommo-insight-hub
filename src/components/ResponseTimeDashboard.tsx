@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,6 +7,7 @@ import { Clock, CheckCircle, TrendingUp, AlertTriangle, Timer } from "lucide-rea
 import { useResponseTimeData, UserResponseMetrics } from "@/hooks/useResponseTimeData";
 import { ChartSkeleton } from "@/components/ui/ChartSkeleton";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
+import { BusinessHoursConfigModal, loadBusinessHoursConfig } from "@/components/BusinessHoursConfigModal";
 import { User } from "@/services/kommoApi";
 
 interface ResponseTimeDashboardProps {
@@ -38,12 +39,29 @@ const getSlaStatusBadge = (slaRate: number) => {
 
 export const ResponseTimeDashboard = ({ users, loading: parentLoading }: ResponseTimeDashboardProps) => {
   const { data, loading, fetchResponseTime } = useResponseTimeData();
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const doFetch = useCallback(() => {
+    if (users.length > 0) {
+      fetchResponseTime(users);
+    }
+  }, [users, fetchResponseTime]);
 
   useEffect(() => {
     if (users.length > 0 && !data && !loading) {
-      fetchResponseTime(users);
+      doFetch();
     }
-  }, [users, data, loading, fetchResponseTime]);
+  }, [users, data, loading, doFetch]);
+
+  useEffect(() => {
+    if (refreshKey > 0) {
+      doFetch();
+    }
+  }, [refreshKey, doFetch]);
+
+  const handleConfigChanged = () => {
+    setRefreshKey(k => k + 1);
+  };
 
   if (parentLoading || loading) {
     return (
@@ -79,8 +97,15 @@ export const ResponseTimeDashboard = ({ users, loading: parentLoading }: Respons
     color: getBarColor(m.avgResponseMinutes, slaMinutes)
   }));
 
+  const bhConfig = loadBusinessHoursConfig();
+
   return (
     <div className="space-y-6">
+      {/* Config Button */}
+      <div className="flex justify-end">
+        <BusinessHoursConfigModal onConfigChanged={handleConfigChanged} />
+      </div>
+
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -247,8 +272,8 @@ export const ResponseTimeDashboard = ({ users, loading: parentLoading }: Respons
           <p>• Buscamos eventos de <strong>mensagem recebida</strong> (incoming) e <strong>mensagem enviada</strong> (outgoing) da API do Kommo</p>
           <p>• Para cada mensagem recebida de um cliente, encontramos a próxima resposta enviada no mesmo lead</p>
           <p>• O tempo de resposta é a diferença em minutos entre os dois eventos</p>
-          <p>• Filtramos por horário comercial (08:00–18:00, fuso America/São_Paulo) — mensagens fora do horário são ajustadas</p>
-          <p>• O SLA padrão é de <strong>{slaMinutes} minutos</strong></p>
+          <p>• Filtramos por horário comercial (<strong>{bhConfig.startHour}:00–{bhConfig.endHour}:00</strong>, fuso America/São_Paulo) — mensagens fora do horário são ajustadas</p>
+          <p>• O SLA configurado é de <strong>{slaMinutes} minutos</strong></p>
         </CardContent>
       </Card>
     </div>
