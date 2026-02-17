@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 export type GoalType = 'product' | 'seller' | 'team';
@@ -45,6 +46,7 @@ export interface CreateGoalInput {
 
 export const useGoals = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: goals, isLoading } = useQuery({
     queryKey: ['goals'],
@@ -61,9 +63,10 @@ export const useGoals = () => {
 
   const createGoal = useMutation({
     mutationFn: async (goal: CreateGoalInput) => {
+      if (!user) throw new Error('User not authenticated');
       const { data, error } = await supabase
         .from('goals')
-        .insert([goal])
+        .insert([{ ...goal, user_id: user.id }])
         .select()
         .single();
 

@@ -195,9 +195,9 @@ export const KommoSettings = ({ open, onOpenChange, onCredentialsUpdated }: Komm
       // Update localStorage with new account config
       const config = {
         integrationId: account.integration_id,
-        secretKey: account.secret_key,
         redirectUri: account.redirect_uri || `${window.location.origin}/oauth/callback`,
-        accountUrl: account.account_url || ""
+        accountUrl: account.account_url || "",
+        credentialId: account.id
       };
       localStorage.setItem('kommoConfig', JSON.stringify(config));
       
@@ -248,9 +248,9 @@ export const KommoSettings = ({ open, onOpenChange, onCredentialsUpdated }: Komm
 
     const config = {
       integrationId: account.integration_id,
-      secretKey: account.secret_key,
       redirectUri: account.redirect_uri || `${window.location.origin}/oauth/callback`,
-      accountUrl: account.account_url || ""
+      accountUrl: account.account_url || "",
+      credentialId: account.id
     };
 
     localStorage.setItem('kommoConfig', JSON.stringify(config));

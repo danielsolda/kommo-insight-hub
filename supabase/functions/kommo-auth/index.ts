@@ -10,32 +10,25 @@ interface TokenRequest {
   action: 'exchange_code' | 'refresh_token';
   code?: string;
   client_id: string;
-  client_secret: string;
+  credential_id: string;
   redirect_uri?: string;
   refresh_token?: string;
   grant_type: string;
   account_url?: string;
+  // Legacy support - will be ignored if credential_id is provided
+  client_secret?: string;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-    );
-
     if (req.method !== 'POST') {
       return new Response(
         JSON.stringify({ error: 'Method not allowed' }),
-        { 
-          status: 405, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -43,46 +36,91 @@ serve(async (req) => {
     console.log('Kommo OAuth Request:', { 
       action: tokenRequest.action, 
       grant_type: tokenRequest.grant_type,
-      has_account_url: !!tokenRequest.account_url 
+      has_account_url: !!tokenRequest.account_url,
+      has_credential_id: !!tokenRequest.credential_id
     });
 
-    // Validar se há account_url para requisições
     if (!tokenRequest.account_url) {
       return new Response(
-        JSON.stringify({ 
-          error: 'account_url is required',
-          details: 'Please provide the Kommo account URL' 
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        JSON.stringify({ error: 'account_url is required', details: 'Please provide the Kommo account URL' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Extrair subdomínio da URL da conta
+    // Fetch the client_secret server-side from the database
+    let clientSecret = '';
+    
+    if (tokenRequest.credential_id) {
+      // Use service role to fetch the secret from user_kommo_credentials
+      const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+
+      // Verify the user owns this credential by checking the JWT
+      const authHeader = req.headers.get('Authorization');
+      if (authHeader) {
+        const supabaseUser = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+        );
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: userError } = await supabaseUser.auth.getUser(token);
+        
+        if (userError || !user) {
+          return new Response(
+            JSON.stringify({ error: 'Unauthorized', details: 'Invalid authentication token' }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Fetch credential ensuring it belongs to the authenticated user
+        const { data: credential, error: credError } = await supabaseAdmin
+          .from('user_kommo_credentials')
+          .select('secret_key')
+          .eq('id', tokenRequest.credential_id)
+          .eq('user_id', user.id)
+          .single();
+
+        if (credError || !credential) {
+          return new Response(
+            JSON.stringify({ error: 'Credential not found', details: 'Could not find the specified credential' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        clientSecret = credential.secret_key;
+      } else {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized', details: 'Authorization header required' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else if (tokenRequest.client_secret) {
+      // Legacy fallback - accept client_secret directly (backward compat)
+      clientSecret = tokenRequest.client_secret;
+    } else {
+      return new Response(
+        JSON.stringify({ error: 'Missing credentials', details: 'credential_id or client_secret required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Extract subdomain
     let accountSubdomain = '';
     try {
       const accountUrl = new URL(tokenRequest.account_url);
       accountSubdomain = accountUrl.hostname.split('.')[0];
     } catch (error) {
-      console.error('Invalid account URL:', tokenRequest.account_url);
       return new Response(
-        JSON.stringify({ 
-          error: 'Invalid account URL format',
-          details: 'Please check your Kommo account URL' 
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        JSON.stringify({ error: 'Invalid account URL format', details: 'Please check your Kommo account URL' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Preparar dados para requisição à API da Kommo como JSON (conforme documentação)
     const requestBody: any = {
       client_id: tokenRequest.client_id,
-      client_secret: tokenRequest.client_secret,
+      client_secret: clientSecret,
       grant_type: tokenRequest.grant_type,
     };
 
@@ -96,16 +134,14 @@ serve(async (req) => {
       }
     }
 
-    // Construir URL do endpoint específico da conta
     const kommoApiUrl = `https://${accountSubdomain}.kommo.com/oauth2/access_token`;
     console.log('Using Kommo API URL:', kommoApiUrl);
-    console.log('Request body (masked):', { 
-      ...requestBody, 
-      client_secret: '[MASKED]',
-      refresh_token: requestBody.refresh_token ? '[MASKED]' : undefined 
-    });
 
-    // Fazer requisição para a API OAuth da Kommo
+    const supabaseLog = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    );
+
     const kommoResponse = await fetch(kommoApiUrl, {
       method: 'POST',
       headers: {
@@ -121,25 +157,13 @@ serve(async (req) => {
     if (!kommoResponse.ok) {
       const errorText = await kommoResponse.text();
       let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { message: errorText };
-      }
+      try { errorData = JSON.parse(errorText); } catch { errorData = { message: errorText }; }
       
-      console.error('Kommo API Error:', {
-        status: kommoResponse.status,
-        error: errorData,
-        url: kommoApiUrl
-      });
+      console.error('Kommo API Error:', { status: kommoResponse.status, error: errorData });
       
-      // Log do erro
-      await supabase.rpc('log_kommo_request', {
+      await supabaseLog.rpc('log_kommo_request', {
         action: tokenRequest.action,
-        request_data: { 
-          grant_type: tokenRequest.grant_type,
-          account_subdomain: accountSubdomain
-        },
+        request_data: { grant_type: tokenRequest.grant_type, account_subdomain: accountSubdomain },
         error_message: `HTTP ${kommoResponse.status}: ${JSON.stringify(errorData)}`
       });
 
@@ -150,26 +174,16 @@ serve(async (req) => {
           details: errorData.message || errorData.error || 'Unknown error',
           hint: kommoResponse.status === 400 ? 'Verifique suas credenciais e URL da conta' : 'Erro interno da API da Kommo'
         }),
-        { 
-          status: kommoResponse.status, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: kommoResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const tokenData = await kommoResponse.json();
-    console.log('Kommo API success:', { 
-      token_type: tokenData.token_type, 
-      expires_in: tokenData.expires_in 
-    });
+    console.log('Kommo API success:', { token_type: tokenData.token_type, expires_in: tokenData.expires_in });
 
-    // Log da requisição bem-sucedida
-    await supabase.rpc('log_kommo_request', {
+    await supabaseLog.rpc('log_kommo_request', {
       action: tokenRequest.action,
-      request_data: { 
-        grant_type: tokenRequest.grant_type,
-        account_subdomain: accountSubdomain
-      },
+      request_data: { grant_type: tokenRequest.grant_type, account_subdomain: accountSubdomain },
       response_data: {
         token_type: tokenData.token_type,
         expires_in: tokenData.expires_in,
@@ -178,26 +192,16 @@ serve(async (req) => {
       }
     });
 
-    // Retornar tokens para o cliente
     return new Response(
       JSON.stringify(tokenData),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Edge Function Error:', error);
-    
     return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error', 
-        message: error.message 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ error: 'Internal server error', message: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 })
