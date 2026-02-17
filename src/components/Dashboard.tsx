@@ -35,6 +35,7 @@ import { InvestmentSettingsModal } from "@/components/InvestmentSettingsModal";
 import { AIConfigModal } from "@/components/AIConfigModal";
 import { GlobalFilters } from "@/components/GlobalFilters";
 import { AIChatBot } from "@/components/AIChatBot";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { ComparisonDashboard } from "@/components/comparison/ComparisonDashboard";
 import { KommoSettings } from "@/components/KommoSettings";
 import { useToast } from "@/hooks/use-toast";
@@ -189,6 +190,7 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
                 <BookOpen className="h-4 w-4" />
                 Nomenclaturas
               </Button>
+              <ThemeToggle />
               <TokenExpirationIndicator onSessionExpired={handleSessionExpired} />
               <Button
                 variant="outline"
