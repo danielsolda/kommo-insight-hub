@@ -92,7 +92,7 @@ const OAuthCallback = () => {
               // Save as new or update active account
               await saveKommoCredentials({
                 integration_id: config.integrationId,
-                secret_key: config.secretKey,
+                secret_key: config.secretKey || '',
                 redirect_uri: config.redirectUri || null,
                 account_url: config.accountUrl || null,
                 access_token: tokens.accessToken,
@@ -107,6 +107,14 @@ const OAuthCallback = () => {
                 title: "Autorização bem-sucedida!",
                 description: "Sua conta Kommo foi conectada e salva.",
               });
+            }
+
+            // Clear secretKey from localStorage after saving to DB
+            const savedCfg = localStorage.getItem('kommoConfig');
+            if (savedCfg) {
+              const parsed = JSON.parse(savedCfg);
+              delete parsed.secretKey;
+              localStorage.setItem('kommoConfig', JSON.stringify(parsed));
             }
 
             // Redirecionar para o dashboard após 2 segundos

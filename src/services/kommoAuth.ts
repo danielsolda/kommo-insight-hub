@@ -1,8 +1,11 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export interface KommoConfig {
   integrationId: string;
-  secretKey: string;
+  secretKey?: string;
   redirectUri: string;
   accountUrl?: string;
+  credentialId?: string;
 }
 
 export interface KommoTokens {
@@ -34,18 +37,21 @@ export class KommoAuthService {
     return `https://www.kommo.com/oauth?${params.toString()}`;
   }
 
-  // Trocar código de autorização por tokens
+  // Trocar código de autorização por tokens - secret fetched server-side
   async exchangeCodeForTokens(code: string): Promise<KommoTokens> {
+    const { data: { session } } = await supabase.auth.getSession();
+    
     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/kommo-auth`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
       },
       body: JSON.stringify({
         action: 'exchange_code',
         code,
         client_id: this.config.integrationId,
-        client_secret: this.config.secretKey,
+        credential_id: this.config.credentialId,
         redirect_uri: this.config.redirectUri,
         grant_type: 'authorization_code',
         account_url: this.config.accountUrl
@@ -57,8 +63,6 @@ export class KommoAuthService {
     }
 
     const data = await response.json();
-    
-    // Calcular timestamp de expiração
     const expiresAt = Date.now() + (data.expires_in * 1000);
     
     return {
@@ -70,17 +74,20 @@ export class KommoAuthService {
     };
   }
 
-  // Atualizar token de acesso
+  // Atualizar token de acesso - secret fetched server-side
   async refreshAccessToken(refreshToken: string): Promise<KommoTokens> {
+    const { data: { session } } = await supabase.auth.getSession();
+    
     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/kommo-auth`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
       },
       body: JSON.stringify({
         action: 'refresh_token',
         client_id: this.config.integrationId,
-        client_secret: this.config.secretKey,
+        credential_id: this.config.credentialId,
         refresh_token: refreshToken,
         grant_type: 'refresh_token',
         account_url: this.config.accountUrl,
@@ -93,7 +100,6 @@ export class KommoAuthService {
     }
 
     const data = await response.json();
-    
     const expiresAt = Date.now() + (data.expires_in * 1000);
     
     return {
@@ -105,28 +111,23 @@ export class KommoAuthService {
     };
   }
 
-  // Verificar se o token está válido
   isTokenValid(tokens: KommoTokens): boolean {
-    return Date.now() < tokens.expiresAt - 60000; // 1 minuto de margem
+    return Date.now() < tokens.expiresAt - 60000;
   }
 
-  // Salvar tokens no localStorage
   saveTokens(tokens: KommoTokens): void {
     localStorage.setItem('kommoTokens', JSON.stringify(tokens));
   }
 
-  // Carregar tokens do localStorage
   loadTokens(): KommoTokens | null {
     const saved = localStorage.getItem('kommoTokens');
     return saved ? JSON.parse(saved) : null;
   }
 
-  // Remover tokens
   clearTokens(): void {
     localStorage.removeItem('kommoTokens');
   }
 
-  // Obter tokens válidos (atualiza se necessário)
   async getValidTokens(): Promise<KommoTokens | null> {
     const tokens = this.loadTokens();
     

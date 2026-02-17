@@ -40,9 +40,9 @@ const Index = () => {
           // Has credentials in database
           const config = {
             integrationId: credentials.integration_id,
-            secretKey: credentials.secret_key,
             redirectUri: credentials.redirect_uri || `${window.location.origin}/oauth/callback`,
-            accountUrl: credentials.account_url || ""
+            accountUrl: credentials.account_url || "",
+            credentialId: credentials.id
           };
 
           setKommoConfig(config);
