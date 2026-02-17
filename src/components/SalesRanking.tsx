@@ -181,7 +181,6 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
     return (
       <Card className="bg-gradient-card border-border/50 shadow-card">
         <CardHeader>
-          <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Crown className="h-5 w-5 text-primary" />
@@ -191,23 +190,6 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
                 {getPeriodDescription()}
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select value={selectedPipeline} onValueChange={handlePipelineChange}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filtrar por pipeline" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os pipelines</SelectItem>
-                  {pipelines.map((pipeline) => (
-                    <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
-                      {pipeline.name} {pipeline.is_main && "(Principal)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -234,104 +216,15 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
   return (
     <Card className="bg-gradient-card border-border/50 shadow-card">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Crown className="h-5 w-5 text-primary" />
-              Ranking de Vendedores
-            </CardTitle>
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-primary" />
+                Ranking de Vendedores
+              </CardTitle>
               <CardDescription>
                 {getPeriodDescription()}
               </CardDescription>
-          </div>
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              
-              {/* Date Filter */}
-              <Select value={dateFilter} onValueChange={handleDateFilterChange}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Período" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="current-month">Este mês</SelectItem>
-                  <SelectItem value="last-30-days">Últimos 30 dias</SelectItem>
-                  <SelectItem value="last-3-months">Últimos 3 meses</SelectItem>
-                  <SelectItem value="all-time">Todas as vendas</SelectItem>
-                  <SelectItem value="custom">Personalizado</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Custom Date Range Pickers */}
-              {dateFilter === 'custom' && (
-                <div className="flex items-center gap-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-36 justify-start text-left font-normal",
-                          !dateRange.startDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange.startDate ? format(dateRange.startDate, "dd/MM/yy") : "Data inicial"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={dateRange.startDate || undefined}
-                        onSelect={(date) => handleCustomDateChange('start', date)}
-                        disabled={(date) => date > new Date()}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-36 justify-start text-left font-normal",
-                          !dateRange.endDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange.endDate ? format(dateRange.endDate, "dd/MM/yy") : "Data final"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={dateRange.endDate || undefined}
-                        onSelect={(date) => handleCustomDateChange('end', date)}
-                        disabled={(date) => date > new Date() || (dateRange.startDate && date < dateRange.startDate)}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              )}
-
-              {/* Pipeline Filter */}
-              <Select value={selectedPipeline} onValueChange={handlePipelineChange}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filtrar por pipeline" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os pipelines</SelectItem>
-                  {pipelines.map((pipeline) => (
-                    <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
-                      {pipeline.name} {pipeline.is_main && "(Principal)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
-        </div>
       </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-muted-foreground">
@@ -347,7 +240,6 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
     return (
       <Card className="bg-gradient-card border-border/50 shadow-card">
         <CardHeader>
-          <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Crown className="h-5 w-5 text-primary" />
@@ -357,116 +249,6 @@ export const SalesRanking = ({ salesRanking, loading, pipelines, onPipelineChang
                 {getPeriodDescription()}
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              
-              {/* Debug Mode Toggle */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDebugToggle}
-                disabled={isRecalculating}
-                className={cn(
-                  "flex items-center gap-2 transition-all",
-                  debugMode && "bg-orange-100 text-orange-700 border-orange-300 shadow-sm",
-                  isRecalculating && "opacity-75"
-                )}
-                title="Ativar modo debug para análise detalhada dos dados"
-              >
-                {isRecalculating ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Bug className="h-4 w-4" />
-                )}
-                Debug
-                {debugMode ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-              </Button>
-              
-              {/* Date Filter */}
-              <Select value={dateFilter} onValueChange={handleDateFilterChange}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Período" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="current-month">Este mês</SelectItem>
-                  <SelectItem value="last-30-days">Últimos 30 dias</SelectItem>
-                  <SelectItem value="last-3-months">Últimos 3 meses</SelectItem>
-                  <SelectItem value="all-time">Todas as vendas</SelectItem>
-                  <SelectItem value="custom">Personalizado</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Custom Date Range Pickers */}
-              {dateFilter === 'custom' && (
-                <div className="flex items-center gap-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-36 justify-start text-left font-normal",
-                          !dateRange.startDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange.startDate ? format(dateRange.startDate, "dd/MM/yy") : "Data inicial"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={dateRange.startDate || undefined}
-                        onSelect={(date) => handleCustomDateChange('start', date)}
-                        disabled={(date) => date > new Date()}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-36 justify-start text-left font-normal",
-                          !dateRange.endDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange.endDate ? format(dateRange.endDate, "dd/MM/yy") : "Data final"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={dateRange.endDate || undefined}
-                        onSelect={(date) => handleCustomDateChange('end', date)}
-                        disabled={(date) => date > new Date() || (dateRange.startDate && date < dateRange.startDate)}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              )}
-
-              {/* Pipeline Filter */}
-              <Select value={selectedPipeline} onValueChange={handlePipelineChange}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filtrar por pipeline" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os pipelines</SelectItem>
-                  {pipelines.map((pipeline) => (
-                    <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
-                      {pipeline.name} {pipeline.is_main && "(Principal)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
         </CardHeader>
         <CardContent>
           {/* Debug Information */}
