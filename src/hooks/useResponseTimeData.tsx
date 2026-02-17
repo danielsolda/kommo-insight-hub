@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { KommoAuthService } from '@/services/kommoAuth';
 import { useToast } from '@/hooks/use-toast';
+import { loadBusinessHoursConfig } from '@/components/BusinessHoursConfigModal';
 
 export interface UserResponseMetrics {
   responsibleUserId: number;
@@ -41,7 +42,6 @@ export const useResponseTimeData = () => {
     setError(null);
 
     try {
-      // Get auth tokens
       const configStr = localStorage.getItem('kommoConfig');
       const tokensStr = localStorage.getItem('kommoTokens');
       if (!configStr || !tokensStr) {
@@ -53,7 +53,8 @@ export const useResponseTimeData = () => {
       const tokens = await authService.getValidTokens();
       if (!tokens) throw new Error('Token inválido');
 
-      // Last 30 days
+      const businessHours = loadBusinessHoursConfig();
+
       const now = Math.floor(Date.now() / 1000);
       const fromTimestamp = now - (30 * 24 * 60 * 60);
 
@@ -62,7 +63,8 @@ export const useResponseTimeData = () => {
           accessToken: tokens.accessToken,
           accountUrl: config.accountUrl,
           fromTimestamp,
-          toTimestamp: now
+          toTimestamp: now,
+          businessHours
         }
       });
 
