@@ -14,13 +14,156 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      goals: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_date: string
+          id: string
+          is_active: boolean
+          name: string
+          period: string
+          pipeline_ids: number[] | null
+          product_name: string | null
+          seller_id: number | null
+          seller_name: string | null
+          start_date: string
+          status_ids: number[] | null
+          target_type: string
+          target_value: number
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_date: string
+          id?: string
+          is_active?: boolean
+          name: string
+          period: string
+          pipeline_ids?: number[] | null
+          product_name?: string | null
+          seller_id?: number | null
+          seller_name?: string | null
+          start_date: string
+          status_ids?: number[] | null
+          target_type: string
+          target_value: number
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_date?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          period?: string
+          pipeline_ids?: number[] | null
+          product_name?: string | null
+          seller_id?: number | null
+          seller_name?: string | null
+          start_date?: string
+          status_ids?: number[] | null
+          target_type?: string
+          target_value?: number
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      kommo_logs: {
+        Row: {
+          action: string
+          created_at: string
+          error_message: string | null
+          id: string
+          request_data: Json | null
+          response_data: Json | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          request_data?: Json | null
+          response_data?: Json | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          request_data?: Json | null
+          response_data?: Json | null
+        }
+        Relationships: []
+      }
+      user_kommo_credentials: {
+        Row: {
+          access_token: string | null
+          account_name: string
+          account_url: string | null
+          created_at: string
+          id: string
+          integration_id: string
+          is_active: boolean
+          redirect_uri: string | null
+          refresh_token: string | null
+          secret_key: string
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          account_name?: string
+          account_url?: string | null
+          created_at?: string
+          id?: string
+          integration_id: string
+          is_active?: boolean
+          redirect_uri?: string | null
+          refresh_token?: string | null
+          secret_key: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          account_name?: string
+          account_url?: string | null
+          created_at?: string
+          id?: string
+          integration_id?: string
+          is_active?: boolean
+          redirect_uri?: string | null
+          refresh_token?: string | null
+          secret_key?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_goal_progress: { Args: { p_goal_id: string }; Returns: Json }
+      log_kommo_request: {
+        Args: {
+          p_action: string
+          p_error_message?: string
+          p_request_data?: Json
+          p_response_data?: Json
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

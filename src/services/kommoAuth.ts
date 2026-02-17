@@ -36,7 +36,7 @@ export class KommoAuthService {
 
   // Trocar código de autorização por tokens
   async exchangeCodeForTokens(code: string): Promise<KommoTokens> {
-    const response = await fetch('https://askrsvzzfesdchyfvcpv.supabase.co/functions/v1/kommo-auth', {
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/kommo-auth`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -72,7 +72,7 @@ export class KommoAuthService {
 
   // Atualizar token de acesso
   async refreshAccessToken(refreshToken: string): Promise<KommoTokens> {
-    const response = await fetch('https://askrsvzzfesdchyfvcpv.supabase.co/functions/v1/kommo-auth', {
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/kommo-auth`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
