@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { BarChart3, Settings, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen, Crown, Brain, FileSpreadsheet, User } from "lucide-react";
+import { BarChart3, Settings, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen, Crown, Clock, FileSpreadsheet, User } from "lucide-react";
 import { TokenExpirationIndicator } from "@/components/TokenExpirationIndicator";
 import { MetricsCards } from "@/components/MetricsCards";
 import { MetricsSkeleton } from "@/components/ui/MetricsSkeleton";
@@ -19,7 +19,7 @@ import { CustomFieldAnalysis } from "@/components/CustomFieldAnalysis";
 import { ResponseTimeAnalysis } from "@/components/ResponseTimeAnalysis";
 import { LeadTemporalAnalysis } from "@/components/LeadTemporalAnalysis";
 import { GoalsDashboard } from "@/components/GoalsDashboard";
-import { LeadJourneyMap } from "@/components/LeadJourneyMap";
+import { ResponseTimeDashboard } from "@/components/ResponseTimeDashboard";
 import {
   LazyPipelineChart, 
   LazyLeadsTable, 
@@ -258,8 +258,8 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
               Ranking
             </TabsTrigger>
             <TabsTrigger value="journey" className="flex items-center gap-2">
-              <Brain className="h-4 w-4" />
-              Jornada de Leads
+              <Clock className="h-4 w-4" />
+              Tempo de Resposta
             </TabsTrigger>
             <TabsTrigger value="comparison" className="flex items-center gap-2">
               <FileSpreadsheet className="h-4 w-4" />
@@ -483,15 +483,10 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
           </TabsContent>
 
           <TabsContent value="journey" className="space-y-6">
-            {kommoApi.loadingStates.leads ? (
-              <ChartSkeleton title="Jornada de Leads" height="h-96" />
-            ) : (
-              <LeadJourneyMap 
-                allLeads={filteredLeads}
-                pipelines={kommoApi.pipelines}
-                selectedPipeline={filters.pipelineId}
-              />
-            )}
+            <ResponseTimeDashboard 
+              users={kommoApi.users}
+              loading={kommoApi.loadingStates.users}
+            />
           </TabsContent>
 
           <TabsContent value="comparison" className="space-y-6">
