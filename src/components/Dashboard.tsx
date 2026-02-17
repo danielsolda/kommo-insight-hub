@@ -179,10 +179,6 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
                 <RefreshCw className={`h-4 w-4 ${(loading || isAnyLoading) ? 'animate-spin' : ''}`} />
                 Atualizar
               </Button>
-              <InvestmentSettingsModal 
-                config={kommoApi.investmentConfig}
-                onConfigChange={kommoApi.updateInvestmentConfig}
-              />
               <AIConfigModal />
               <Button
                 variant="outline"
