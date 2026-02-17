@@ -2,9 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Design system tokens. All colors MUST be HSL. */
 
 @layer base {
   :root {
@@ -77,6 +75,67 @@ All colors MUST be HSL.
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .light {
+    --background: 37 56% 94%;
+    --foreground: 210 20% 15%;
+
+    --card: 37 40% 96%;
+    --card-foreground: 210 20% 15%;
+
+    --popover: 37 40% 96%;
+    --popover-foreground: 210 20% 15%;
+
+    --primary: 190 100% 39%;
+    --primary-foreground: 0 0% 100%;
+
+    --primary-glow: 185 52% 52%;
+    --primary-dark: 190 100% 30%;
+
+    --secondary: 37 20% 88%;
+    --secondary-foreground: 210 20% 15%;
+
+    --muted: 37 20% 88%;
+    --muted-foreground: 210 10% 45%;
+
+    --accent: 74 74% 56%;
+    --accent-foreground: 210 20% 15%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 37 15% 82%;
+    --input: 37 15% 82%;
+    --ring: 190 100% 39%;
+
+    --success: 72 100% 37%;
+    --success-light: 74 74% 56%;
+    --warning: 48 96% 53%;
+    --info: 190 100% 39%;
+
+    --chart-1: 190 100% 39%;
+    --chart-2: 74 74% 56%;
+    --chart-3: 185 52% 52%;
+    --chart-4: 72 100% 37%;
+    --chart-5: 48 96% 53%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(190 100% 39%), hsl(185 52% 52%));
+    --gradient-subtle: linear-gradient(180deg, hsl(37 56% 94%), hsl(37 40% 90%));
+    --gradient-card: linear-gradient(145deg, hsl(37 40% 96%), hsl(37 30% 92%));
+
+    --shadow-elegant: 0 10px 30px -10px hsl(190 100% 39% / 0.2);
+    --shadow-glow: 0 0 40px hsl(185 52% 52% / 0.15);
+    --shadow-card: 0 4px 20px -4px hsl(210 20% 15% / 0.08);
+
+    --sidebar-background: 37 40% 96%;
+    --sidebar-foreground: 210 20% 15%;
+    --sidebar-primary: 190 100% 39%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 37 20% 88%;
+    --sidebar-accent-foreground: 210 20% 15%;
+    --sidebar-border: 37 15% 82%;
+    --sidebar-ring: 190 100% 39%;
   }
 
   .dark {
