@@ -10,168 +10,20 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
-      goals: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          end_date: string
-          id: string
-          is_active: boolean | null
-          name: string
-          period: Database["public"]["Enums"]["goal_period"]
-          pipeline_ids: number[] | null
-          product_name: string | null
-          seller_id: number | null
-          seller_name: string | null
-          start_date: string
-          status_ids: number[] | null
-          target_type: Database["public"]["Enums"]["goal_target_type"]
-          target_value: number
-          type: Database["public"]["Enums"]["goal_type"]
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          end_date: string
-          id?: string
-          is_active?: boolean | null
-          name: string
-          period: Database["public"]["Enums"]["goal_period"]
-          pipeline_ids?: number[] | null
-          product_name?: string | null
-          seller_id?: number | null
-          seller_name?: string | null
-          start_date: string
-          status_ids?: number[] | null
-          target_type: Database["public"]["Enums"]["goal_target_type"]
-          target_value: number
-          type: Database["public"]["Enums"]["goal_type"]
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          end_date?: string
-          id?: string
-          is_active?: boolean | null
-          name?: string
-          period?: Database["public"]["Enums"]["goal_period"]
-          pipeline_ids?: number[] | null
-          product_name?: string | null
-          seller_id?: number | null
-          seller_name?: string | null
-          start_date?: string
-          status_ids?: number[] | null
-          target_type?: Database["public"]["Enums"]["goal_target_type"]
-          target_value?: number
-          type?: Database["public"]["Enums"]["goal_type"]
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      kommo_logs: {
-        Row: {
-          action: string
-          created_at: string | null
-          error_message: string | null
-          id: string
-          request_data: Json | null
-          response_data: Json | null
-        }
-        Insert: {
-          action: string
-          created_at?: string | null
-          error_message?: string | null
-          id?: string
-          request_data?: Json | null
-          response_data?: Json | null
-        }
-        Update: {
-          action?: string
-          created_at?: string | null
-          error_message?: string | null
-          id?: string
-          request_data?: Json | null
-          response_data?: Json | null
-        }
-        Relationships: []
-      }
-      user_kommo_credentials: {
-        Row: {
-          access_token: string | null
-          account_name: string
-          account_url: string | null
-          created_at: string | null
-          id: string
-          integration_id: string
-          is_active: boolean | null
-          redirect_uri: string | null
-          refresh_token: string | null
-          secret_key: string
-          token_expires_at: string | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          access_token?: string | null
-          account_name?: string
-          account_url?: string | null
-          created_at?: string | null
-          id?: string
-          integration_id: string
-          is_active?: boolean | null
-          redirect_uri?: string | null
-          refresh_token?: string | null
-          secret_key: string
-          token_expires_at?: string | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          access_token?: string | null
-          account_name?: string
-          account_url?: string | null
-          created_at?: string | null
-          id?: string
-          integration_id?: string
-          is_active?: boolean | null
-          redirect_uri?: string | null
-          refresh_token?: string | null
-          secret_key?: string
-          token_expires_at?: string | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      calculate_goal_progress: {
-        Args: { goal_id: string; leads_data: Json }
-        Returns: Json
-      }
-      log_kommo_request: {
-        Args: {
-          action: string
-          error_message?: string
-          request_data: Json
-          response_data?: Json
-        }
-        Returns: undefined
-      }
+      [_ in never]: never
     }
     Enums: {
-      goal_period: "weekly" | "monthly" | "quarterly" | "yearly" | "custom"
-      goal_target_type: "quantity" | "value"
-      goal_type: "product" | "seller" | "team"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -298,10 +150,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      goal_period: ["weekly", "monthly", "quarterly", "yearly", "custom"],
-      goal_target_type: ["quantity", "value"],
-      goal_type: ["product", "seller", "team"],
-    },
+    Enums: {},
   },
 } as const
