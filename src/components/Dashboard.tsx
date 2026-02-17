@@ -272,13 +272,6 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            {/* Weekly Metrics Summary */}
-            <WeeklyMetrics
-              leads={filteredLeads}
-              config={weeklyMetricsConfig}
-              onConfigClick={() => setWeeklyMetricsConfigOpen(true)}
-            />
-
             {kommoApi.loadingStates.stats ? (
               <MetricsSkeleton />
             ) : (
