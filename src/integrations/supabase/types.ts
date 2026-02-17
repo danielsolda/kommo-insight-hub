@@ -14,6 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      clinical_config: {
+        Row: {
+          completed_pipeline_id: number | null
+          completed_status_id: number | null
+          created_at: string
+          credential_id: string
+          doctor_custom_field_id: number | null
+          id: string
+          procedure_custom_field_id: number | null
+          procedure_pipeline_id: number | null
+          procedure_status_id: number | null
+          rescheduled_pipeline_id: number | null
+          rescheduled_status_id: number | null
+          scheduled_pipeline_id: number | null
+          scheduled_status_id: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_pipeline_id?: number | null
+          completed_status_id?: number | null
+          created_at?: string
+          credential_id: string
+          doctor_custom_field_id?: number | null
+          id?: string
+          procedure_custom_field_id?: number | null
+          procedure_pipeline_id?: number | null
+          procedure_status_id?: number | null
+          rescheduled_pipeline_id?: number | null
+          rescheduled_status_id?: number | null
+          scheduled_pipeline_id?: number | null
+          scheduled_status_id?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_pipeline_id?: number | null
+          completed_status_id?: number | null
+          created_at?: string
+          credential_id?: string
+          doctor_custom_field_id?: number | null
+          id?: string
+          procedure_custom_field_id?: number | null
+          procedure_pipeline_id?: number | null
+          procedure_status_id?: number | null
+          rescheduled_pipeline_id?: number | null
+          rescheduled_status_id?: number | null
+          scheduled_pipeline_id?: number | null
+          scheduled_status_id?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinical_config_credential_id_fkey"
+            columns: ["credential_id"]
+            isOneToOne: false
+            referencedRelation: "user_kommo_credentials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goals: {
         Row: {
           created_at: string
@@ -110,6 +172,7 @@ export type Database = {
           account_name: string
           account_url: string | null
           created_at: string
+          dashboard_mode: string | null
           id: string
           integration_id: string
           is_active: boolean
@@ -125,6 +188,7 @@ export type Database = {
           account_name?: string
           account_url?: string | null
           created_at?: string
+          dashboard_mode?: string | null
           id?: string
           integration_id: string
           is_active?: boolean
@@ -140,6 +204,7 @@ export type Database = {
           account_name?: string
           account_url?: string | null
           created_at?: string
+          dashboard_mode?: string | null
           id?: string
           integration_id?: string
           is_active?: boolean
