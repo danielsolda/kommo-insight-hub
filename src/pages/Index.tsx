@@ -12,6 +12,7 @@ const Index = () => {
   const [isConfigured, setIsConfigured] = useState(false);
   const [kommoConfig, setKommoConfig] = useState<any>(null);
   const [activeAccountName, setActiveAccountName] = useState<string>("");
+  const [dashboardMode, setDashboardMode] = useState<string | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const hasInitialized = useRef(false);
   const { user, loading: authLoading, loadActiveKommoAccount } = useAuth();
@@ -47,6 +48,7 @@ const Index = () => {
 
           setKommoConfig(config);
           setActiveAccountName(credentials.account_name || 'Conta Principal');
+          setDashboardMode((credentials as any).dashboard_mode || null);
 
           if (credentials.access_token && credentials.refresh_token) {
             let tokens = {
@@ -167,7 +169,21 @@ const Index = () => {
   }
   return (
     <div className="min-h-screen bg-gradient-subtle">
-      <Dashboard config={kommoConfig} onReset={handleReset} activeAccountName={activeAccountName} />
+      <Dashboard 
+        config={kommoConfig} 
+        onReset={handleReset} 
+        activeAccountName={activeAccountName}
+        dashboardMode={dashboardMode}
+        onModeChange={async (mode) => {
+          setDashboardMode(mode);
+          if (kommoConfig?.credentialId) {
+            await supabase
+              .from("user_kommo_credentials")
+              .update({ dashboard_mode: mode })
+              .eq("id", kommoConfig.credentialId);
+          }
+        }}
+      />
     </div>
   );
 };

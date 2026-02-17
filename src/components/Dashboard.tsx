@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { BarChart3, Settings, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen, Crown, Clock, FileSpreadsheet, User } from "lucide-react";
+import { BarChart3, Settings, TrendingUp, DollarSign, Target, RefreshCw, LogOut, BookOpen, Crown, Clock, FileSpreadsheet, User, Stethoscope, ArrowLeftRight } from "lucide-react";
 import { TokenExpirationIndicator } from "@/components/TokenExpirationIndicator";
 import { MetricsCards } from "@/components/MetricsCards";
 import { MetricsSkeleton } from "@/components/ui/MetricsSkeleton";
@@ -38,6 +38,8 @@ import { AIChatBot } from "@/components/AIChatBot";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ComparisonDashboard } from "@/components/comparison/ComparisonDashboard";
 import { KommoSettings } from "@/components/KommoSettings";
+import { ClinicalDashboard } from "@/components/ClinicalDashboard";
+import { DashboardModeSelector } from "@/components/DashboardModeSelector";
 import { useToast } from "@/hooks/use-toast";
 import { useKommoApi } from "@/hooks/useKommoApi";
 import { useFilteredLeads } from "@/hooks/useFilteredData";
@@ -51,9 +53,11 @@ interface DashboardProps {
   config: any;
   onReset: () => void;
   activeAccountName?: string;
+  dashboardMode?: string | null;
+  onModeChange?: (mode: string) => void;
 }
 
-export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps) => {
+export const Dashboard = ({ config, onReset, activeAccountName, dashboardMode, onModeChange }: DashboardProps) => {
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(new Date());
@@ -61,6 +65,8 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
   const [weeklyMetricsConfigOpen, setWeeklyMetricsConfigOpen] = useState(false);
   const [weeklyMetricsConfig, setWeeklyMetricsConfig] = useState<WeeklyMetricsConfig | null>(null);
   const [showKommoSettings, setShowKommoSettings] = useState(false);
+  const [showModeSelector, setShowModeSelector] = useState(!dashboardMode);
+  const isClinica = dashboardMode === "clinica";
   const { toast } = useToast();
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
@@ -190,6 +196,15 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
                 <BookOpen className="h-4 w-4" />
                 Nomenclaturas
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowModeSelector(true)}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeftRight className="h-4 w-4" />
+                {isClinica ? "Clínica" : "Vendas"}
+              </Button>
               <ThemeToggle />
               <TokenExpirationIndicator onSessionExpired={handleSessionExpired} />
               <Button
@@ -245,6 +260,17 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
           </div>
         )}
 
+        {isClinica ? (
+          <ClinicalDashboard
+            pipelines={kommoApi.pipelines}
+            allLeads={kommoApi.allLeads}
+            customFields={kommoApi.customFields}
+            events={kommoApi.events}
+            loading={kommoApi.loading}
+            credentialId={config.credentialId}
+            onFetchEvents={kommoApi.fetchEvents}
+          />
+        ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-5 bg-muted/30">
             <TabsTrigger value="overview" className="flex items-center gap-2">
@@ -495,6 +521,7 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
             <ComparisonDashboard />
           </TabsContent>
         </Tabs>
+        )}
       </div>
 
       <NomenclaturesModal 
@@ -565,6 +592,14 @@ export const Dashboard = ({ config, onReset, activeAccountName }: DashboardProps
         open={showKommoSettings}
         onOpenChange={setShowKommoSettings}
         onCredentialsUpdated={handleCredentialsUpdated}
+      />
+
+      <DashboardModeSelector
+        open={showModeSelector}
+        onSelect={(mode) => {
+          setShowModeSelector(false);
+          onModeChange?.(mode);
+        }}
       />
     </div>
   );
