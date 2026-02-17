@@ -1,10 +1,1 @@
-project_id = "askrsvzzfesdchyfvcpv"
-
-[functions.kommo-auth]
-verify_jwt = false
-
-[functions.kommo-api]
-verify_jwt = false
-
-[functions.ai-chat]
-verify_jwt = false
+project_id = "hkpbryyiyiczxiueznhq"
