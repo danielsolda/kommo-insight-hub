@@ -149,8 +149,8 @@ export const ClinicalConfigModal = ({
             <SelectValue placeholder="Pipeline" />
           </SelectTrigger>
           <SelectContent>
-            {pipelines.map((p) => (
-              <SelectItem key={p.id} value={p.id.toString()}>
+            {pipelines.filter(p => p.id != null).map((p) => (
+              <SelectItem key={p.id} value={String(p.id)}>
                 {p.name}
               </SelectItem>
             ))}
@@ -166,8 +166,8 @@ export const ClinicalConfigModal = ({
             <SelectValue placeholder="Etapa" />
           </SelectTrigger>
           <SelectContent>
-            {getStatusesForPipeline(config[pipelineKey] as number | null).map((s) => (
-              <SelectItem key={s.id} value={s.id.toString()}>
+            {getStatusesForPipeline(config[pipelineKey] as number | null).filter(s => s.id != null).map((s) => (
+              <SelectItem key={s.id} value={String(s.id)}>
                 {s.name}
               </SelectItem>
             ))}

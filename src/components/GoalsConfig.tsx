@@ -279,8 +279,8 @@ export const GoalsConfig = ({
                     <SelectValue placeholder="Selecione o vendedor..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {sellers.map(seller => (
-                      <SelectItem key={seller.id} value={seller.id.toString()}>
+                    {sellers.filter(s => s.id != null).map(seller => (
+                      <SelectItem key={seller.id} value={String(seller.id)}>
                         {seller.name}
                       </SelectItem>
                     ))}
@@ -359,8 +359,8 @@ export const GoalsConfig = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos os pipelines</SelectItem>
-                    {pipelines.map(p => (
-                      <SelectItem key={p.id} value={p.id.toString()}>
+                    {pipelines.filter(p => p.id != null).map(p => (
+                      <SelectItem key={p.id} value={String(p.id)}>
                         {p.name}
                       </SelectItem>
                     ))}

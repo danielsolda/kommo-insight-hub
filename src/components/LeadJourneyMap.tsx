@@ -346,8 +346,8 @@ export const LeadJourneyMap = ({
                   <SelectValue placeholder="Selecione o status inicial" />
                 </SelectTrigger>
                 <SelectContent>
-                  {currentPipeline.statuses.map(status => (
-                    <SelectItem key={status.id} value={status.id.toString()}>
+                  {currentPipeline.statuses.filter(s => s.id != null).map(status => (
+                    <SelectItem key={status.id} value={String(status.id)}>
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: status.color }} />
                         {status.name}
@@ -365,8 +365,8 @@ export const LeadJourneyMap = ({
                   <SelectValue placeholder="Selecione o status final" />
                 </SelectTrigger>
                 <SelectContent>
-                  {currentPipeline.statuses.map(status => (
-                    <SelectItem key={status.id} value={status.id.toString()}>
+                  {currentPipeline.statuses.filter(s => s.id != null).map(status => (
+                    <SelectItem key={status.id} value={String(status.id)}>
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: status.color }} />
                         {status.name}
