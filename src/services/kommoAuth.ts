@@ -51,10 +51,12 @@ export class KommoAuthService {
         action: 'exchange_code',
         code,
         client_id: this.config.integrationId,
-        credential_id: this.config.credentialId,
+        credential_id: this.config.credentialId || '',
         redirect_uri: this.config.redirectUri,
         grant_type: 'authorization_code',
-        account_url: this.config.accountUrl
+        account_url: this.config.accountUrl,
+        // Fallback: send client_secret when no credential_id exists (first-time setup)
+        ...(!this.config.credentialId && this.config.secretKey ? { client_secret: this.config.secretKey } : {})
       })
     });
 
