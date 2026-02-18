@@ -29,7 +29,7 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
   const getAvailableStatuses = () => {
     if (selectedPipeline === "all") return [];
     
-    const pipeline = pipelines.find(p => p.id.toString() === selectedPipeline);
+    const pipeline = pipelines.find(p => String(p.id) === selectedPipeline);
     return pipeline?.statuses || [];
   };
 
@@ -62,7 +62,7 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
   const getAnalysisData = () => {
     if (!selectedField || !allLeads.length) return [];
 
-    const field = usefulFields.find(f => f.id.toString() === selectedField);
+    const field = usefulFields.find(f => String(f.id) === selectedField);
     if (!field) return [];
 
     // Filter leads by pipeline if selected

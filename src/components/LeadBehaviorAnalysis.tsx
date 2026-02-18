@@ -284,8 +284,8 @@ export const LeadBehaviorAnalysis = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os pipelines</SelectItem>
-                  {pipelines.map((pipeline) => (
-                    <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
+                  {pipelines.filter(p => p.id != null).map((pipeline) => (
+                    <SelectItem key={pipeline.id} value={String(pipeline.id)}>
                       {pipeline.name}
                     </SelectItem>
                   ))}
@@ -304,8 +304,8 @@ export const LeadBehaviorAnalysis = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os vendedores</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id.toString()}>
+                  {users.filter(u => u.id != null).map((user) => (
+                    <SelectItem key={user.id} value={String(user.id)}>
                       {user.name}
                     </SelectItem>
                   ))}

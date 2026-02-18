@@ -146,8 +146,8 @@ export const WeeklyMetricsConfigModal = ({
                   <SelectValue placeholder="Selecione o campo customizado..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {customFields.map(field => (
-                    <SelectItem key={field.id} value={field.id.toString()}>
+                  {customFields.filter(f => f.id != null).map(field => (
+                    <SelectItem key={field.id} value={String(field.id)}>
                       {field.name}
                     </SelectItem>
                   ))}

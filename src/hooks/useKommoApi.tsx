@@ -1471,10 +1471,10 @@ export const useKommoApi = () => {
 
       // Filter leads by pipeline
       const filteredLeads = pipelineId === null 
-        ? allLeads.filter((lead: any) => !lead.id.toString().startsWith('unsorted-'))
+        ? allLeads.filter((lead: any) => !String(lead.id ?? '').startsWith('unsorted-'))
         : allLeads.filter((lead: any) => 
             lead.pipeline_id === pipelineId && 
-            !lead.id.toString().startsWith('unsorted-')
+            !String(lead.id ?? '').startsWith('unsorted-')
           );
 
       if (filteredLeads.length === 0) return null;
@@ -1536,10 +1536,10 @@ export const useKommoApi = () => {
 
       // Filter leads by pipeline
       const filteredLeads = pipelineId === null 
-        ? allLeads.filter((lead: any) => !lead.id.toString().startsWith('unsorted-'))
+        ? allLeads.filter((lead: any) => !String(lead.id ?? '').startsWith('unsorted-'))
         : allLeads.filter((lead: any) => 
             lead.pipeline_id === pipelineId && 
-            !lead.id.toString().startsWith('unsorted-')
+            !String(lead.id ?? '').startsWith('unsorted-')
           );
 
       // Status time data
