@@ -550,9 +550,9 @@ export const Dashboard = ({ config, onReset, activeAccountName, dashboardMode, o
           conversionTimeData: kommoApi.calculateConversionTimeData(filters.pipelineId),
           timeAnalysisData: kommoApi.calculateTimeAnalysisData(filters.pipelineId),
           customFields: kommoApi.customFields?.map(cf => ({ 
-            id: cf.field_id, 
-            name: cf.field_name, 
-            type: cf.field_type 
+            id: cf.id ?? cf.field_id, 
+            name: cf.name ?? cf.field_name, 
+            type: cf.type ?? cf.field_type 
           })),
           tags: kommoApi.tags?.map(t => ({ id: t.id, name: t.name })),
           investmentConfig: {
