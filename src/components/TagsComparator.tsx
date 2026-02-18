@@ -190,8 +190,8 @@ export const TagsComparator = ({ tags, allLeads, pipelines, loading }: TagsCompa
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos os Pipelines</SelectItem>
-                    {pipelines.map((pipeline) => (
-                      <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
+                    {pipelines.filter(p => p.id != null).map((pipeline) => (
+                      <SelectItem key={pipeline.id} value={String(pipeline.id)}>
                         {pipeline.name} {pipeline.is_main && "(Principal)"}
                       </SelectItem>
                     ))}

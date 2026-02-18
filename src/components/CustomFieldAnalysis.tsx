@@ -52,6 +52,7 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
 
   // Filter custom fields to show only useful ones (non-tracking, non-predefined)
   const usefulFields = customFields.filter(field => 
+    field.id != null &&
     !field.is_predefined && 
     field.type !== 'tracking_data' && 
     ['text', 'textarea', 'select', 'multiselect', 'numeric'].includes(field.type)
@@ -183,7 +184,7 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
               </SelectTrigger>
               <SelectContent>
                 {usefulFields.map(field => (
-                  <SelectItem key={field.id} value={field.id.toString()}>
+                  <SelectItem key={field.id} value={String(field.id)}>
                     {field.name} ({field.type})
                   </SelectItem>
                 ))}
@@ -199,8 +200,8 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os Pipelines</SelectItem>
-                {pipelines.map(pipeline => (
-                  <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
+                {pipelines.filter(p => p.id != null).map(pipeline => (
+                  <SelectItem key={pipeline.id} value={String(pipeline.id)}>
                     {pipeline.name}
                   </SelectItem>
                 ))}
@@ -220,8 +221,8 @@ export const CustomFieldAnalysis = ({ customFields, allLeads, pipelines, loading
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os Status</SelectItem>
-                {getAvailableStatuses().map(status => (
-                  <SelectItem key={status.id} value={status.id.toString()}>
+                {getAvailableStatuses().filter(s => s.id != null).map(status => (
+                  <SelectItem key={status.id} value={String(status.id)}>
                     {status.name}
                   </SelectItem>
                 ))}

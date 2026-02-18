@@ -205,8 +205,8 @@ export const SalesChart = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os funis</SelectItem>
-                {pipelines.map(pipeline => (
-                  <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
+                {pipelines.filter(p => p.id != null).map(pipeline => (
+                  <SelectItem key={pipeline.id} value={String(pipeline.id)}>
                     {pipeline.name}
                   </SelectItem>
                 ))}
@@ -223,8 +223,8 @@ export const SalesChart = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as etapas</SelectItem>
-                  {availableStatuses.map(status => (
-                    <SelectItem key={status.id} value={status.id.toString()}>
+                  {availableStatuses.filter(s => s.id != null).map(status => (
+                    <SelectItem key={status.id} value={String(status.id)}>
                       {status.name}
                     </SelectItem>
                   ))}

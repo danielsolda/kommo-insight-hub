@@ -76,8 +76,8 @@ export const GlobalFilters = ({ pipelines = [], users = [], loading }: GlobalFil
         </SelectTrigger>
         <SelectContent className="bg-background border-border shadow-elegant z-50">
           <SelectItem value="all">Todos os Funis</SelectItem>
-          {pipelines.map((pipeline) => (
-            <SelectItem key={pipeline.id} value={pipeline.id.toString()}>
+          {pipelines.filter(p => p.id != null).map((pipeline) => (
+            <SelectItem key={pipeline.id} value={String(pipeline.id)}>
               {pipeline.name}
             </SelectItem>
           ))}
@@ -95,8 +95,8 @@ export const GlobalFilters = ({ pipelines = [], users = [], loading }: GlobalFil
         </SelectTrigger>
         <SelectContent className="bg-background border-border shadow-elegant z-50">
           <SelectItem value="all">Todos os Usuários</SelectItem>
-          {users.map((user) => (
-            <SelectItem key={user.id} value={user.id.toString()}>
+          {users.filter(u => u.id != null).map((user) => (
+            <SelectItem key={user.id} value={String(user.id)}>
               {user.name}
             </SelectItem>
           ))}
