@@ -514,6 +514,16 @@ export const Dashboard = ({ config, onReset, activeAccountName, dashboardMode, o
             <ResponseTimeDashboard 
               users={kommoApi.users}
               loading={kommoApi.loadingStates.users}
+              dateRange={filters.dateRange}
+              filterUserId={filters.userId}
+              pipelineLeadIds={
+                filters.pipelineId
+                  ? kommoApi.allLeads
+                      .filter(l => l.pipeline_id === filters.pipelineId)
+                      .map(l => l.id)
+                      .filter((id): id is number => id != null)
+                  : undefined
+              }
             />
           </TabsContent>
 

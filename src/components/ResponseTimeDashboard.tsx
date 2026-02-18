@@ -14,6 +14,9 @@ import { User } from "@/services/kommoApi";
 interface ResponseTimeDashboardProps {
   users: User[];
   loading: boolean;
+  dateRange?: { from: Date; to: Date };
+  filterUserId?: number | null;
+  pipelineLeadIds?: number[];
 }
 
 const formatMinutes = (minutes: number): string => {
@@ -38,21 +41,28 @@ const getSlaStatusBadge = (slaRate: number) => {
   return <Badge className="bg-red-500 text-white">Crítico</Badge>;
 };
 
-export const ResponseTimeDashboard = ({ users, loading: parentLoading }: ResponseTimeDashboardProps) => {
-  const { data, loading, fetchResponseTime } = useResponseTimeData();
+export const ResponseTimeDashboard = ({ users, loading: parentLoading, dateRange, filterUserId, pipelineLeadIds }: ResponseTimeDashboardProps) => {
+  const { data: rawData, loading, fetchResponseTime } = useResponseTimeData();
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Serialize filter values for dependency tracking
+  const dateFromIso = dateRange?.from?.toISOString() ?? '';
+  const dateToIso = dateRange?.to?.toISOString() ?? '';
+  const leadIdsKey = pipelineLeadIds?.join(',') ?? '';
 
   const doFetch = useCallback(() => {
     if (users.length > 0) {
-      fetchResponseTime(users);
+      const fromTs = dateRange ? Math.floor(dateRange.from.getTime() / 1000) : undefined;
+      const toTs = dateRange ? Math.floor(dateRange.to.getTime() / 1000) : undefined;
+      fetchResponseTime(users, fromTs, toTs, pipelineLeadIds);
     }
-  }, [users, fetchResponseTime]);
+  }, [users, fetchResponseTime, dateFromIso, dateToIso, leadIdsKey]);
 
   useEffect(() => {
-    if (users.length > 0 && !data && !loading) {
+    if (users.length > 0) {
       doFetch();
     }
-  }, [users, data, loading, doFetch]);
+  }, [doFetch]);
 
   useEffect(() => {
     if (refreshKey > 0) {
@@ -72,6 +82,33 @@ export const ResponseTimeDashboard = ({ users, loading: parentLoading }: Respons
       </div>
     );
   }
+
+  // Apply client-side user filter
+  const data = rawData ? {
+    ...rawData,
+    userMetrics: filterUserId
+      ? rawData.userMetrics.filter(m => m.responsibleUserId === filterUserId)
+      : rawData.userMetrics,
+    overall: filterUserId && rawData.userMetrics.length > 0
+      ? (() => {
+          const filtered = rawData.userMetrics.filter(m => m.responsibleUserId === filterUserId);
+          if (filtered.length === 0) return rawData.overall;
+          const totalMessages = filtered.reduce((s, m) => s + m.totalMessages, 0);
+          const totalWithinSla = filtered.reduce((s, m) => s + m.withinSla, 0);
+          const avgMinutes = filtered.reduce((s, m) => s + m.avgResponseMinutes * m.totalMessages, 0) / (totalMessages || 1);
+          const medianMinutes = filtered.length === 1 ? filtered[0].medianResponseMinutes : rawData.overall.medianResponseMinutes;
+          const p90Minutes = filtered.length === 1 ? filtered[0].p90ResponseMinutes : rawData.overall.p90ResponseMinutes;
+          return {
+            avgResponseMinutes: parseFloat(avgMinutes.toFixed(1)),
+            medianResponseMinutes: parseFloat(medianMinutes.toFixed(1)),
+            p90ResponseMinutes: parseFloat(p90Minutes.toFixed(1)),
+            totalPairs: totalMessages,
+            withinSla: totalWithinSla,
+            slaRate: totalMessages > 0 ? parseFloat(((totalWithinSla / totalMessages) * 100).toFixed(1)) : 0
+          };
+        })()
+      : rawData.overall
+  } : null;
 
   if (!data || data.userMetrics.length === 0) {
     return (
