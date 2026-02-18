@@ -202,7 +202,7 @@ export const FunnelAnalysis = ({ allLeads, pipelines, selectedPipeline }: Funnel
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {pipeline.statuses.sort((a, b) => a.sort - b.sort).map(status => {
+            {pipeline.statuses.filter(s => s.id != null).sort((a, b) => a.sort - b.sort).map(status => {
               const count = filteredLeads.filter(l => l.status_id === status.id).length;
               const percentage = filteredLeads.length > 0 
                 ? (count / filteredLeads.length * 100).toFixed(1) 

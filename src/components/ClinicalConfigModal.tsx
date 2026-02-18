@@ -222,8 +222,8 @@ export const ClinicalConfigModal = ({
                     <SelectValue placeholder="Selecione o campo de médico" />
                   </SelectTrigger>
                   <SelectContent>
-                    {uniqueFields.map((f) => (
-                      <SelectItem key={f.field_id} value={f.field_id.toString()}>
+                    {uniqueFields.filter(f => f.field_id != null).map((f) => (
+                      <SelectItem key={f.field_id} value={String(f.field_id)}>
                         {f.field_name}
                       </SelectItem>
                     ))}
@@ -241,8 +241,8 @@ export const ClinicalConfigModal = ({
                     <SelectValue placeholder="Selecione o campo de procedimento" />
                   </SelectTrigger>
                   <SelectContent>
-                    {uniqueFields.map((f) => (
-                      <SelectItem key={f.field_id} value={f.field_id.toString()}>
+                    {uniqueFields.filter(f => f.field_id != null).map((f) => (
+                      <SelectItem key={f.field_id} value={String(f.field_id)}>
                         {f.field_name}
                       </SelectItem>
                     ))}
