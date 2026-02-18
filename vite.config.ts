@@ -5,8 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  // Configure base path for GitHub Pages deployment
-  base: mode === "production" ? "/kommo-insight-hub/" : "/",
+  base: "/",
   server: {
     host: "::",
     port: 8080,
