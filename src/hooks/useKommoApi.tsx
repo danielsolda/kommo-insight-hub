@@ -770,13 +770,15 @@ export const useKommoApi = () => {
       const response = await apiService.getPipelines();
       const rawPipelines = response._embedded?.pipelines || [] as RawPipeline[];
       
-      const transformedPipelines: Pipeline[] = rawPipelines.map(pipeline => ({
-        id: pipeline.id,
-        name: pipeline.name,
-        sort: pipeline.sort,
-        is_main: pipeline.is_main,
-        statuses: pipeline._embedded?.statuses || []
-      }));
+      const transformedPipelines: Pipeline[] = rawPipelines
+        .filter(pipeline => pipeline.id != null)
+        .map(pipeline => ({
+          id: pipeline.id,
+          name: pipeline.name,
+          sort: pipeline.sort,
+          is_main: pipeline.is_main,
+          statuses: ((pipeline as any)._embedded?.statuses || []).filter((s: any) => s.id != null)
+        }));
       
       setPipelines(transformedPipelines);
       cache.setCache('pipelines', transformedPipelines, 10 * 60 * 1000);
@@ -1184,7 +1186,7 @@ export const useKommoApi = () => {
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
 
       const response = await apiService.getAllUsers();
-      const users = response._embedded?.users || [];
+      const users = (response._embedded?.users || []).filter((u: any) => u.id != null);
       setUsers(users);
       cache.setCache('users', users, 10 * 60 * 1000);
     } catch (err: any) {
@@ -1212,7 +1214,7 @@ export const useKommoApi = () => {
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
 
       const response = await apiService.getCustomFields();
-      const fields = response._embedded?.custom_fields || [];
+      const fields = (response._embedded?.custom_fields || []).filter((f: any) => (f.id ?? f.field_id) != null);
       setCustomFields(fields);
       cache.setCache('customFields', fields, 15 * 60 * 1000);
     } catch (err: any) {
@@ -1241,7 +1243,7 @@ export const useKommoApi = () => {
       const apiService = new KommoApiService(authService, kommoConfig.accountUrl);
 
       const response = await apiService.getTags();
-      const tags = response._embedded?.tags || [];
+      const tags = (response._embedded?.tags || []).filter((t: any) => t.id != null);
       setTags(tags);
       cache.setCache('tags', tags, 15 * 60 * 1000);
     } catch (err: any) {

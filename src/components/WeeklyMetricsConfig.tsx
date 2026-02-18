@@ -114,7 +114,7 @@ export const WeeklyMetricsConfigModal = ({
   };
 
   const allStatuses = pipelines.flatMap(p => 
-    (p.statuses || []).map((s: any) => ({
+    (p.statuses || []).filter((s: any) => s.id != null).map((s: any) => ({
       ...s,
       pipelineName: p.name
     }))

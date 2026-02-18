@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { BarChart3, Loader2 } from "lucide-react";
 import { KommoConfig } from "@/components/KommoConfig";
 import { Dashboard } from "@/components/Dashboard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { KommoAuthService } from "@/services/kommoAuth";
@@ -168,23 +169,25 @@ const Index = () => {
     );
   }
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      <Dashboard 
-        config={kommoConfig} 
-        onReset={handleReset} 
-        activeAccountName={activeAccountName}
-        dashboardMode={dashboardMode}
-        onModeChange={async (mode) => {
-          setDashboardMode(mode);
-          if (kommoConfig?.credentialId) {
-            await supabase
-              .from("user_kommo_credentials")
-              .update({ dashboard_mode: mode })
-              .eq("id", kommoConfig.credentialId);
-          }
-        }}
-      />
-    </div>
+    <ErrorBoundary fallbackMessage="Erro ao carregar o dashboard">
+      <div className="min-h-screen bg-gradient-subtle">
+        <Dashboard 
+          config={kommoConfig} 
+          onReset={handleReset} 
+          activeAccountName={activeAccountName}
+          dashboardMode={dashboardMode}
+          onModeChange={async (mode) => {
+            setDashboardMode(mode);
+            if (kommoConfig?.credentialId) {
+              await supabase
+                .from("user_kommo_credentials")
+                .update({ dashboard_mode: mode })
+                .eq("id", kommoConfig.credentialId);
+            }
+          }}
+        />
+      </div>
+    </ErrorBoundary>
   );
 };
 export default Index;

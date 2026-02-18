@@ -317,7 +317,7 @@ export const GoalsConfig = ({
                 Filtrar leads por pipeline específico
               </p>
               <div className="space-y-2">
-                {pipelines.map(pipeline => (
+                {pipelines.filter(p => p.id != null).map(pipeline => (
                   <div key={pipeline.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`pipeline-${pipeline.id}`}
