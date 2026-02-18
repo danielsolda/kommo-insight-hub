@@ -125,13 +125,22 @@ export const ClinicalConfigModal = ({
     return pipeline?.statuses || [];
   };
 
-  // Get unique custom fields from all leads
-  const uniqueFields = customFields.reduce((acc, field) => {
-    if (!acc.find((f) => f.field_id === field.field_id)) {
-      acc.push(field);
-    }
-    return acc;
-  }, [] as CustomField[]);
+  // Normalize custom fields - API returns id/name, but type expects field_id/field_name
+  const uniqueFields = customFields
+    .map((field: any) => ({
+      field_id: field.field_id ?? field.id,
+      field_name: field.field_name ?? field.name,
+      field_code: field.field_code ?? field.code ?? '',
+      field_type: field.field_type ?? field.type ?? '',
+      values: field.values || [],
+    }))
+    .filter((f) => f.field_id != null)
+    .reduce((acc: any[], field: any) => {
+      if (!acc.find((f: any) => f.field_id === field.field_id)) {
+        acc.push(field);
+      }
+      return acc;
+    }, [] as any[]);
 
   const renderStageMapping = (
     label: string,
