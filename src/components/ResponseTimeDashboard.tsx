@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { Clock, CheckCircle, TrendingUp, AlertTriangle, Timer } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from "recharts";
+import { Clock, CheckCircle, TrendingUp, AlertTriangle, Timer, HelpCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useResponseTimeData, UserResponseMetrics } from "@/hooks/useResponseTimeData";
 import { ChartSkeleton } from "@/components/ui/ChartSkeleton";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
@@ -107,61 +108,111 @@ export const ResponseTimeDashboard = ({ users, loading: parentLoading }: Respons
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Tempo Médio</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="text-2xl font-bold">{formatMinutes(overall.avgResponseMinutes)}</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Média geral de resposta</p>
-          </CardContent>
-        </Card>
+      <TooltipProvider delayDuration={200}>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-1">
+                Tempo Médio
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs text-xs">
+                    <p className="font-semibold mb-1">Como é calculado:</p>
+                    <p>Soma de todos os tempos de resposta dividida pelo número total de pareamentos. Cada pareamento é o intervalo entre uma mensagem recebida do cliente e a primeira resposta enviada pelo vendedor no mesmo lead.</p>
+                    <p className="mt-1 text-muted-foreground">Fonte: eventos de chat da API Kommo (incoming → outgoing), filtrados por horário comercial.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-2xl font-bold">{formatMinutes(overall.avgResponseMinutes)}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Média geral de resposta</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Mediana</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Timer className="h-4 w-4 text-muted-foreground" />
-              <span className="text-2xl font-bold">{formatMinutes(overall.medianResponseMinutes)}</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Valor central das respostas</p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-1">
+                Mediana
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs text-xs">
+                    <p className="font-semibold mb-1">Como é calculado:</p>
+                    <p>Ordena todos os tempos de resposta do menor ao maior e pega o valor do meio. Diferente da média, não é afetada por valores extremos (ex: uma resposta de 24h não distorce o resultado).</p>
+                    <p className="mt-1 text-muted-foreground">Representa o tempo "típico" de resposta da equipe.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <Timer className="h-4 w-4 text-muted-foreground" />
+                <span className="text-2xl font-bold">{formatMinutes(overall.medianResponseMinutes)}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Valor central das respostas</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Taxa SLA ({slaMinutes}min)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <span className="text-2xl font-bold">{overall.slaRate}%</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {overall.withinSla}/{overall.totalPairs} dentro do SLA
-            </p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-1">
+                Taxa SLA ({slaMinutes}min)
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs text-xs">
+                    <p className="font-semibold mb-1">Como é calculado:</p>
+                    <p>Percentual de respostas que foram enviadas dentro do prazo de SLA ({slaMinutes} minutos). Fórmula: (respostas dentro do SLA ÷ total de pareamentos) × 100.</p>
+                    <p className="mt-1 text-muted-foreground">Exemplo: {overall.withinSla} de {overall.totalPairs} respostas foram dadas em até {slaMinutes} min. O SLA pode ser ajustado em "Configurar Período".</p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span className="text-2xl font-bold">{overall.slaRate}%</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {overall.withinSla}/{overall.totalPairs} dentro do SLA
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">P90</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-yellow-500" />
-              <span className="text-2xl font-bold">{formatMinutes(overall.p90ResponseMinutes)}</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">90% respondem em até</p>
-          </CardContent>
-        </Card>
-      </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-1">
+                P90
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs text-xs">
+                    <p className="font-semibold mb-1">Como é calculado:</p>
+                    <p>Percentil 90: ordena todos os tempos de resposta e pega o valor na posição 90%. Significa que 90% das respostas foram dadas em até esse tempo.</p>
+                    <p className="mt-1 text-muted-foreground">Útil para identificar o "pior cenário comum" — os 10% restantes são outliers extremos.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                <span className="text-2xl font-bold">{formatMinutes(overall.p90ResponseMinutes)}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">90% respondem em até</p>
+            </CardContent>
+          </Card>
+        </div>
+      </TooltipProvider>
 
       {/* Bar Chart */}
       <Card>
@@ -185,7 +236,7 @@ export const ResponseTimeDashboard = ({ users, loading: parentLoading }: Respons
                 tick={{ fill: 'hsl(var(--foreground))' }}
                 label={{ value: 'Minutos', angle: -90, position: 'insideLeft' }}
               />
-              <Tooltip
+              <RechartsTooltip
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
                     const entry = payload[0].payload;
