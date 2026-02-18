@@ -532,16 +532,16 @@ export const Dashboard = ({ config, onReset, activeAccountName, dashboardMode, o
       <AIChatBot 
         dashboardContext={{
           generalStats: kommoApi.filteredGeneralStats,
-          pipelines: kommoApi.pipelines?.map(p => ({ 
+          pipelines: kommoApi.pipelines?.filter(p => p.id != null).map(p => ({ 
             id: p.id, 
             name: p.name,
-            statuses: p.statuses?.map(s => ({ id: s.id, name: s.name, color: s.color }))
+            statuses: p.statuses?.filter(s => s.id != null).map(s => ({ id: s.id, name: s.name, color: s.color }))
           })),
           pipelineStats: kommoApi.pipelineStats,
           leadsCount: kommoApi.allLeads?.length || 0,
           openLeadsCount: kommoApi.allLeads?.filter(l => !l.closed_at).length || 0,
           filteredLeadsCount: filteredLeads?.length || 0,
-          users: kommoApi.users?.map(u => ({ 
+          users: kommoApi.users?.filter(u => u.id != null).map(u => ({ 
             id: u.id, 
             name: u.name 
           })),
@@ -549,12 +549,12 @@ export const Dashboard = ({ config, onReset, activeAccountName, dashboardMode, o
           salesData: kommoApi.salesData,
           conversionTimeData: kommoApi.calculateConversionTimeData(filters.pipelineId),
           timeAnalysisData: kommoApi.calculateTimeAnalysisData(filters.pipelineId),
-          customFields: kommoApi.customFields?.map(cf => ({ 
+          customFields: kommoApi.customFields?.filter(cf => (cf.id ?? cf.field_id) != null).map(cf => ({ 
             id: cf.id ?? cf.field_id, 
             name: cf.name ?? cf.field_name, 
             type: cf.type ?? cf.field_type 
           })),
-          tags: kommoApi.tags?.map(t => ({ id: t.id, name: t.name })),
+          tags: kommoApi.tags?.filter(t => t.id != null).map(t => ({ id: t.id, name: t.name })),
           investmentConfig: {
             monthlyInvestment: kommoApi.investmentConfig.monthlyInvestment,
             roiGoal: kommoApi.investmentConfig.roiGoal,
