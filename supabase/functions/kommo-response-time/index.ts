@@ -128,8 +128,9 @@ serve(async (req) => {
   }
 
   try {
-    const { accessToken, accountUrl, fromTimestamp, toTimestamp, businessHours }: ResponseTimeRequest = await req.json();
+    const { accessToken, accountUrl, fromTimestamp, toTimestamp, leadIds, businessHours }: ResponseTimeRequest = await req.json();
 
+    const filterLeadIds = leadIds && leadIds.length > 0 ? new Set(leadIds) : null;
     if (!accessToken || !accountUrl || !fromTimestamp || !toTimestamp) {
       return new Response(
         JSON.stringify({ error: 'Missing required parameters' }),
@@ -190,6 +191,9 @@ serve(async (req) => {
     const pairs: PairedMessage[] = [];
 
     for (const [leadId, incoming] of incomingByLead) {
+      // Skip leads not in filter
+      if (filterLeadIds && !filterLeadIds.has(leadId)) continue;
+
       const outgoing = outgoingByLead.get(leadId) || [];
       incoming.sort((a: any, b: any) => a.created_at - b.created_at);
       outgoing.sort((a: any, b: any) => a.created_at - b.created_at);

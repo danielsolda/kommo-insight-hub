@@ -37,7 +37,12 @@ export const useResponseTimeData = () => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchResponseTime = useCallback(async (users: Array<{ id: number; name: string }>) => {
+  const fetchResponseTime = useCallback(async (
+    users: Array<{ id: number; name: string }>,
+    fromTs?: number,
+    toTs?: number,
+    leadIds?: number[]
+  ) => {
     setLoading(true);
     setError(null);
 
@@ -56,14 +61,16 @@ export const useResponseTimeData = () => {
       const businessHours = loadBusinessHoursConfig();
 
       const now = Math.floor(Date.now() / 1000);
-      const fromTimestamp = now - (30 * 24 * 60 * 60);
+      const fromTimestamp = fromTs || (now - (30 * 24 * 60 * 60));
+      const toTimestamp = toTs || now;
 
       const { data: result, error: fnError } = await supabase.functions.invoke('kommo-response-time', {
         body: {
           accessToken: tokens.accessToken,
           accountUrl: config.accountUrl,
           fromTimestamp,
-          toTimestamp: now,
+          toTimestamp,
+          leadIds: leadIds && leadIds.length > 0 ? leadIds : undefined,
           businessHours
         }
       });
